@@ -12,6 +12,7 @@ import {
   Button,
 } from '@mui/material';
 import { PlayArrow } from '@mui/icons-material';
+import { Link } from 'react-router-dom';
 
 export default function ChatbotPage() {
   return (
@@ -30,7 +31,7 @@ export default function ChatbotPage() {
           fontFamily: 'Inter',
           fontWeight: 700,
           color: '#1976d2',
-          fontSize: { xs: '1.6rem', md: '2.1rem' }
+          fontSize: { xs: '1.6rem', sm: '1.8rem', md: '2.1rem' }
         }}
       >
         Welcome to NALA Chatbot
@@ -84,9 +85,10 @@ export default function ChatbotPage() {
             </CardActionArea>
             <CardActions sx={{ mt: 'auto', p: 2 }}>
               <Button
+                component={Link}
+                to="/chatbot/learn"
                 variant="contained"
                 size="medium"
-                href="/chatbot/learn"
                 endIcon={<PlayArrow />}
                 sx={{
                   textTransform: 'none',
@@ -148,9 +150,10 @@ export default function ChatbotPage() {
             </CardActionArea>
             <CardActions sx={{ mt: 'auto', p: 2 }}>
               <Button
+                component={Link}
+                to="/chatbot/assess"
                 variant="contained"
                 size="medium"
-                href="/chatbot/assess"
                 endIcon={<PlayArrow />}
                 sx={{
                   textTransform: 'none',

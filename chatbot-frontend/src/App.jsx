@@ -28,11 +28,14 @@ const router = createBrowserRouter([
       {
         path: "chatbot",
         element: <ChatbotPage />,
-        children: [
-          { path: "learn", element: <ChatbotLearnPage /> },
-          { path: "assess", element: <ChatbotAssessPage /> },
-          // { path: "*", element: <Navigate to="/dashboard" replace /> },
-        ],
+      },
+      {
+        path: "chatbot/learn",
+        element: <ChatbotLearnPage />,
+      },
+      {
+        path: "chatbot/assess",
+        element: <ChatbotAssessPage />,
       },
       // catch all route - 404
       {
