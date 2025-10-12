@@ -1,136 +1,307 @@
-// NOT UPDATED AT ALL 
-import React, { useState } from "react";
-
-const sampleQuestions = [
-    { id: 1, question: "What is your name?" },
-    { id: 2, question: "How can I help you today?" },
-    { id: 3, question: "Do you have any feedback for us?" },
-];
+import React, { useState, useEffect } from "react";
+import {
+	Box,
+	Typography,
+	Select,
+	MenuItem,
+	FormControl,
+	InputLabel,
+	useMediaQuery,
+	useTheme,
+	IconButton,
+} from "@mui/material";
+import { ViewSidebar as SidebarIcon } from "@mui/icons-material";
+import ChatbotSidebar from "../components/chatbot/ChatbotSidebar";
+import ChatInput from "../components/chatbot/ChatInput";
+import ChatMessage from "../components/chatbot/ChatMessage";
+import TypingIndicator from "../components/chatbot/TypingIndicator";
 
 export default function ChatbotAssessPage() {
-    const [messages, setMessages] = useState([
-        { from: "bot", text: "Hello! I'm your assessment chatbot. How can I assist you today?" },
-    ]);
-    const [input, setInput] = useState("");
+	const theme = useTheme();
+	const isMobile = useMediaQuery(theme.breakpoints.down("md"));
 
-    const handleSend = () => {
-        if (!input.trim()) return;
-        setMessages([...messages, { from: "user", text: input }]);
-        // Simulate bot response
-        setTimeout(() => {
-            const nextQuestion = sampleQuestions[messages.length - 1];
-            setMessages((msgs) => [
-                ...msgs,
-                {
-                    from: "bot",
-                    text: nextQuestion ? nextQuestion.question : "Thank you for your responses!",
-                },
-            ]);
-        }, 800);
-        setInput("");
-    };
+	const [sidebarOpen, setSidebarOpen] = useState(false);
+	const [activeConversationId, setActiveConversationId] = useState(null);
+	const [conversations, setConversations] = useState([]); // only past conversations with topics
 
-    return (
-        <div style={{ maxWidth: 500, margin: "40px auto", border: "1px solid #ccc", borderRadius: 8, padding: 24 }}>
-            <h2>Assessment Chatbot</h2>
-            <div style={{ minHeight: 200, marginBottom: 16, background: "#f9f9f9", padding: 12, borderRadius: 4 }}>
-                {messages.map((msg, idx) => (
-                    <div key={idx} style={{ textAlign: msg.from === "user" ? "right" : "left", margin: "8px 0" }}>
-                        <span
-                            style={{
-                                display: "inline-block",
-                                background: msg.from === "user" ? "#d1e7dd" : "#e2e3e5",
-                                color: "#222",
-                                padding: "8px 12px",
-                                borderRadius: 16,
-                                maxWidth: "80%",
-                            }}
-                        >
-                            {msg.text}
-                        </span>
-                    </div>
-                ))}
-            </div>
-            <div style={{ display: "flex", gap: 8 }}>
-                <input
-                    type="text"
-                    value={input}
-                    placeholder="Type your answer..."
-                    onChange={(e) => setInput(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && handleSend()}
-                    style={{ flex: 1, padding: 8, borderRadius: 4, border: "1px solid #ccc" }}
-                />
-                <button onClick={handleSend} style={{ padding: "8px 16px", borderRadius: 4 }}>
-                    Send
-                </button>
-            </div>
-        </div>
-    );
+	const [messages, setMessages] = useState([]);
+	const [selectedTopicValue, setSelectedTopicValue] = useState("");
+	const [selectedTopicLabel, setSelectedTopicLabel] = useState("");
+	const [input, setInput] = useState("");
+	const [isTyping, setIsTyping] = useState(false);
+
+	// on page load, create a new "active conversation" (topic empty)
+	useEffect(() => {
+		if (!activeConversationId) {
+			const newConv = {
+				id: Date.now().toString(),
+				title: `New Chat`,
+				createdAt: new Date(),
+				topic: "", // empty topic
+				messages: [
+					{
+						from: "bot",
+						text: "Hello! I'm NALA-Assess. How can I assist you today?",
+					},
+				],
+			};
+			setActiveConversationId(newConv.id);
+			setMessages(newConv.messages);
+			setSelectedTopicValue("");
+			setSelectedTopicLabel("");
+		}
+	}, [activeConversationId]);
+
+	// Send user message
+	const handleSend = () => {
+		if (!input.trim()) return;
+
+		const newMessage = { from: "user", text: input };
+		const botReplies = [
+			"What’s your preferred learning style?",
+			"How confident are you in this topic?",
+			"Would you like me to explain further?",
+		];
+
+		setMessages((prev) => [...prev, newMessage]);
+		setIsTyping(true);
+
+		setTimeout(() => {
+			const nextMsg = botReplies[messages.length % botReplies.length];
+			const botMessage = { from: "bot", text: nextMsg };
+			setMessages((prev) => [...prev, botMessage]);
+			setIsTyping(false);
+
+			// Save both user and bot messages to the active conversation
+			setConversations((prev) =>
+				prev.map((conv) =>
+					conv.id === activeConversationId
+						? { ...conv, messages: [...conv.messages, newMessage, botMessage] }
+						: conv
+				)
+			);
+		}, 800);
+
+		setInput("");
+	};
+
+	// Handle topic selection
+	const handleSelectTopic = (value) => {
+		if (!activeConversationId) return;
+
+		setSelectedTopicValue(value);
+
+		const formatted = value
+			.split("-")
+			.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+			.join(" ");
+
+		setSelectedTopicLabel(formatted);
+
+		// Add the active conversation with topic to conversations array
+		setConversations((prev) => {
+			const existing = prev.find((c) => c.id === activeConversationId);
+			if (existing) {
+				return prev.map((c) =>
+					c.id === activeConversationId ? { ...c, topic: formatted } : c
+				);
+			} else {
+				// This is a new conversation that wasn't in sidebar yet
+				return [
+					{
+						id: activeConversationId,
+						title: `Chat ${prev.length + 1}`,
+						createdAt: new Date(),
+						topic: formatted,
+						messages: messages,
+					},
+					...prev,
+				];
+			}
+		});
+	};
+
+	// Click past conversation
+	const handleConversationClick = (id) => {
+		const conv = conversations.find((c) => c.id === id);
+		if (!conv) return;
+		setActiveConversationId(id);
+		setMessages(conv.messages || []);
+		if (conv.topic) {
+			setSelectedTopicLabel(conv.topic);
+			setSelectedTopicValue(conv.topic.toLowerCase().replace(/\s+/g, "-"));
+		} else {
+			setSelectedTopicLabel("");
+			setSelectedTopicValue("");
+		}
+	};
+
+	// Add new conversation manually
+	const handleAddConversation = () => {
+		const newConv = {
+			id: Date.now().toString(),
+			title: `New Chat`,
+			createdAt: new Date(),
+			topic: "",
+			messages: [
+				{
+					from: "bot",
+					text: "Hello! I'm NALA-Assess. How can I assist you today?",
+				},
+			],
+		};
+		setActiveConversationId(newConv.id);
+		setMessages(newConv.messages);
+		setSelectedTopicValue("");
+		setSelectedTopicLabel("");
+	};
+
+	const handleToggleSidebar = () => setSidebarOpen((prev) => !prev);
+
+	return (
+		<Box
+			sx={{
+				display: "flex",
+				mt: "64px",
+				height: "calc(100vh - 64px)",
+			}}
+		>
+			<ChatbotSidebar
+				open={sidebarOpen}
+				conversations={conversations}
+				activeConversationId={activeConversationId}
+				onConversationClick={handleConversationClick}
+				onToggleSidebar={handleToggleSidebar}
+				onAddConversation={handleAddConversation}
+			/>
+
+			{/* Chat area */}
+			<Box
+				sx={{
+					flexGrow: 1,
+					display: "flex",
+					flexDirection: "column",
+					width: {
+						xs: "100%",
+						sm: "100%",
+						md: `calc(100% - ${sidebarOpen ? "280px" : "60px"})`,
+					},
+					position: "absolute",
+					right: 0,
+					transition:
+						"width 0.3s ease, background-color 0.3s ease",
+					bgcolor: "#f5f5f5",
+					height: "100%",
+					overflow: "hidden",
+				}}
+			>
+				{/* Header */}
+				<Box
+					sx={{
+						display: "flex",
+						flexDirection: "column",
+						gap: 1,
+						px: 3,
+						py: 2,
+						borderBottom: "1px solid #ddd",
+						bgcolor: "#fff",
+					}}
+				>
+					<Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+						{isMobile && (
+							<IconButton
+								onClick={handleToggleSidebar}
+								sx={{ color: "gray" }}
+							>
+								<SidebarIcon fontSize="large" />
+							</IconButton>
+						)}
+						<Typography
+							variant="h5"
+							sx={{
+								fontWeight: 700,
+								color: "#1976d2",
+								fontFamily: "Inter",
+							}}
+						>
+							NALA-Assess
+						</Typography>
+					</Box>
+
+					{!selectedTopicLabel ? (
+						<FormControl
+							size="small"
+							fullWidth
+							variant="filled"
+							error={!selectedTopicValue}
+							sx={{
+								border: "1px solid #ddd",
+								borderRadius: "8px",
+								boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+							}}
+						>
+							<InputLabel sx={{ fontFamily: "Inter" }}>
+								Select CH3111 Topic For Assessment
+							</InputLabel>
+							<Select
+								value={selectedTopicValue}
+								onChange={(e) =>
+									handleSelectTopic(e.target.value)
+								}
+								sx={{ fontFamily: "Inter" }}
+							>
+								<MenuItem value="data-structures">
+									Data Structures
+								</MenuItem>
+								<MenuItem value="algorithms">Algorithms</MenuItem>
+								<MenuItem value="machine-learning">
+									Machine Learning
+								</MenuItem>
+								<MenuItem value="databases">Databases</MenuItem>
+							</Select>
+						</FormControl>
+					) : (
+						<Typography
+							sx={{
+								fontWeight: "bold",
+								color: "green",
+								fontFamily: "Inter",
+							}}
+						>
+							Selected Topic: {selectedTopicLabel}
+						</Typography>
+					)}
+				</Box>
+
+				{/* Messages */}
+				<Box
+					sx={{
+						flexGrow: 1,
+						p: 2,
+						overflowY: "auto",
+						border: "2px solid #888",
+						borderRadius: 6,
+						mx: 3,
+						my: 2,
+						bgcolor: "#fff",
+					}}
+				>
+					{messages.map((msg, i) => (
+						<ChatMessage key={i} from={msg.from} text={msg.text} />
+					))}
+					{isTyping && <TypingIndicator />}
+				</Box>
+
+				{/* Chat Input */}
+				<Box sx={{ px: 3, pb: 2 }}>
+					<ChatInput
+						input={input}
+						setInput={setInput}
+						onSend={handleSend}
+						disabled={!selectedTopicLabel}
+					/>
+				</Box>
+			</Box>
+		</Box>
+	);
 }
-
-// ----------------------------------------------------------------------------- //
-// chatbot input area can look like this
-
-// import React, { useState } from 'react';
-
-// const ChatbotPage = () => {
-//     const [messages, setMessages] = useState([
-//         { sender: 'bot', text: 'Hello! How can I help you today?' }
-//     ]);
-//     const [input, setInput] = useState('');
-
-//     const handleSend = () => {
-//         if (!input.trim()) return;
-//         setMessages([...messages, { sender: 'user', text: input }]);
-//         // Simulate bot response
-//         setTimeout(() => {
-//             setMessages(prev => [
-//                 ...prev,
-//                 { sender: 'bot', text: "I'm just a sample bot. You said: " + input }
-//             ]);
-//         }, 500);
-//         setInput('');
-//     };
-
-//     const handleInputKeyDown = (e) => {
-//         if (e.key === 'Enter') handleSend();
-//     };
-
-//     return (
-//         <div style={{ maxWidth: 500, margin: '40px auto', border: '1px solid #ccc', borderRadius: 8, padding: 24, background: '#fafafa' }}>
-//             <h2>Chatbot</h2>
-//             <div style={{ minHeight: 300, marginBottom: 16, overflowY: 'auto', background: '#fff', padding: 12, borderRadius: 4, border: '1px solid #eee' }}>
-//                 {messages.map((msg, idx) => (
-//                     <div key={idx} style={{ textAlign: msg.sender === 'user' ? 'right' : 'left', margin: '8px 0' }}>
-//                         <span
-//                             style={{
-//                                 display: 'inline-block',
-//                                 padding: '8px 12px',
-//                                 borderRadius: 16,
-//                                 background: msg.sender === 'user' ? '#0078d4' : '#e5e5ea',
-//                                 color: msg.sender === 'user' ? '#fff' : '#333',
-//                                 maxWidth: '80%',
-//                                 wordBreak: 'break-word'
-//                             }}
-//                         >
-//                             {msg.text}
-//                         </span>
-//                     </div>
-//                 ))}
-//             </div>
-//             <div style={{ display: 'flex', gap: 8 }}>
-//                 <input
-//                     type="text"
-//                     value={input}
-//                     onChange={e => setInput(e.target.value)}
-//                     onKeyDown={handleInputKeyDown}
-//                     placeholder="Type your message..."
-//                     style={{ flex: 1, padding: 8, borderRadius: 4, border: '1px solid #ccc' }}
-//                 />
-//                 <button onClick={handleSend} style={{ padding: '8px 16px', borderRadius: 4, background: '#0078d4', color: '#fff', border: 'none' }}>
-//                     Send
-//                 </button>
-//             </div>
-//         </div>
-//     );
-// };
