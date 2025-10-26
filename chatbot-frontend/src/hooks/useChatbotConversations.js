@@ -112,7 +112,13 @@ export default function useChatbotConversations() {
 			messages: [
 				{
 					from: "bot",
-					text: "Hello! I'm NALA-Assess. How can I assist you today?",
+					text: `Welcome to NALA-Assess!
+                        \n\n**_Rules of using NALA-Assess:_**
+                        \n1. Ask a question **only related to topic(s) of CH3111, Process Control and Dynamics.**
+                        \n2. Do **not** ask admin-related questions.
+                        \n3. Do **not** ask questions beyond the scope of CH3111 topics.
+                        \n4. The chatbot will **not** give you any answers, instead you should use the provided materials to derive an answer to your question.
+                        \n\nReady to ask your first question?`,
 				},
 			],
 		};
