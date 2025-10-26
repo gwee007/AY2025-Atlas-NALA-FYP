@@ -1,9 +1,13 @@
 import React from "react";
-import { Box, Avatar, Typography } from "@mui/material";
+import { Box, Avatar, Typography, useMediaQuery } from "@mui/material";
 import SmartToyRoundedIcon from "@mui/icons-material/SmartToyRounded";
 import PersonRoundedIcon from "@mui/icons-material/PersonRounded";
+import { useTheme } from "@mui/material/styles";
+import ReactMarkdown from "react-markdown";
 
 export default function ChatMessage({ from, text }) {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const isUser = from === "user";
 
   return (
@@ -33,8 +37,9 @@ export default function ChatMessage({ from, text }) {
           sx={{
             width: 32,
             height: 32,
-            bgcolor: isUser ? "#438ad0ff" : "#e2e3e5",
-            color: isUser ? "#fff" : "#222",
+            bgcolor: isUser ? "#e0e0e0" : "#1976d2", // User: light gray, Bot: blue
+            color: isUser ? "#424242" : "#fff",      // User: dark gray, Bot: white
+            border: isUser ? "2px solid #bdbdbd" : "2px solid #1565c0", // Bot: darker blue
           }}
         >
           {isUser ? <PersonRoundedIcon fontSize="small" /> : <SmartToyRoundedIcon fontSize="small" />}
@@ -43,15 +48,22 @@ export default function ChatMessage({ from, text }) {
         {/* Chat bubble */}
         <Box
           sx={{
-            bgcolor: isUser ? "#438ad0ff" : "#f0ededff",
-            color: isUser ? "#fff" : "#2c2c2c",
-            borderRadius: 2,
-            p: 1.5,
+            bgcolor: isUser ? "#f5f5f5" : "#e3f2fd", // User: very light gray, Bot: very light blue
+            color: isUser ? "#212121" : "#0d47a1",   // User: almost black, Bot: deep blue
+            borderRadius: 3,
+            py: 0.5,
+            px: isMobile ? 1 : 1.5, 
             wordWrap: "break-word",
-            boxShadow: "0 2px 4px rgba(0,0,0,0.1)", // Subtle shadow
+            boxShadow: isUser
+              ? "0 2px 8px rgba(189, 189, 189, 0.10)"
+              : "0 2px 8px rgba(33, 150, 243, 0.10)", // Bot: blue shadow
+            border: isUser ? "2px solid #bdbdbd" : "2px solid #1976d2", // Bot: blue border
+            fontSize: isMobile ? "0.75rem" : "0.9rem", 
           }}
         >
-          <Typography sx={{ fontSize: 14, lineHeight: 1.5 }}>{text}</Typography>
+          <div>
+            <ReactMarkdown>{text}</ReactMarkdown>
+          </div>
         </Box>
       </Box>
     </Box>

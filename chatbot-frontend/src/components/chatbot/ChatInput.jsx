@@ -21,6 +21,7 @@ export default function ChatInput({ input, setInput, onSend, disabled }) {
         onChange={(e) => setInput(e.target.value)}
         onKeyDown={handleKeyDown}
         multiline
+        maxRows={2}
         disabled={disabled}
         InputProps={{
           endAdornment: (
@@ -31,10 +32,10 @@ export default function ChatInput({ input, setInput, onSend, disabled }) {
                 sx={{
                   bgcolor: "#1976d2",
                   color: "#fff",
-                  "&:hover": { bgcolor: "#0d47a1" }, 
+                  "&:hover": { bgcolor: "#1565c0" }, // Slightly deeper blue on hover
                   p: 1,
                   ml: 0.5,
-                  boxShadow: "0 2px 4px rgba(0,0,0,0.2)", 
+                  boxShadow: "0 2px 8px rgba(25, 118, 210, 0.15)", // Blue shadow for accent
                 }}
               >
                 <SendRoundedIcon fontSize="small" />
@@ -42,14 +43,21 @@ export default function ChatInput({ input, setInput, onSend, disabled }) {
             </InputAdornment>
           ),
           sx: {
-            borderRadius: 6,
-            bgcolor: disabled ? "#f0f0f0" : "#ffffff", // Brighter color when enabled
+            bgcolor: disabled ? "#f5f5f7" : "#f9fbfd", // Softer backgrounds
+            borderRadius: 3,
           },
         }}
         sx={{
           "& .MuiOutlinedInput-root": {
-            borderRadius: 6, 
-            boxShadow: "0 1px 3px rgba(0,0,0,0.1)", // Subtle shadow
+            borderRadius: 8,
+            boxShadow: "0 1px 6px rgba(25, 118, 210, 0.08)", // Blue-tinted shadow
+            maxHeight: 140,
+            overflowY: "auto",
+            background: disabled ? "#f5f5f7" : "#f9fbfd",
+            border: "1px solid #888",
+          },
+          "& .MuiOutlinedInput-notchedOutline": {
+            borderColor: "#888", 
           },
         }}
       />

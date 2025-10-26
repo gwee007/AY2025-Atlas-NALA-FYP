@@ -40,6 +40,10 @@ export default function ChatbotSidebar({
     const map = {};
     conversations.forEach((conv) => {
       if (!conv.topic) return; // skip conversations without topic
+      // Check if the conversation contains at least one user message
+      const hasUserMessage = conv.messages.some((msg) => msg.from === "user");
+      if (!hasUserMessage) return;
+
       const topic = conv.topic;
       if (!map[topic]) map[topic] = [];
       map[topic].push(conv);
@@ -115,7 +119,7 @@ export default function ChatbotSidebar({
           onClick={onToggleSidebar}
         >
           <SidebarIcon sx={{ color: "#a9a9a9", mr: 1 }} />
-          <Typography sx={{ fontSize: "16px", color: "#a9a9a9", fontFamily: "Inter" }}>Toggle Sidebar</Typography>
+          <Typography sx={{ fontSize: "16px", color: "#a9a9a9", fontFamily: "Inter" }}>Hide Sidebar</Typography>
         </Box>
 
         {/* Conversations header */}
