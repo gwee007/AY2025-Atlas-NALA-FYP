@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import * as d3 from 'd3';
 
-const LineChart = ({ data, width = 600, height = 400 }) => {
+const LineChart = ({ data, width = 1000, height = 1000 }) => {
   const svgRef = useRef();
 
   useEffect(() => {
