@@ -192,7 +192,7 @@ const averageAnswerAccuracy = "A";
 const averageEstimatedQuestionQuality = "B+";
 
 // Responsive Chart Wrapper Component
-function ResponsiveReflectiveBarChart({ data, height }) {
+function ResponsiveReflectiveBarChart({ data, height, onCategoryClick, selectedCategory }) {
     const [width, setWidth] = useState(700);
     const containerRef = useRef(null);
 
@@ -221,13 +221,17 @@ function ResponsiveReflectiveBarChart({ data, height }) {
             <ReflectiveBarChart 
                 data={data}
                 width={width} 
-                height={height} 
+                height={height}
+                onCategoryClick={onCategoryClick}
+                selectedCategory={selectedCategory}
             />
         </div>
     );
 }
 
 export default function DashboardPage() {
+    const [selectedTopic, setSelectedTopic] = useState(null);
+
     return (
         <div style={{ padding: "3rem", fontFamily: "sans-serif", display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
             <div style={{ padding: "1.2rem", fontSize: "0.7rem", width: "100%", display: "flex", justifyContent: "center" }}>
@@ -237,10 +241,10 @@ export default function DashboardPage() {
             <section
                 style={{
                     width: "100%",
-                    display: "grid",
+                    display: "flex",
+                    justifyContent: "center",
                     gap: "3rem",
                     marginBottom: "2rem",
-                    gridTemplateColumns: "repeat(5, 1fr)",
                 }}
                 className="dashboard-stats-grid"
             >
@@ -336,217 +340,7 @@ export default function DashboardPage() {
                 </div> */}
             </section>
 
-            <section style={{
-                display: "grid",
-                width: "100%",
-                marginTop: "2rem",
-                marginBottom: "2rem",
-            }}>
-                <div style={{
-                    display: "flex",
-                    gap: "2rem",
-                    flexWrap: "wrap",
-                    justifyContent: "center",
-                    alignItems: "flex-start"
-                }}>
-                    {/* First chart card */}
-                    <div style={{
-                        flex: "1 1 520px",
-                        width: "100%",
-                        backgroundColor: "#f9f9f9",
-                        padding: "1.5rem",
-                        borderRadius: "12px",
-                        boxShadow: "0 2px 8px rgba(0,0,0,0.1)"
-                    }}>
-                        <h2 style={{
-                            textAlign: "center",
-                            marginBottom: "0.2rem",
-                            color: "#555"
-                        }}>
-                            Daily Interaction Trends Over Time
-                        </h2>
-                        <h4 style={{
-                            textAlign: "center",
-                            marginBottom: "1rem",
-                            color: "#555"
-                        }}>
-                            Filtered by Date
-                        </h4>
-                        <div style={{ display: "flex", justifyContent: "center", marginBottom: "1rem", borderRadius: "1rem" }}>
-                            <select style={{ textAlign: "center", padding: "0.4rem", borderRadius: "6px", border: "1px solid #ccc" }}>
-                                <option value="">--All topics--</option>
-                                <option value="programming">Programming</option>
-                                <option value="web_design">Web Design</option>
-                                <option value="databases">Databases</option>
-                                <option value="networking">Networking</option>
-                            </select>
-                        </div>
-                        <div style={{ display: "flex", width: "100%", justifyContent: "center" }}>
-                            <ResponsiveLineChart
-                                data={interactionChartData}
-                                height={360}
-                            />
-                        </div>
-                        <p style={{
-                            fontSize: "0.85rem",
-                            color: "#666",
-                            textAlign: "center",
-                            marginTop: "1rem"
-                        }}>
-                            Blue line: Your daily interactions | Red dashed: Class average
-                        </p>
-                    </div>
-
-                    {/* Duplicate chart card displayed beside the first */}
-                    <div style={{
-                        flex: "1 1 520px",
-                        minWidth: "520px",
-                        backgroundColor: "#f9f9f9",
-                        padding: "1.5rem",
-                        borderRadius: "12px",
-                        boxShadow: "0 2px 8px rgba(0,0,0,0.1)"
-                    }}>
-                        <h2 style={{
-                            textAlign: "center",
-                            marginBottom: "0.2rem",
-                            color: "#555"
-                        }}>
-                            Daily Interaction Trends (Duplicate)
-                        </h2>
-                        <h4 style={{
-                            textAlign: "center",
-                            marginBottom: "1rem",
-                            color: "#555"
-                        }}>
-                            Comparison view
-                        </h4>
-                        <div style={{ display: "flex", justifyContent: "center", marginBottom: "1rem", borderRadius: "1rem" }}>
-                            <select style={{ textAlign: "center", padding: "0.4rem", borderRadius: "6px", border: "1px solid #ccc" }}>
-                                <option value="">--All topics--</option>
-                                <option value="programming">Programming</option>
-                                <option value="web_design">Web Design</option>
-                                <option value="databases">Databases</option>
-                                <option value="networking">Networking</option>
-                            </select>
-                        </div>
-                        <div style={{ display: "flex", justifyContent: "center" }}>
-                            <ResponsiveLineChart
-                                data={interactionChartData}
-                                height={360}
-                            />
-                        </div>
-                        <p style={{
-                            fontSize: "0.85rem",
-                            color: "#666",
-                            textAlign: "center",
-                            marginTop: "1rem"
-                        }}>
-                            Duplicate of the above chart for side-by-side comparison
-                        </p>
-                    </div>
-                </div>
-            </section>
-            <section style={{
-                width: "100%",
-                marginTop: "2rem",
-                marginBottom: "2rem"
-            }}>
-                <h2 style={{ 
-                    textAlign: "center", 
-                    marginBottom: "2rem",
-                    color: "#333"
-                }}>
-                    Taxonomy Performance Overview
-                </h2>
-                
-                <div style={{
-                    display: "flex",
-                    gap: "2rem",
-                    flexWrap: "wrap",
-                    justifyContent: "center",
-                    alignItems: "flex-start"
-                }}>
-                    {/* SOLO Taxonomy Vertical Bar Chart */}
-                    <div style={{
-                        flex: "1",
-                        minWidth: "600px",
-                        backgroundColor: "#f9f9f9",
-                        padding: "1.5rem",
-                        borderRadius: "12px",
-                        boxShadow: "0 2px 8px rgba(0,0,0,0.1)"
-                    }}>
-                        <div style={{ textAlign: "center", marginBottom: "1rem" }}>
-                            <h3 style={{ 
-                                marginBottom: "0.5rem",
-                                color: "#555"
-                            }}>
-                                Question categories based on SOLO Taxonomy
-                            </h3>
-                            <p style={{ 
-                                fontSize: "0.8rem", 
-                                color: "#666",
-                                marginBottom: "1rem"
-                            }}>
-                                Based on reverse assessment
-                            </p>
-                        </div>
-                        <VerticalBarChart 
-                            data={soloVerticalChartData} 
-                            width={600} 
-                            height={400} 
-                        />
-                        <p style={{ 
-                            fontSize: "0.85rem", 
-                            color: "#666", 
-                            textAlign: "center", 
-                            marginTop: "1rem" 
-                        }}>
-                            Blue bars: Individual | Red bars: Class Average
-                        </p>
-                    </div>
-
-                    {/* Answer accuracy Vertical Bar Chart */}
-                    <div style={{
-                        flex: "1",
-                        minWidth: "600px",
-                        backgroundColor: "#f9f9f9",
-                        padding: "1.5rem",
-                        borderRadius: "12px",
-                        boxShadow: "0 2px 8px rgba(0,0,0,0.1)"
-                    }}>
-                        <div style={{ textAlign: "center", marginBottom: "1rem" }}>
-                            <h3 style={{ 
-                                marginBottom: "0.5rem",
-                                color: "#555"
-                            }}>
-                                Answer accuracy per question category
-                            </h3>
-                            <p style={{ 
-                                fontSize: "0.8rem", 
-                                color: "#666",
-                                marginBottom: "1rem"
-                            }}>
-                                Based on reverse assessment
-                            </p>
-                        </div>
-                        <VerticalBarChart 
-                            data={bloomsVerticalChartData} 
-                            width={600} 
-                            height={400} 
-                        />
-                        <p style={{ 
-                            fontSize: "0.85rem", 
-                            color: "#666", 
-                            textAlign: "center", 
-                            marginTop: "1rem" 
-                        }}>
-                            Blue bars: Individual | Red bars: Class Average
-                        </p>
-                    </div>
-                </div>
-            </section>
-
-            {/* Scrollable Topical Performance Section */}
+            {/* Scrollable Topical Performance Section - RIGHT AFTER GRADES */}
             <section style={{
                 width: "100%",
                 marginTop: "2rem",
@@ -607,7 +401,7 @@ export default function DashboardPage() {
                                 color: "#666", 
                                 margin: "0"
                             }}>
-                                Select topics to view study advice
+                                Click on any bar to view study advice
                             </p>
                         </div>
                         
@@ -628,7 +422,9 @@ export default function DashboardPage() {
                                     leftLabel: "", // Remove left label
                                     rightLabel: "" // Remove right label
                                 }} 
-                                height={Math.max(400, topicalPerformanceData.categories.length * 35)} 
+                                height={Math.max(400, topicalPerformanceData.categories.length * 35)}
+                                onCategoryClick={(category) => setSelectedTopic(category)}
+                                selectedCategory={selectedTopic}
                             />
                         </div>
                         
@@ -700,7 +496,9 @@ export default function DashboardPage() {
                                     boxShadow: "0 1px 3px rgba(0,0,0,0.1)"
                                 }}>
                                     
-                                    <div style={{ fontSize: "2rem", fontWeight: "bold", color: "#3b82f6" }}>Topic 1</div>
+                                    <div style={{ fontSize: "2rem", fontWeight: "bold", color: "#3b82f6" }}>
+                                        {selectedTopic || "Select a topic"}
+                                    </div>
                                 <div
                                     style={{
                                         display:"grid",
@@ -829,6 +627,245 @@ export default function DashboardPage() {
                         </div>
                     </div>
                 </div>
+                </div>
+            </section>
+
+            <section style={{
+                display: "grid",
+                width: "100%",
+                marginTop: "2rem",
+                marginBottom: "2rem",
+            }}>
+                <div style={{
+                    display: "flex",
+                    gap: "2rem",
+                    flexWrap: "wrap",
+                    justifyContent: "center",
+                    alignItems: "flex-start"
+                }}>
+                    {/* First chart card */}
+                    <div style={{
+                        flex: "1 1 520px",
+                        width: "100%",
+                        backgroundColor: "#f9f9f9",
+                        padding: "1.5rem",
+                        borderRadius: "12px",
+                        boxShadow: "0 2px 8px rgba(0,0,0,0.1)"
+                    }}>
+                        <h2 style={{
+                            textAlign: "center",
+                            marginBottom: "0.2rem",
+                            color: "#555"
+                        }}>
+                            Daily Interaction Trends Over Time
+                        </h2>
+                        <h4 style={{
+                            textAlign: "center",
+                            marginBottom: "1rem",
+                            color: "#555"
+                        }}>
+                            Filter by topic below
+                        </h4>
+                        <div style={{ display: "flex", justifyContent: "center", marginBottom: "1rem", borderRadius: "1rem" }}>
+                            <select style={{ textAlign: "center", padding: "0.4rem", borderRadius: "6px", border: "1px solid #ccc" }}>
+                                <option value="">--All topics--</option>
+                                <option value="programming">Programming</option>
+                                <option value="web_design">Web Design</option>
+                                <option value="databases">Databases</option>
+                                <option value="networking">Networking</option>
+                            </select>
+                        </div>
+                        <div style={{ display: "flex", width: "100%", justifyContent: "center" }}>
+                            <ResponsiveLineChart
+                                data={interactionChartData}
+                                height={360}
+                            />
+                        </div>
+                        <p style={{
+                            fontSize: "0.85rem",
+                            color: "#666",
+                            textAlign: "center",
+                            marginTop: "1rem"
+                        }}>
+                            Blue line: Your daily interactions | Red dashed: Class average
+                        </p>
+                    </div>
+                    <div style={{
+                        flex: "1 1 520px",
+                        minWidth: "520px",
+                        backgroundColor: "#f9f9f9",
+                        padding: "1.5rem",
+                        borderRadius: "12px",
+                        boxShadow: "0 2px 8px rgba(0,0,0,0.1)"
+                    }}>
+                        <h2 style={{
+                            textAlign: "center",
+                            marginBottom: "0.2rem",
+                            color: "#555"
+                        }}>
+                            Duration of conversation over time
+                        </h2>
+                        <h4 style={{
+                            textAlign: "center",
+                            marginBottom: "1rem",
+                            color: "#555"
+                        }}>
+                                                        Filter by topic below
+                        </h4>
+                        <div style={{ display: "flex", justifyContent: "center", marginBottom: "1rem", borderRadius: "1rem" }}>
+                            <select style={{ textAlign: "center", padding: "0.4rem", borderRadius: "6px", border: "1px solid #ccc" }}>
+                                <option value="">--All topics--</option>
+                                <option value="programming">Programming</option>
+                                <option value="web_design">Web Design</option>
+                                <option value="databases">Databases</option>
+                                <option value="networking">Networking</option>
+                            </select>
+                        </div>
+                        <div style={{ display: "flex", justifyContent: "center" }}>
+                            <ResponsiveLineChart
+                                data={interactionChartData}
+                                height={360}
+                            />
+                        </div>
+                        <p style={{
+                            fontSize: "0.85rem",
+                            color: "#666",
+                            textAlign: "center",
+                            marginTop: "1rem"
+                        }}>
+                            Blue line: Your duration per conversation | Red dashed: Class average
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+            <section style={{
+                width: "100%",
+                marginTop: "2rem",
+                marginBottom: "2rem"
+            }}>
+                <h2 style={{ 
+                    textAlign: "center", 
+                    marginBottom: "2rem",
+                    color: "#333"
+                }}>
+                    Taxonomy Performance Overview
+                </h2>
+                
+                <div style={{
+                    display: "flex",
+                    gap: "2rem",
+                    flexWrap: "wrap",
+                    justifyContent: "center",
+                    alignItems: "flex-start"
+                }}>
+                    {/* SOLO Taxonomy Vertical Bar Chart */}
+                    <div style={{
+                        flex: "1",
+                        minWidth: "600px",
+                        backgroundColor: "#f9f9f9",
+                        padding: "1.5rem",
+                        borderRadius: "12px",
+                        boxShadow: "0 2px 8px rgba(0,0,0,0.1)"
+                    }}>
+                        <div style={{ textAlign: "center", marginBottom: "1rem" }}>
+                            <h3 style={{ 
+                                marginBottom: "0.5rem",
+                                color: "#555"
+                            }}>
+                                Question categories based on SOLO Taxonomy
+                            </h3>
+                            <p style={{ 
+                                fontSize: "0.8rem", 
+                                color: "#666",
+                                marginBottom: "1rem"
+                            }}>
+                                Based on reverse assessment
+                            </p>
+                            <div style={{ display: "flex", justifyContent: "center", marginBottom: "1rem" }}>
+                                <select style={{ 
+                                    textAlign: "center", 
+                                    padding: "0.4rem", 
+                                    borderRadius: "6px", 
+                                    border: "1px solid #ccc",
+                                    fontSize: "14px"
+                                }}>
+                                    <option value="">--All topics--</option>
+                                    <option value="programming">Programming</option>
+                                    <option value="web_design">Web Design</option>
+                                    <option value="databases">Databases</option>
+                                    <option value="networking">Networking</option>
+                                </select>
+                            </div>
+                        </div>
+                        <VerticalBarChart 
+                            data={soloVerticalChartData} 
+                            width={600} 
+                            height={400} 
+                        />
+                        <p style={{ 
+                            fontSize: "0.85rem", 
+                            color: "#666", 
+                            textAlign: "center", 
+                            marginTop: "1rem" 
+                        }}>
+                            Blue bars: Individual | Red bars: Class Average
+                        </p>
+                    </div>
+
+                    {/* Answer accuracy Vertical Bar Chart */}
+                    <div style={{
+                        flex: "1",
+                        minWidth: "600px",
+                        backgroundColor: "#f9f9f9",
+                        padding: "1.5rem",
+                        borderRadius: "12px",
+                        boxShadow: "0 2px 8px rgba(0,0,0,0.1)"
+                    }}>
+                        <div style={{ textAlign: "center", marginBottom: "1rem" }}>
+                            <h3 style={{ 
+                                marginBottom: "0.5rem",
+                                color: "#555"
+                            }}>
+                                Answer accuracy per question category
+                            </h3>
+                            <p style={{ 
+                                fontSize: "0.8rem", 
+                                color: "#666",
+                                marginBottom: "1rem"
+                            }}>
+                                Based on reverse assessment
+                            </p>
+                            <div style={{ display: "flex", justifyContent: "center", marginBottom: "1rem" }}>
+                                <select style={{ 
+                                    textAlign: "center", 
+                                    padding: "0.4rem", 
+                                    borderRadius: "6px", 
+                                    border: "1px solid #ccc",
+                                    fontSize: "14px"
+                                }}>
+                                    <option value="">--All topics--</option>
+                                    <option value="programming">Programming</option>
+                                    <option value="web_design">Web Design</option>
+                                    <option value="databases">Databases</option>
+                                    <option value="networking">Networking</option>
+                                </select>
+                            </div>
+                        </div>
+                        <VerticalBarChart 
+                            data={bloomsVerticalChartData} 
+                            width={600} 
+                            height={400} 
+                        />
+                        <p style={{ 
+                            fontSize: "0.85rem", 
+                            color: "#666", 
+                            textAlign: "center", 
+                            marginTop: "1rem" 
+                        }}>
+                            Blue bars: Individual | Red bars: Class Average
+                        </p>
+                    </div>
                 </div>
             </section>
         </div>

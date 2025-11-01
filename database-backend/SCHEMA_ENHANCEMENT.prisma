@@ -1,0 +1,121 @@
+// RECOMMENDED SCHEMA ENHANCEMENT
+// Add this to your schema.prisma to enable full Redis caching functionality
+
+// Update user model to include relations
+model user {
+  user_id   Int     @id @default(autoincrement())
+  hashed_id String
+  username  String
+  email     String  @unique
+  password  String
+  avatar    String?
+  group     String?
+
+  // Existing relations
+  activity_logs activity_log[]
+  conversations conversation[]
+  consents      consent[]
+  chatbots      chatbot[]
+  
+  // NEW: Add these relations for analytics
+  grading_data     GradingData[]
+  interaction_data InteractionData[]
+
+  @@map("user")
+}
+
+// Update course model to include relations
+model course {
+  course_id   Int    @id @default(autoincrement())
+  course_code String
+  name        String
+
+  // Existing relations
+  chatbots chatbot[]
+  
+  // NEW: Add these relations for analytics
+  grading_data     GradingData[]
+  interaction_data InteractionData[]
+
+  @@map("course")
+}
+
+// ENHANCED GradingData model
+model GradingData {
+  id                  Int     @id @default(autoincrement())
+  
+  // NEW: Add these fields
+  user_id             Int?
+  course_id           Int?
+  
+  ActivityType        String
+  TotalPointsPossible Decimal
+  PointsAchieved      Decimal
+  IsQuestionCorrect   Boolean
+  AnswerQualityScore  Decimal
+
+  // NEW: Add these relations
+  user   user?   @relation(fields: [user_id], references: [user_id])
+  course course? @relation(fields: [course_id], references: [course_id])
+
+  @@map("grading_data")
+}
+
+// ENHANCED InteractionData model
+model InteractionData {
+  id               Int      @id @default(autoincrement())
+  
+  // NEW: Add these fields
+  user_id          Int?
+  course_id        Int?
+  
+  InteractionType  String
+  StartTime        DateTime
+  EndTime          DateTime
+  DurationSeconds  Int
+  InteractionCount Int
+
+  // NEW: Add these relations
+  user   user?   @relation(fields: [user_id], references: [user_id])
+  course course? @relation(fields: [course_id], references: [course_id])
+
+  @@map("interaction_data")
+}
+
+/*
+MIGRATION STEPS:
+================
+
+1. Copy the enhanced model definitions above into your schema.prisma file
+
+2. Run the migration:
+   npx prisma migrate dev --name add_analytics_relations
+
+3. Update your seed.ts to include user_id and course_id when creating data:
+   
+   await prisma.gradingData.create({
+     data: {
+       user_id: 1,
+       course_id: 1,
+       ActivityType: 'quiz',
+       TotalPointsPossible: 100,
+       PointsAchieved: 85,
+       IsQuestionCorrect: true,
+       AnswerQualityScore: 8.5
+     }
+   });
+
+4. Regenerate Prisma client:
+   npx prisma generate
+
+5. Test the new relations:
+   npx tsx src/example-dashboard-usage.ts
+
+BENEFITS:
+=========
+- Filter grading data by specific users and courses
+- Calculate accurate per-user, per-course averages
+- Build leaderboards scoped to individual courses
+- Track individual student performance over time
+- Enable cohort analysis and comparative statistics
+*/

@@ -1,0 +1,233 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// -------------------------------------------
+// -- Models based on your provided schema --
+// -------------------------------------------
+
+model user {
+  user_id   Int     @id @default(autoincrement())
+  hashed_id String
+  username  String
+  email     String  @unique
+  password  String
+  avatar    String?
+  group     String?
+
+  // Relations
+  activity_logs activity_log[]
+  conversations conversation[]
+  consents      consent[]
+  chatbots      chatbot[]
+
+  @@map("user")
+}
+
+model activity_log {
+  log_id   Int    @id @default(autoincrement())
+  user_id  Int
+  log_type String
+  status   String
+
+  // Relations
+  user user @relation(fields: [user_id], references: [user_id])
+
+  @@map("activity_log")
+}
+
+model conversation {
+  conversation_id Int      @id @default(autoincrement())
+  created_by_id   Int
+  chatbot_id      Int
+  title           String
+  triggered_by    String
+  last_accessed   DateTime @db.Timestamp
+
+  // Relations
+  created_by user    @relation(fields: [created_by_id], references: [user_id])
+  chatbot    chatbot @relation(fields: [chatbot_id], references: [chatbot_id])
+  messages   message[]
+
+  @@map("conversation")
+}
+
+model message {
+  message_id      Int       @id @default(autoincrement())
+  conversation_id Int
+  timestamp       DateTime  @db.Timestamp
+  sender          String
+  text            Json
+  context         Json
+  user_evaluation Boolean?
+  user_feedback   String?
+
+  // Relations
+  conversation conversation @relation(fields: [conversation_id], references: [conversation_id])
+  questions    question[]
+  answers      answer[]
+
+  @@map("message")
+}
+
+model consent {
+  consent_id                   Int       @id @default(autoincrement())
+  consent_form_id              Int
+  user_id                      Int
+  chatbot_id                   Int
+  email                        String
+  consent_current_research     Boolean
+  consent_future_research      Int // Image showed 'int', not 'boolean'
+  consent_contact              Boolean
+  consent_usage                Boolean
+  signed_date_current_research DateTime  @db.Timestamp
+
+  // Relations
+  form    consent_form @relation(fields: [consent_form_id], references: [form_id])
+  user    user         @relation(fields: [user_id], references: [user_id])
+  chatbot chatbot      @relation(fields: [chatbot_id], references: [chatbot_id])
+
+  @@map("consent")
+}
+
+model consent_form {
+  form_id    Int    @id @default(autoincrement())
+  irb_number String
+  content    Json
+
+  // Relations
+  consents consent[]
+
+  @@map("consent_form")
+}
+
+model topic {
+  topic_id Int    @id @default(autoincrement())
+  name     String
+  taxonomy Json
+
+  // Relations
+  questions question[]
+  answers   answer[]
+
+  @@map("topic")
+}
+
+model prod_config {
+  prod_config_id Int    @id @default(autoincrement())
+  key            String
+  value          String
+  category       String
+
+  @@map("prod_config")
+}
+
+model sandbox_config {
+  sandbox_config_id Int    @id @default(autoincrement())
+  key               String
+  value             String
+  category          String
+
+  @@map("sandbox_config")
+}
+
+model question {
+  question_id         Int     @id @default(autoincrement())
+  topic_id            Int
+  message_id          Int
+  grade               String?
+  feedback            String?
+  solo_taxonomy_label String?
+
+  // Relations
+  topic   topic   @relation(fields: [topic_id], references: [topic_id])
+  message message @relation(fields: [message_id], references: [message_id])
+  answers answer[]
+
+  @@map("question")
+}
+
+model answer {
+  answer_id            Int     @id @default(autoincrement())
+  question_id          Int
+  message_id           Int
+  topic_id             Int
+  accuracy             String? // Was 'TBC' in image
+  feedback             String?
+  bloom_taxonomy_label String?
+
+  // Relations
+  question question @relation(fields: [question_id], references: [question_id])
+  message  message  @relation(fields: [message_id], references: [message_id])
+  topic    topic    @relation(fields: [topic_id], references: [topic_id])
+
+  @@map("answer")
+}
+
+model chatbot {
+  chatbot_id    Int     @id @default(autoincrement())
+  created_by_id Int
+  course_id     Int
+  name          String
+  url_path      String
+  db_endpoint   String
+  db_name       String
+  control       Int
+
+  // Relations
+  created_by   user         @relation(fields: [created_by_id], references: [user_id])
+  course       course       @relation(fields: [course_id], references: [course_id])
+  conversations conversation[]
+  consents     consent[]
+
+  @@map("chatbot")
+}
+
+model course {
+  course_id   Int    @id @default(autoincrement())
+  course_code String
+  name        String
+
+  // Relations
+  chatbots chatbot[]
+
+  @@map("course")
+}
+
+// -------------------------------------------
+// -- Computed / Data Tables (from text)   --
+// -------------------------------------------
+
+// NOTE: These models are based on the text descriptions.
+// They might not be physical tables but rather computed views.
+// They lack IDs and relations for now.
+
+model InteractionData {
+  id               Int      @id @default(autoincrement())
+  InteractionType  String
+  StartTime        DateTime
+  EndTime          DateTime
+  DurationSeconds  Int
+  InteractionCount Int
+
+  @@map("interaction_data")
+}
+
+model GradingData {
+  id                  Int     @id @default(autoincrement())
+  ActivityType        String
+  TotalPointsPossible Decimal
+  PointsAchieved      Decimal
+  IsQuestionCorrect   Boolean
+  AnswerQualityScore  Decimal
+
+  @@map("grading_data")
+}
