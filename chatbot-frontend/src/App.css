@@ -15,6 +15,28 @@
 .logo.react:hover {
   filter: drop-shadow(0 0 2em #61dafbaa);
 }
+.header-light-main{
+  color: light-dark(black, white);
+  padding: 20px;
+  text-align: center;
+  margin-bottom: 1rem;
+}
+.flex-container {
+  display: flex;
+  /* Optional: Distribute space evenly if needed */
+  justify-content: space-between; 
+}
+.flex-container div {
+  /* Example styling for visibility */
+  width: 100px;
+  height: 50px;
+  margin: 5px;
+  border: 1px solid black;
+}
+
+.dark-text-persistent {
+  color: #1a1a1a !important;
+}
 
 @keyframes logo-spin {
   from {

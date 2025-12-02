@@ -100,6 +100,26 @@ const bloomsVerticalChartData = {
     title: "Bloom's Taxonomy Performance"
 };
 
+// MOCK DATA for Number of Questions per Category
+const questionCountChartData = {
+    categories: ['Prestructural', 'Unistructural', 'Multistructural', 'Relational', 'Extended Abstract'],
+    individualData: [
+        { category: 'Prestructural', value: 5 },
+        { category: 'Unistructural', value: 12 },
+        { category: 'Multistructural', value: 28 },
+        { category: 'Relational', value: 35 },
+        { category: 'Extended Abstract', value: 20 }
+    ],
+    averageData: [
+        { category: 'Prestructural', value: 8 },
+        { category: 'Unistructural', value: 15 },
+        { category: 'Multistructural', value: 25 },
+        { category: 'Relational', value: 30 },
+        { category: 'Extended Abstract', value: 22 }
+    ],
+    title: 'Number of Questions per Question Category'
+};
+
 // MOCK DATA for Topical Performance with Scrollable List
 const topicalPerformanceData = {
     categories: [
@@ -231,12 +251,106 @@ function ResponsiveReflectiveBarChart({ data, height, onCategoryClick, selectedC
 
 export default function DashboardPage() {
     const [selectedTopic, setSelectedTopic] = useState(null);
+    // LLM-generated summary - can be updated dynamically from API
+    const [llmSummary, setLlmSummary] = useState({
+        strongTopics: "Computer Science, Engineering, Mathematics - You're performing exceptionally well in these areas with consistent A- to A grades.",
+        needsHelp: "Literature, History, Philosophy - These topics show performance below class average. Consider scheduling additional study sessions or seeking tutoring.",
+        overallComparison: "You're in the top 25% of your class with an overall grade of A-. Your engagement and interaction rates are 15% higher than the class average."
+    });
 
     return (
-        <div style={{ padding: "3rem", fontFamily: "sans-serif", display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
+        <div style={{ padding: "2rem", maxWidth: "1400px", margin: "0 auto", fontFamily: "sans-serif", display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
+             {/* <header class ="header-light-main">
+                    <h1>
+                        Learning Engagement Analytics
+                    </h1>
+                </header> */}
+            
             <div style={{ padding: "1.2rem", fontSize: "0.7rem", width: "100%", display: "flex", justifyContent: "center" }}>
                 <h1 >NALA-Assess Dashboard</h1>
             </div>
+
+            {/* LLM Summary Section */}
+            <section style={{
+                width: "100%",
+                marginBottom: "2rem",
+                padding: "1.5rem",
+                backgroundColor: "#f0f7ff",
+                borderRadius: "12px",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+                borderLeft: "4px solid #2563eb"
+            }}>
+                <h2 style={{ 
+                    marginTop: 0, 
+                    marginBottom: "1.5rem",
+                    color: "#1e40af",
+                    fontSize: "1.3rem"
+                }}>
+                    Learning Progress Summary
+                </h2>
+                <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                    <div>
+                        <h3 style={{ 
+                            fontSize: "1rem", 
+                            fontWeight: "bold", 
+                            color: "#0c4a6e",
+                            marginTop: 0,
+                            marginBottom: "0.5rem"
+                        }}>
+                            Strong areas:
+                        </h3>
+                        <p style={{
+                            fontSize: "0.95rem",
+                            lineHeight: "1.6",
+                            color: "#1e3a8a",
+                            margin: 0,
+                            paddingLeft: "1rem"
+                        }}>
+                            {llmSummary.strongTopics}
+                        </p>
+                    </div>
+                    <div>
+                        <h3 style={{ 
+                            fontSize: "1rem", 
+                            fontWeight: "bold", 
+                            color: "#0c4a6e",
+                            marginTop: 0,
+                            marginBottom: "0.5rem"
+                        }}>
+                            Areas of improvement:
+                        </h3>
+                        <p style={{
+                            fontSize: "0.95rem",
+                            lineHeight: "1.6",
+                            color: "#1e3a8a",
+                            margin: 0,
+                            paddingLeft: "1rem"
+                        }}>
+                            {llmSummary.needsHelp}
+                        </p>
+                    </div>
+                    <div>
+                        <h3 style={{ 
+                            fontSize: "1rem", 
+                            fontWeight: "bold", 
+                            color: "#0c4a6e",
+                            marginTop: 0,
+                            marginBottom: "0.5rem"
+                        }}>
+                            Peer comparison:
+                        </h3>
+                        <p style={{
+                            fontSize: "0.95rem",
+                            lineHeight: "1.6",
+                            color: "#1e3a8a",
+                            margin: 0,
+                            paddingLeft: "1rem"
+                        }}>
+                            {llmSummary.overallComparison}
+                        </p>
+                    </div>
+                </div>
+            </section>
 
             <section
                 style={{
@@ -248,6 +362,7 @@ export default function DashboardPage() {
                 }}
                 className="dashboard-stats-grid"
             >
+               
                 <div
                     style={{
                         background: "#f5f6fa",
@@ -346,13 +461,8 @@ export default function DashboardPage() {
                 marginTop: "2rem",
                 marginBottom: "2rem"
             }}>
-                <h2 style={{ 
-                    textAlign: "center", 
-                    marginBottom: "2rem",
-                    color: "#333"
-                }}>
-                    Detailed Subject Performance
-                </h2>
+
+                
                 
                 <div style={{
                     display: "flex",
@@ -365,7 +475,8 @@ export default function DashboardPage() {
                     
                     <div style={{
                         flex: "2",
-                        minWidth: "700px",
+                        minWidth: "600px",
+                        maxWidth: "800px",
                         backgroundColor: "#f9f9f9",
                         padding: "1.5rem",
                         borderRadius: "12px",
@@ -486,7 +597,7 @@ export default function DashboardPage() {
                                 marginTop: "2rem"
                             }}>
                                 <div>
-                                    <h2>
+                                    <h2 className="dark-text-persistent">
                                         Selected topic
                                     </h2>
                                    <div style={{
@@ -532,7 +643,7 @@ export default function DashboardPage() {
                                 </div> 
                                 </div>
                                 <div>
-                                    <h2>
+                                    <h2 className="dark-text-persistent">
                                         Prerequisite topics
                                     </h2>
                                        <div style={{
@@ -631,11 +742,33 @@ export default function DashboardPage() {
             </section>
 
             <section style={{
-                display: "grid",
                 width: "100%",
                 marginTop: "2rem",
                 marginBottom: "2rem",
             }}>
+                {/* Dynamic Topic Display */}
+                <div style={{
+                    textAlign: "center",
+                    marginBottom: "1.5rem",
+                    padding: "0.75rem 1.5rem",
+                    backgroundColor: "#e0f2fe",
+                    borderRadius: "8px",
+                    display: "inline-block",
+                    margin: "0 auto 1.5rem auto",
+                    width: "fit-content",
+                    position: "relative",
+                    left: "50%",
+                    transform: "translateX(-50%)"
+                }}>
+                    <span style={{
+                        fontSize: "1.1rem",
+                        fontWeight: "bold",
+                        color: "#0369a1"
+                    }}>
+                        Topic: {selectedTopic || "All"}
+                    </span>
+                </div>
+
                 <div style={{
                     display: "flex",
                     gap: "2rem",
@@ -645,8 +778,8 @@ export default function DashboardPage() {
                 }}>
                     {/* First chart card */}
                     <div style={{
-                        flex: "1 1 520px",
-                        width: "100%",
+                        flex: "1 1 450px",
+                        maxWidth: "600px",
                         backgroundColor: "#f9f9f9",
                         padding: "1.5rem",
                         borderRadius: "12px",
@@ -654,33 +787,16 @@ export default function DashboardPage() {
                     }}>
                         <h2 style={{
                             textAlign: "center",
-                            marginBottom: "0.2rem",
-                            color: "#555"
-                        }}>
-                            Daily Interaction Trends Over Time
-                        </h2>
-                        <h4 style={{
-                            textAlign: "center",
                             marginBottom: "1rem",
                             color: "#555"
                         }}>
-                            Filter by topic below
-                        </h4>
-                        <div style={{ display: "flex", justifyContent: "center", marginBottom: "1rem", borderRadius: "1rem" }}>
-                            <select style={{ textAlign: "center", padding: "0.4rem", borderRadius: "6px", border: "1px solid #ccc" }}>
-                                <option value="">--All topics--</option>
-                                <option value="programming">Programming</option>
-                                <option value="web_design">Web Design</option>
-                                <option value="databases">Databases</option>
-                                <option value="networking">Networking</option>
-                            </select>
-                        </div>
-                        <div style={{ display: "flex", width: "100%", justifyContent: "center" }}>
-                            <ResponsiveLineChart
-                                data={interactionChartData}
-                                height={360}
-                            />
-                        </div>
+                            Number of Interaction Trends Over Time
+                        </h2>
+                        <ResponsiveLineChart
+                            data={interactionChartData}
+                            height={360}
+                            showResetButton={true}
+                        />
                         <p style={{
                             fontSize: "0.85rem",
                             color: "#666",
@@ -691,8 +807,8 @@ export default function DashboardPage() {
                         </p>
                     </div>
                     <div style={{
-                        flex: "1 1 520px",
-                        minWidth: "520px",
+                        flex: "1 1 450px",
+                        maxWidth: "600px",
                         backgroundColor: "#f9f9f9",
                         padding: "1.5rem",
                         borderRadius: "12px",
@@ -700,33 +816,17 @@ export default function DashboardPage() {
                     }}>
                         <h2 style={{
                             textAlign: "center",
-                            marginBottom: "0.2rem",
-                            color: "#555"
-                        }}>
-                            Duration of conversation over time
-                        </h2>
-                        <h4 style={{
-                            textAlign: "center",
                             marginBottom: "1rem",
                             color: "#555"
                         }}>
-                                                        Filter by topic below
-                        </h4>
-                        <div style={{ display: "flex", justifyContent: "center", marginBottom: "1rem", borderRadius: "1rem" }}>
-                            <select style={{ textAlign: "center", padding: "0.4rem", borderRadius: "6px", border: "1px solid #ccc" }}>
-                                <option value="">--All topics--</option>
-                                <option value="programming">Programming</option>
-                                <option value="web_design">Web Design</option>
-                                <option value="databases">Databases</option>
-                                <option value="networking">Networking</option>
-                            </select>
-                        </div>
-                        <div style={{ display: "flex", justifyContent: "center" }}>
-                            <ResponsiveLineChart
-                                data={interactionChartData}
-                                height={360}
-                            />
-                        </div>
+                            Average Duration of Conversation Over Time
+                        </h2>
+                        <ResponsiveLineChart
+                            data={interactionChartData}
+                            height={360}
+                            showResetButton={true}
+                            yAxisLabel="Duration (minutes)"
+                        />
                         <p style={{
                             fontSize: "0.85rem",
                             color: "#666",
@@ -744,14 +844,6 @@ export default function DashboardPage() {
                 marginTop: "2rem",
                 marginBottom: "2rem"
             }}>
-                <h2 style={{ 
-                    textAlign: "center", 
-                    marginBottom: "2rem",
-                    color: "#333"
-                }}>
-                    Taxonomy Performance Overview
-                </h2>
-                
                 <div style={{
                     display: "flex",
                     gap: "2rem",
@@ -759,10 +851,11 @@ export default function DashboardPage() {
                     justifyContent: "center",
                     alignItems: "flex-start"
                 }}>
-                    {/* SOLO Taxonomy Vertical Bar Chart */}
+                    {/* Answer accuracy Vertical Bar Chart */}
                     <div style={{
                         flex: "1",
-                        minWidth: "600px",
+                        minWidth: "500px",
+                        maxWidth: "650px",
                         backgroundColor: "#f9f9f9",
                         padding: "1.5rem",
                         borderRadius: "12px",
@@ -773,35 +866,22 @@ export default function DashboardPage() {
                                 marginBottom: "0.5rem",
                                 color: "#555"
                             }}>
-                                Question categories based on SOLO Taxonomy
+                                Answer Accuracy per Question Category
                             </h3>
                             <p style={{ 
                                 fontSize: "0.8rem", 
                                 color: "#666",
                                 marginBottom: "1rem"
                             }}>
-                                Based on reverse assessment
+                                Based on SOLO taxonomy levels
                             </p>
-                            <div style={{ display: "flex", justifyContent: "center", marginBottom: "1rem" }}>
-                                <select style={{ 
-                                    textAlign: "center", 
-                                    padding: "0.4rem", 
-                                    borderRadius: "6px", 
-                                    border: "1px solid #ccc",
-                                    fontSize: "14px"
-                                }}>
-                                    <option value="">--All topics--</option>
-                                    <option value="programming">Programming</option>
-                                    <option value="web_design">Web Design</option>
-                                    <option value="databases">Databases</option>
-                                    <option value="networking">Networking</option>
-                                </select>
-                            </div>
                         </div>
                         <VerticalBarChart 
-                            data={soloVerticalChartData} 
+                            data={bloomsVerticalChartData} 
                             width={600} 
-                            height={400} 
+                            height={400}
+                            xAxisLabel=""
+                            yAxisLabel="Accuracy (%)" 
                         />
                         <p style={{ 
                             fontSize: "0.85rem", 
@@ -813,10 +893,11 @@ export default function DashboardPage() {
                         </p>
                     </div>
 
-                    {/* Answer accuracy Vertical Bar Chart */}
+                    {/* Number of Questions per Category Chart */}
                     <div style={{
                         flex: "1",
-                        minWidth: "600px",
+                        minWidth: "500px",
+                        maxWidth: "650px",
                         backgroundColor: "#f9f9f9",
                         padding: "1.5rem",
                         borderRadius: "12px",
@@ -827,35 +908,22 @@ export default function DashboardPage() {
                                 marginBottom: "0.5rem",
                                 color: "#555"
                             }}>
-                                Answer accuracy per question category
+                                Number of Questions per Question Category
                             </h3>
                             <p style={{ 
                                 fontSize: "0.8rem", 
                                 color: "#666",
                                 marginBottom: "1rem"
                             }}>
-                                Based on reverse assessment
+                                 Based on SOLO taxonomy levels
                             </p>
-                            <div style={{ display: "flex", justifyContent: "center", marginBottom: "1rem" }}>
-                                <select style={{ 
-                                    textAlign: "center", 
-                                    padding: "0.4rem", 
-                                    borderRadius: "6px", 
-                                    border: "1px solid #ccc",
-                                    fontSize: "14px"
-                                }}>
-                                    <option value="">--All topics--</option>
-                                    <option value="programming">Programming</option>
-                                    <option value="web_design">Web Design</option>
-                                    <option value="databases">Databases</option>
-                                    <option value="networking">Networking</option>
-                                </select>
-                            </div>
                         </div>
                         <VerticalBarChart 
-                            data={bloomsVerticalChartData} 
+                            data={questionCountChartData} 
                             width={600} 
-                            height={400} 
+                            height={400}
+                            xAxisLabel=""
+                            yAxisLabel="Number of Questions" 
                         />
                         <p style={{ 
                             fontSize: "0.85rem", 
@@ -863,7 +931,7 @@ export default function DashboardPage() {
                             textAlign: "center", 
                             marginTop: "1rem" 
                         }}>
-                            Blue bars: Individual | Red bars: Class Average
+                            Blue bars: Your Questions | Red bars: Class Average
                         </p>
                     </div>
                 </div>
@@ -873,16 +941,17 @@ export default function DashboardPage() {
 }
 
 // Responsive wrapper for LineChart so it spans the parent container
-function ResponsiveLineChart({ data, height }) {
+function ResponsiveLineChart({ data, height, showResetButton = false, yAxisLabel, xAxisLabel }) {
     const [width, setWidth] = useState(800);
+    const [resetFn, setResetFn] = useState(null);
     const containerRef = useRef(null);
 
     useEffect(() => {
         const updateWidth = () => {
             if (containerRef.current) {
                 const containerWidth = containerRef.current.offsetWidth;
-                // Use full container width with sensible min/max bounds
-                const newWidth = Math.max(300, Math.min(1600, containerWidth));
+                // Use 90% of container width to fit within parent
+                const newWidth = Math.max(300, containerWidth * 0.9);
                 setWidth(newWidth);
             }
         };
@@ -892,9 +961,34 @@ function ResponsiveLineChart({ data, height }) {
         return () => window.removeEventListener('resize', updateWidth);
     }, []);
 
+    const handleResetReady = (resetFunction) => {
+        setResetFn(() => resetFunction);
+    };
+
     return (
-        <div ref={containerRef} style={{ width: '100%' }}>
-            <LineChart data={data} width={width} height={height} />
+        <div style={{ width: '100%' }}>
+            <div ref={containerRef} style={{ width: '100%', maxWidth: '100%', overflow: 'hidden' }}>
+                <LineChart 
+                    data={data} 
+                    width={width} 
+                    height={height} 
+                    onResetReady={handleResetReady}
+                    yAxisLabel={yAxisLabel}
+                    xAxisLabel={xAxisLabel}
+                />
+            </div>
+            {showResetButton && resetFn && (
+                <div style={{ display: 'flex', justifyContent: 'center', marginTop: '0.75rem' }}>
+                    <Button 
+                        variant="outlined" 
+                        size="small"
+                        onClick={resetFn}
+                        style={{ fontSize: '0.75rem', padding: '0.3rem 1rem' }}
+                    >
+                        Reset Zoom
+                    </Button>
+                </div>
+            )}
         </div>
     );
 }
