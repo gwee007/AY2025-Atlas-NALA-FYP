@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import * as d3 from 'd3';
 
-const ReflectiveBarChart = ({ data, width = 600, height = 500 }) => {
+const ReflectiveBarChart = ({ data, width = 600, height = 500, onCategoryClick, selectedCategory }) => {
   const svgRef = useRef();
 
   useEffect(() => {
@@ -83,9 +83,29 @@ const ReflectiveBarChart = ({ data, width = 600, height = 500 }) => {
       .attr('y', d => yScale(d.category))
       .attr('width', d => xScale(0) - xScale(-Math.abs(d.value)))
       .attr('height', yScale.bandwidth())
-      .attr('fill', '#3b82f6')
-      .attr('opacity', 0.8)
-      .attr('rx', 4);
+      .attr('fill', d => d.category === selectedCategory ? '#1d4ed8' : '#3b82f6')
+      .attr('opacity', d => d.category === selectedCategory ? 1 : 0.8)
+      .attr('rx', 4)
+      .style('cursor', onCategoryClick ? 'pointer' : 'default')
+      .on('click', function(event, d) {
+        if (onCategoryClick) {
+          onCategoryClick(d.category);
+        }
+      })
+      .on('mouseover', function(event, d) {
+        if (onCategoryClick) {
+          d3.select(this)
+            .attr('opacity', 1)
+            .attr('fill', d.category === selectedCategory ? '#1d4ed8' : '#2563eb');
+        }
+      })
+      .on('mouseout', function(event, d) {
+        if (onCategoryClick) {
+          d3.select(this)
+            .attr('opacity', d.category === selectedCategory ? 1 : 0.8)
+            .attr('fill', d.category === selectedCategory ? '#1d4ed8' : '#3b82f6');
+        }
+      });
 
     // Right bars (positive direction)
     g.selectAll('.right-bar')
@@ -96,9 +116,29 @@ const ReflectiveBarChart = ({ data, width = 600, height = 500 }) => {
       .attr('y', d => yScale(d.category))
       .attr('width', d => xScale(d.value) - xScale(0))
       .attr('height', yScale.bandwidth())
-      .attr('fill', '#ef4444')
-      .attr('opacity', 0.8)
-      .attr('rx', 4);
+      .attr('fill', d => d.category === selectedCategory ? '#b91c1c' : '#ef4444')
+      .attr('opacity', d => d.category === selectedCategory ? 1 : 0.8)
+      .attr('rx', 4)
+      .style('cursor', onCategoryClick ? 'pointer' : 'default')
+      .on('click', function(event, d) {
+        if (onCategoryClick) {
+          onCategoryClick(d.category);
+        }
+      })
+      .on('mouseover', function(event, d) {
+        if (onCategoryClick) {
+          d3.select(this)
+            .attr('opacity', 1)
+            .attr('fill', d.category === selectedCategory ? '#b91c1c' : '#dc2626');
+        }
+      })
+      .on('mouseout', function(event, d) {
+        if (onCategoryClick) {
+          d3.select(this)
+            .attr('opacity', d.category === selectedCategory ? 1 : 0.8)
+            .attr('fill', d.category === selectedCategory ? '#b91c1c' : '#ef4444');
+        }
+      });
 
     // Add value labels on left bars
     g.selectAll('.left-label')
@@ -138,9 +178,29 @@ const ReflectiveBarChart = ({ data, width = 600, height = 500 }) => {
       .attr('text-anchor', 'end')
       .attr('dominant-baseline', 'middle')
       .style('font-size', '13px')
-      .style('font-weight', '500')
-      .style('fill', '#333')
-      .text(d => d);
+      .style('font-weight', d => d === selectedCategory ? 'bold' : '500')
+      .style('fill', d => d === selectedCategory ? '#1d4ed8' : '#333')
+      .style('cursor', onCategoryClick ? 'pointer' : 'default')
+      .text(d => d)
+      .on('click', function(event, d) {
+        if (onCategoryClick) {
+          onCategoryClick(d);
+        }
+      })
+      .on('mouseover', function(event, d) {
+        if (onCategoryClick) {
+          d3.select(this)
+            .style('fill', '#1d4ed8')
+            .style('font-weight', 'bold');
+        }
+      })
+      .on('mouseout', function(event, d) {
+        if (onCategoryClick) {
+          d3.select(this)
+            .style('fill', d === selectedCategory ? '#1d4ed8' : '#333')
+            .style('font-weight', d === selectedCategory ? 'bold' : '500');
+        }
+      });
 
     // Add x-axis (bottom)
     const xAxis = d3.axisBottom(xScale)
@@ -232,7 +292,7 @@ const ReflectiveBarChart = ({ data, width = 600, height = 500 }) => {
           .attr('stroke', 'none');
       });
 
-  }, [data, width, height]);
+  }, [data, width, height, onCategoryClick, selectedCategory]);
 
   return <svg ref={svgRef} width={width} height={height}></svg>;
 };

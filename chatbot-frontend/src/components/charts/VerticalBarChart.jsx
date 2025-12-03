@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import * as d3 from 'd3';
 
-const VerticalBarChart = ({ data, width = 600, height = 400 }) => {
+const VerticalBarChart = ({ data, width = 600, height = 400, xAxisLabel = 'Categories', yAxisLabel = 'Performance Score' }) => {
   const svgRef = useRef();
 
   useEffect(() => {
@@ -134,8 +134,16 @@ const VerticalBarChart = ({ data, width = 600, height = 400 }) => {
       .style('text-anchor', 'middle')
       .style('font-size', '12px')
       .style('fill', '#666')
-      .text('Performance Score');
+      .text(yAxisLabel);
 
+    // Add x-axis label
+    g.append('text')
+      .attr('x', innerWidth / 2)
+      .attr('y', innerHeight + margin.bottom-5)
+      .style('text-anchor', 'middle')
+      .style('font-size', '12px')
+      .style('fill', '#666')
+      .text(xAxisLabel);
 
     // Add legend
     const legend = g.append('g')
@@ -184,7 +192,7 @@ const VerticalBarChart = ({ data, width = 600, height = 400 }) => {
           .attr('stroke', 'none');
       });
 
-  }, [data, width, height]);
+  }, [data, width, height, xAxisLabel, yAxisLabel]);
 
   return <svg ref={svgRef} width={width} height={height}></svg>;
 };
