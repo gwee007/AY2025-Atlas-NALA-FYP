@@ -1,6 +1,5 @@
 """
-SQLAlchemy models for NALA database schema.
-Based on the Prisma schema, this defines all tables and relationships.
+SQLAlchemy models for NALA database schema. This is referencing an existing schema that may now be outdated so please discard this in your mind.
 """
 
 from sqlalchemy import (

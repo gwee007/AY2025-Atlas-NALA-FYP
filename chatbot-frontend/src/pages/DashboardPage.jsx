@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import LineChart from '../components/charts/LineChart';
 import ReflectiveBarChart from '../components/charts/ReflectiveBarChart';
 import VerticalBarChart from '../components/charts/VerticalBarChart';
+import TopicGraph from '../components/charts/TopicGraph';
 import { Button } from '@mui/material';
 
 // NOT THE ACTUAL DASHBOARD, JUST A PLACEHOLDER
@@ -211,6 +212,15 @@ const minutesSpent = 47;
 const averageAnswerAccuracy = "A";
 const averageEstimatedQuestionQuality = "B+";
 
+// MOCK DATA for Chat History - Replace with real API data
+const chatHistoryData = [
+    { id: 1, question: "What is the difference between inheritance and composition?", grade: "A", timestamp: "2024-10-10 14:30" },
+    { id: 2, question: "Explain polymorphism in OOP", grade: "B+", timestamp: "2024-10-09 11:15" },
+    { id: 3, question: "How does encapsulation work?", grade: "A-", timestamp: "2024-10-08 16:45" },
+    { id: 4, question: "What are design patterns?", grade: "B", timestamp: "2024-10-07 10:20" },
+    { id: 5, question: "Describe SOLID principles", grade: "A", timestamp: "2024-10-06 13:00" }
+];
+
 // Responsive Chart Wrapper Component
 function ResponsiveReflectiveBarChart({ data, height, onCategoryClick, selectedCategory }) {
     const [width, setWidth] = useState(700);
@@ -251,12 +261,27 @@ function ResponsiveReflectiveBarChart({ data, height, onCategoryClick, selectedC
 
 export default function DashboardPage() {
     const [selectedTopic, setSelectedTopic] = useState(null);
+    const [searchTerm, setSearchTerm] = useState('');
     // LLM-generated summary - can be updated dynamically from API
     const [llmSummary, setLlmSummary] = useState({
         strongTopics: "Computer Science, Engineering, Mathematics - You're performing exceptionally well in these areas with consistent A- to A grades.",
         needsHelp: "Literature, History, Philosophy - These topics show performance below class average. Consider scheduling additional study sessions or seeking tutoring.",
         overallComparison: "You're in the top 25% of your class with an overall grade of A-. Your engagement and interaction rates are 15% higher than the class average."
     });
+
+    // Filter topics based on search term
+    const filteredTopicalPerformanceData = {
+        ...topicalPerformanceData,
+        categories: topicalPerformanceData.categories.filter(category => 
+            category.toLowerCase().includes(searchTerm.toLowerCase())
+        ),
+        leftData: topicalPerformanceData.leftData.filter(item => 
+            item.category.toLowerCase().includes(searchTerm.toLowerCase())
+        ),
+        rightData: topicalPerformanceData.rightData.filter(item => 
+            item.category.toLowerCase().includes(searchTerm.toLowerCase())
+        )
+    };
 
     return (
         <div style={{ padding: "2rem", maxWidth: "1400px", margin: "0 auto", fontFamily: "sans-serif", display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
@@ -471,52 +496,87 @@ export default function DashboardPage() {
                     justifyContent: "center",
                     alignItems: "flex-start"
                 }}>
-                    {/* Scrollable Subject Performance Chart */}
-                    
+                    {/* Left: Scrollable Subject Performance Chart */}
                     <div style={{
-                        flex: "2",
-                        minWidth: "600px",
-                        maxWidth: "800px",
+                        flex: "1",
+                        minWidth: "450px",
+                        maxWidth: "600px",
                         backgroundColor: "#f9f9f9",
                         padding: "1.5rem",
                         borderRadius: "12px",
-                        boxShadow: "0 2px 8px rgba(0,0,0,0.1)"
+                        boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+                        display: "flex",
+                        flexDirection: "column"
                     }}>
-                             <h2 style={{ 
-                        textAlign: "center", 
-                        marginBottom: "0.2rem",
-                        color: "#555"
-                    }}>
-                        Overall Interactions by Topic
-                    </h2>
+                        <h2 style={{ 
+                            textAlign: "center", 
+                            marginBottom: "0.2rem",
+                            color: "#555"
+                        }}>
+                            Overall Interactions by Topic
+                        </h2>
                         <div style={{ 
                             display: "flex", 
-                            justifyContent: "center", 
-                            alignItems: "center", 
-                            gap: "1rem", 
+                            flexDirection: "column",
+                            gap: "0.75rem", 
                             marginBottom: "1.5rem" 
                         }}>
-                            <select style={{ 
-                                padding: "0.5rem", 
-                                borderRadius: "6px", 
-                                border: "1px solid #ccc",
-                                fontSize: "14px"
-                            }}> 
-                                <option value="">Sort by performance</option>
-                                <option value="ascending">Ascending</option>
-                                <option value="descending">Descending</option>
-                                <option value="alphabetical">Alphabetical</option>
-                            </select>
-                            <p style={{ 
-                                fontSize: "0.85rem", 
-                                color: "#666", 
-                                margin: "0"
+                            {/* Search Bar */}
+                            <div style={{
+                                display: "flex",
+                                justifyContent: "center",
+                                width: "100%"
                             }}>
-                                Click on any bar to view study advice
-                            </p>
+                                <input
+                                    type="text"
+                                    placeholder="Search topics..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    style={{
+                                        padding: "0.5rem 1rem",
+                                        borderRadius: "6px",
+                                        border: "1px solid #ccc",
+                                        fontSize: "14px",
+                                        width: "80%",
+                                        maxWidth: "400px",
+                                        outline: "none",
+                                        transition: "border-color 0.2s"
+                                    }}
+                                    onFocus={(e) => e.target.style.borderColor = "#3b82f6"}
+                                    onBlur={(e) => e.target.style.borderColor = "#ccc"}
+                                />
+                            </div>
+                            
+                            {/* Sort and Info */}
+                            <div style={{ 
+                                display: "flex", 
+                                justifyContent: "center", 
+                                alignItems: "center", 
+                                gap: "1rem"
+                            }}>
+                                <select style={{ 
+                                    padding: "0.5rem", 
+                                    borderRadius: "6px", 
+                                    border: "1px solid #ccc",
+                                    fontSize: "14px"
+                                }}> 
+                                    <option value="">Sort by performance</option>
+                                    <option value="ascending">Ascending</option>
+                                    <option value="descending">Descending</option>
+                                    <option value="alphabetical">Alphabetical</option>
+                                </select>
+                                <p style={{ 
+                                    fontSize: "0.85rem", 
+                                    color: "#666", 
+                                    margin: "0"
+                                }}>
+                                    Click on any bar to view in-depth analytics
+                                </p>
+                            </div>
                         </div>
                         
                         <div style={{
+                            flex: "1",
                             maxHeight: "500px",
                             overflowY: "auto",
                             overflowX: "hidden",
@@ -528,12 +588,12 @@ export default function DashboardPage() {
                         }}>
                             <ResponsiveReflectiveBarChart 
                                 data={{
-                                    ...topicalPerformanceData,
+                                    ...filteredTopicalPerformanceData,
                                     title: "", // Remove title
                                     leftLabel: "", // Remove left label
                                     rightLabel: "" // Remove right label
                                 }} 
-                                height={Math.max(400, topicalPerformanceData.categories.length * 35)}
+                                height={Math.max(400, filteredTopicalPerformanceData.categories.length * 35)}
                                 onCategoryClick={(category) => setSelectedTopic(category)}
                                 selectedCategory={selectedTopic}
                             />
@@ -549,195 +609,216 @@ export default function DashboardPage() {
                                 Blue bars: Your Performance | Red bars: Class Average
                             </p>
                             <p style={{ margin: "0.5rem 0" }}>
-                                Showing {topicalPerformanceData.categories.length} subjects total
+                                Showing {filteredTopicalPerformanceData.categories.length} of {topicalPerformanceData.categories.length} subjects
                             </p>
                         </div>
                     </div>
 
-                    {/* Additional Analytics Placeholder */}
+                    {/* Right: Topic Graph and Chat History */}
                     <div style={{
                         flex: "1",
-                        minWidth: "400px",
-                        backgroundColor: "#f0f4f8",
-                        padding: "1.5rem",
-                        borderRadius: "12px",
-                        boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+                        minWidth: "600px",
                         display: "flex",
                         flexDirection: "column",
-                        justifyContent: "center",
-                        alignItems: "center",
-                        minHeight: "500px"
+                        gap: "1rem",
+                        maxHeight: "820px"
                     }}>
-                            
-                        <h2 style={{ 
-                            textAlign: "center", 
-                            marginBottom: "-0.5rem",
-                            color: "#555"
-                        }}>
-                            Topic dependencies
-                        </h2>
-                        <p style={{ 
-                                fontSize: "1rem", 
-                                color: "#64748b", 
-                                marginBottom: "1rem" 
-                            }}>
-                                Explore fundamentals that build the foundation for advanced topics
-                            </p>
+                        {/* Topic Graph */}
                         <div style={{
-                            backgroundColor: "#e2e8f0",
-                            padding: "2rem",
-                            borderRadius: "8px",
-                            textAlign: "center",
-                            width: "100%"
+                            backgroundColor: "white",
+                            padding: "1rem",
+                            borderRadius: "12px",
+                            boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+                            flex: "1",
+                            minHeight: "0",
+                            display: "flex",
+                            flexDirection: "column",
+                            height:"600px"
                         }}>
                             <div style={{
-                                display: "grid",
-                                gridTemplateColumns: "1fr 1fr",
-                                gap: "1rem",
-                                marginTop: "2rem"
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                                marginBottom: "0.75rem"
                             }}>
-                                <div>
-                                    <h2 className="dark-text-persistent">
-                                        Selected topic
-                                    </h2>
-                                   <div style={{
-                                    backgroundColor: "white",
-                                    padding: "1rem",
-                                    borderRadius: "6px",
-                                    boxShadow: "0 1px 3px rgba(0,0,0,0.1)"
+                                <h3 style={{ 
+                                    color: "#555",
+                                    margin: 0,
+                                    fontSize: "1.1rem"
                                 }}>
-                                    
-                                    <div style={{ fontSize: "2rem", fontWeight: "bold", color: "#3b82f6" }}>
-                                        {selectedTopic || "Select a topic"}
-                                    </div>
-                                <div
-                                    style={{
-                                        display:"grid",
-                                        gridTemplateColumns: "1fr 1fr"
+                                    Topic Dependencies: {selectedTopic || "Select a topic"}
+                                </h3>
+                                {selectedTopic && (
+                                    <div style={{
+                                        display: "flex",
+                                        gap: "0.5rem",
+                                        alignItems: "center"
                                     }}>
                                         <div style={{
-                                    backgroundColor: "#bcffde",
-                                    padding: "1rem",
-                                    borderRadius: "6px",
-                                    boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
-                                    textAlign: "left"
-                                }}>
-                                     <div style={{ fontSize: "0.8rem", color: "#666", marginBottom:"-0.3rem" }}>Your Grade</div>
-                                    <div style={{ fontSize: "2rem", fontWeight: "bold", color: "#10b981" }}>A-</div>
-                                    <div style={{ fontSize: "0.8rem",color: "black",fontWeight:"bold" }}>Average: B+</div>
-                                </div>
-                                    <div style={{
-                                    gap: "0.5rem",
-                                    display: "grid",
-                                    gridTemplateColumns: "1fr"
-                                    }}>
-                                        <Button variant="contained">
-                                            <div style={{fontWeight:"bold" ,fontSize: "0.7rem", width:"full"}}>Test Me</div>
-                                        </Button>
-                                        <Button variant="contained" >
-                                            <div style={{fontWeight:"bold",fontSize: "0.7rem"}}>Chat History</div>
+                                            backgroundColor: "#f0fdf4",
+                                            padding: "0.5rem 1rem",
+                                            borderRadius: "6px",
+                                            fontSize: "0.85rem",
+                                            color: "#555"
+                                        }}>
+                                            Grade: <strong style={{ color: "#10b981" }}>A-</strong>
+                                        </div>
+                                        <Button 
+                                            variant="contained" 
+                                            size="small"
+                                            style={{
+                                                fontSize: "0.8rem",
+                                                fontWeight: "bold",
+                                                padding: "0.4rem 1rem"
+                                            }}
+                                        >
+                                            Test Me
                                         </Button>
                                     </div>
-                                </div>
-                                
-                                </div> 
-                                </div>
-                                <div>
-                                    <h2 className="dark-text-persistent">
-                                        Prerequisite topics
-                                    </h2>
-                                       <div style={{
-                                    backgroundColor: "white",
-                                    padding: "1rem",
-                                    borderRadius: "6px",
-                                    boxShadow: "0 1px 3px rgba(0,0,0,0.1)"
-                                }}>
-                                    
-                                    <div style={{ fontSize: "2rem", fontWeight: "bold", color: "#3b82f6" }}>Subtopic 0</div>
-                                <div
-                                    style={{
-                                        display:"grid",
-                                        gridTemplateColumns: "1fr 1fr"
-                                    }}>
-                                        <div style={{
-                                    backgroundColor: "#bcffde",
-                                    padding: "1rem",
-                                    borderRadius: "6px",
-                                    boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
-                                    textAlign: "left"
-                                }}>
-                                     <div style={{ fontSize: "0.8rem", color: "#666", marginBottom:"-0.3rem" }}>Your Grade</div>
-                                    <div style={{ fontSize: "2rem", fontWeight: "bold", color: "#10b981" }}>A-</div>
-                                    <div style={{ fontSize: "0.8rem",color: "black",fontWeight:"bold" }}>Average: B+</div>
-                                </div>
+                                )}
+                            </div>
+                            
+                            <div style={{
+                                flex: "1",
+                                minHeight: "0",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center"
+                            }}>
+                                {selectedTopic ? (
+                                    <TopicGraph 
+                                        selectedTopic={selectedTopic}
+                                        onTopicSelect={setSelectedTopic}
+                                        width={700}
+                                        height={280}
+                                    />
+                                ) : (
                                     <div style={{
-                                    gap: "0.5rem",
-                                    display: "grid",
-                                    gridTemplateColumns: "1fr"
+                                        textAlign: "center",
+                                        color: "#94a3b8",
+                                        fontSize: "0.95rem",
+                                        padding: "2rem"
                                     }}>
-                                        <Button variant="contained">
-                                            <div style={{fontWeight:"bold" ,fontSize: "0.7rem", width:"full"}}>Test Me</div>
-                                        </Button>
-                                        <Button variant="contained" >
-                                            <div style={{fontWeight:"bold",fontSize: "0.7rem"}}>Chat History</div>
-                                        </Button>
-                                        <Button variant="contained" >
-                                            <div style={{fontWeight:"bold",fontSize: "0.7rem"}}>Select topic</div>
-                                        </Button>
+                                        👈 Click on a topic to visualize dependencies
                                     </div>
-                          
-                                
-                                </div>
-                                
-                                </div> 
-                                <div style={{
-                                    backgroundColor: "white",
-                                    padding: "1rem",
-                                    borderRadius: "6px",
-                                    boxShadow: "0 1px 3px rgba(0,0,0,0.1)"
-                                }}>
-                                    
-                                    <div style={{ fontSize: "2rem", fontWeight: "bold", color: "#3b82f6" }}>Subtopic 1</div>
-                                <div
-                                    style={{
-                                        display:"grid",
-                                        gridTemplateColumns: "1fr 1fr"
-                                    }}>
-                                        <div style={{
-                                    backgroundColor: "#bcffde",
-                                    padding: "1rem",
-                                    borderRadius: "6px",
-                                    boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
-                                    textAlign: "left"
-                                }}>
-                                     <div style={{ fontSize: "0.8rem", color: "#666", marginBottom:"-0.3rem" }}>Your Grade</div>
-                                    <div style={{ fontSize: "2rem", fontWeight: "bold", color: "#10b981" }}>A-</div>
-                                    <div style={{ fontSize: "0.8rem",color: "black",fontWeight:"bold" }}>Average: B+</div>
-                                </div>
-                                    <div style={{
-                                    gap: "0.5rem",
-                                    display: "grid",
-                                    gridTemplateColumns: "1fr"
-                                    }}>
-                                        <Button variant="contained">
-                                            <div style={{fontWeight:"bold" ,fontSize: "0.7rem", width:"full"}}>Test Me</div>
-                                        </Button>
-                                        <Button variant="contained" >
-                                            <div style={{fontWeight:"bold",fontSize: "0.7rem"}}>Chat History</div>
-                                        </Button>
-                                        <Button variant="contained" >
-                                            <div style={{fontWeight:"bold",fontSize: "0.7rem"}}>Select topic</div>
-                                        </Button>
-                                    </div>
-                          
-                                
-                                </div>
-                                
-                                </div> 
-                                </div>
+                                )}
+                            </div>
                         </div>
+
+                        {/* Chat History Table */}
+                        {selectedTopic && (
+                            <div style={{
+                                backgroundColor: "white",
+                                padding: "1rem",
+                                borderRadius: "12px",
+                                boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+                                flex: "1",
+                                minHeight: "0",
+                                display: "flex",
+                                flexDirection: "column"
+                            }}>
+                                <h3 style={{ 
+                                    color: "#555",
+                                    marginBottom: "0.75rem",
+                                    fontSize: "1rem"
+                                }}>
+                                    Recent Conversations
+                                </h3>
+                                <div style={{ 
+                                    flex: "1",
+                                    minHeight: "0",
+                                    overflowY: "auto",
+                                    overflowX: "auto"
+                                }}>
+                                    <table style={{
+                                        width: "100%",
+                                        borderCollapse: "collapse",
+                                        fontSize: "0.85rem"
+                                    }}>
+                                        <thead style={{ position: "sticky", top: 0, backgroundColor: "white", zIndex: 1 }}>
+                                            <tr style={{ backgroundColor: "#f8fafc" }}>
+                                                <th style={{ 
+                                                    padding: "0.6rem", 
+                                                    textAlign: "left",
+                                                    borderBottom: "2px solid #e2e8f0",
+                                                    color: "#64748b",
+                                                    fontWeight: "600",
+                                                    fontSize: "0.8rem"
+                                                }}>Question</th>
+                                                <th style={{ 
+                                                    padding: "0.6rem", 
+                                                    textAlign: "center",
+                                                    borderBottom: "2px solid #e2e8f0",
+                                                    color: "#64748b",
+                                                    fontWeight: "600",
+                                                    width: "70px",
+                                                    fontSize: "0.8rem"
+                                                }}>Grade</th>
+                                                <th style={{ 
+                                                    padding: "0.6rem", 
+                                                    textAlign: "center",
+                                                    borderBottom: "2px solid #e2e8f0",
+                                                    color: "#64748b",
+                                                    fontWeight: "600",
+                                                    width: "120px",
+                                                    fontSize: "0.8rem"
+                                                }}>Date</th>
+                                                <th style={{ 
+                                                    padding: "0.6rem", 
+                                                    textAlign: "center",
+                                                    borderBottom: "2px solid #e2e8f0",
+                                                    color: "#64748b",
+                                                    fontWeight: "600",
+                                                    width: "80px",
+                                                    fontSize: "0.8rem"
+                                                }}>Action</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {chatHistoryData.map((chat, index) => (
+                                                <tr key={chat.id} style={{
+                                                    backgroundColor: index % 2 === 0 ? "white" : "#f8fafc"
+                                                }}>
+                                                    <td style={{ 
+                                                        padding: "0.6rem",
+                                                        borderBottom: "1px solid #e2e8f0",
+                                                        color: "#334155"
+                                                    }}>{chat.question}</td>
+                                                    <td style={{ 
+                                                        padding: "0.6rem",
+                                                        textAlign: "center",
+                                                        borderBottom: "1px solid #e2e8f0",
+                                                        fontWeight: "bold",
+                                                        color: chat.grade.startsWith('A') ? "#10b981" : "#3b82f6"
+                                                    }}>{chat.grade}</td>
+                                                    <td style={{ 
+                                                        padding: "0.6rem",
+                                                        textAlign: "center",
+                                                        borderBottom: "1px solid #e2e8f0",
+                                                        color: "#64748b",
+                                                        fontSize: "0.8rem"
+                                                    }}>{chat.timestamp}</td>
+                                                    <td style={{ 
+                                                        padding: "0.6rem",
+                                                        textAlign: "center",
+                                                        borderBottom: "1px solid #e2e8f0"
+                                                    }}>
+                                                        <Button 
+                                                            variant="outlined" 
+                                                            size="small"
+                                                            style={{ fontSize: "0.7rem", padding: "0.25rem 0.5rem" }}
+                                                        >
+                                                            Visit
+                                                        </Button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        )}
                     </div>
-                </div>
                 </div>
             </section>
 

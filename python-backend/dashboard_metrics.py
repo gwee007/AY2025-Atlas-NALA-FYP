@@ -311,12 +311,12 @@ if __name__ == "__main__":
         course_id = 1
         dashboard_data = get_complete_dashboard(course_id)
         
-        print("\n📊 Dashboard Data:")
+        print("\n Dashboard Data:")
         print(f"Course ID: {course_id}")
         print(f"Total Students: {dashboard_data['overview']['totalStudents']}")
         print(f"Total Conversations: {dashboard_data['overview']['totalConversations']}")
         print(f"Active Students (30 days): {dashboard_data['engagement']['activeStudents']}")
         
-        print("\n✅ Dashboard metrics module is ready!")
+        print("\n Dashboard metrics module is ready!")
     except Exception as e:
-        print(f"\n❌ Test failed: {e}")
+        print(f"\n Test failed: {e}")

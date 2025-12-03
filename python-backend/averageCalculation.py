@@ -11,7 +11,7 @@ load_dotenv()
 # Status check for API: "/api/health"
 # Temporary variables
 # 
-id = 3
+id = 1
 API_KEY = os.environ.get("MY_API_KEY")
 BASE_URL = "https://nala.ntu.edu.sg"
 TOPICS_URL= "/api/topiclist"
@@ -24,6 +24,9 @@ TIMEOUT = 30
 
 # Try except structure To test the API by performing the get request 
 def test_conversations_api():
+    headers = {
+        "X-API-KEY": API_KEY
+    }
     try:
 
         API_URL= f"{BASE_URL}{CONVO_URL}" # Yes, I meant to do that
@@ -62,6 +65,15 @@ def test_api_status():
 
 # Right, a main function in Python that just calls it.
 if __name__ == "__main__":
-    # test_conversations_api()
+    test_conversations_api()
     test_api_status()
+    # import mock.json ifle
+    # with open('mock.json', 'r', encoding='utf-8') as f:
+    #     mock_data = json.load(f)
+    #     print("Mock Data Loaded:")
+    #     print(json.dumps(mock_data, indent=2))
+    #     # Write it as a text file. 
+    #     with open('mock_data_output.txt', 'w', encoding='utf-8') as out_f:
+    #         out_f.write(json.dumps(mock_data, indent=2))
+
 

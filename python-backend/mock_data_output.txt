@@ -1,0 +1,112 @@
+{
+  "chatbot_id": 1,
+  "users_count": 148,
+  "users": [
+    {
+      "user_id": 411,
+      "conversations_count": 11,
+      "conversations": [
+        {
+          "id": 597,
+          "title": "this is my current draft \"A key improvement was the addition of a recognisable Singaporean family in",
+          "created_at": "2025-11-09T21:57:23.936113Z",
+          "updated_at": "2025-11-09T21:57:23.936113Z",
+          "messages": null
+        },
+        {
+          "id": 596,
+          "title": "how do i show credibility? do i state that it is a peer reviewed journal or do i show another resear",
+          "created_at": "2025-11-09T08:12:01.183894Z",
+          "updated_at": "2025-11-09T08:12:01.183894Z",
+          "messages": null
+        },
+        {
+          "id": 593,
+          "title": "this is a change i have made, is there any way to improve it?\r\nA key change made was the addition of",
+          "created_at": "2025-11-08T16:18:50.157687Z",
+          "updated_at": "2025-11-08T16:18:50.157687Z",
+          "messages": null
+        },
+        {
+          "id": 573,
+          "title": "if my product is from IKEA, but my research paper is talking about fashion, but its experiments and ",
+          "created_at": "2025-11-05T08:41:47.527548Z",
+          "updated_at": "2025-11-05T08:41:47.527548Z",
+          "messages": null
+        },
+        {
+          "id": 571,
+          "title": "i need to find some research but im kind of lost on where to start. COuld you suggest a place to sta",
+          "created_at": "2025-11-04T12:56:01.456137Z",
+          "updated_at": "2025-11-04T12:56:01.456137Z",
+          "messages": null
+        }
+      ]
+    },
+    {
+      "user_id": 40,
+      "conversations_count": 1,
+      "conversations": [
+        {
+          "id": 17,
+          "title": "Let's get started.",
+          "created_at": "2025-08-13T13:45:55.536384Z",
+          "updated_at": "2025-08-11T08:01:59.706160Z",
+          "messages": null
+        }
+      ]
+    },
+    {
+      "user_id": 38,
+      "conversations_count": 1,
+      "conversations": [
+        {
+          "id": 16,
+          "title": "Let's get started.",
+          "created_at": "2025-08-12T02:37:18.137655Z",
+          "updated_at": "2025-08-11T08:01:59.706166Z",
+          "messages": null
+        }
+      ]
+    },
+    {
+      "user_id": 42,
+      "conversations_count": 1,
+      "conversations": [
+        {
+          "id": 15,
+          "title": "How do i start with the plan?",
+          "created_at": "2025-08-12T01:48:43.890730Z",
+          "updated_at": "2025-08-11T08:01:59.706160Z",
+          "messages": null
+        }
+      ]
+    },
+    {
+      "user_id": 35,
+      "conversations_count": 1,
+      "conversations": [
+        {
+          "id": 13,
+          "title": "Let's get started.",
+          "created_at": "2025-08-11T10:32:04.690761Z",
+          "updated_at": "2025-08-11T08:01:59.706166Z",
+          "messages": null
+        }
+      ]
+    },
+    {
+      "user_id": 2,
+      "conversations_count": 1,
+      "conversations": [
+        {
+          "id": 12,
+          "title": "hi",
+          "created_at": "2025-08-11T08:17:18.298574Z",
+          "updated_at": "2025-08-11T08:01:59.706166Z",
+          "messages": null
+        }
+      ]
+    }
+  ]
+}
