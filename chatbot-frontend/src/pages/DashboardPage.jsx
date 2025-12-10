@@ -284,7 +284,9 @@ export default function DashboardPage() {
     };
 
     return (
-        <div style={{ padding: "2rem", maxWidth: "1400px", margin: "0 auto", fontFamily: "sans-serif", display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
+        <div style={{ padding: "2rem", maxWidth: "1400px", margin: "0 auto", fontFamily: "sans-serif", display: "flex", flexDirection: "column", alignItems: "flex-start",
+            minHeight: "100vh", overflowY: "auto", overflowX:"hidden" 
+         }}>
              {/* <header class ="header-light-main">
                     <h1>
                         Learning Engagement Analytics

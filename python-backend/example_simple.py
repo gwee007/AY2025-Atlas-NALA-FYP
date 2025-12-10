@@ -207,7 +207,7 @@ def example_questions_and_answers():
     user_id = create_user(chatbot_id)
     conv_id = create_conversation(user_id, "Python Learning Session")
     
-    print("\n📝 Creating Q&A pairs...")
+    print("\n Creating Q&A pairs...")
     
     # Q&A Pair 1: Question with answer
     print("\n1. Question: 'What is a list in Python?'")
