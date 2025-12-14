@@ -38,7 +38,7 @@ for table_name in inspector.get_table_names():
         for row in result:
             print(row)
     except Exception as e:
-        print(f" Could not fetch data from {table_name}: {e}"
+        print(f" Could not fetch data from {table_name}: {e}")
 
 session.close()
 

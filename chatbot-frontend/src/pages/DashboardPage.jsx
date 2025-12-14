@@ -1,9 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
+// import {fetchDashboardStats, fetchRecentActivities} from '../services/api'
 import LineChart from '../components/charts/LineChart';
 import ReflectiveBarChart from '../components/charts/ReflectiveBarChart';
 import VerticalBarChart from '../components/charts/VerticalBarChart';
 import TopicGraph from '../components/charts/TopicGraph';
 import { Button } from '@mui/material';
+import API_BASE_URL, { API_ENDPOINTS } from '../config/api';
+import ReactMarkdown from 'react-markdown';
 
 // NOT THE ACTUAL DASHBOARD, JUST A PLACEHOLDER
 // okay got it 
@@ -204,13 +207,7 @@ const skillMasteryData = {
     title: 'Skill Development Over Time'
 };
 
-const overallEstimatedQuestionQuality = "B+";
-const overallEstimatedAnswerAccuracy = "A-"; //maybe include dynamic colour gra
-const conversationSessions = 12;
-const topicsDiscussed = 5;
-const minutesSpent = 47;
-const averageAnswerAccuracy = "A";
-const averageEstimatedQuestionQuality = "B+";
+// Grade constants moved to state in DashboardPage component
 
 // MOCK DATA for Chat History - Replace with real API data
 const chatHistoryData = [
@@ -261,13 +258,281 @@ function ResponsiveReflectiveBarChart({ data, height, onCategoryClick, selectedC
 
 export default function DashboardPage() {
     const [selectedTopic, setSelectedTopic] = useState(null);
+    const [selectedTopicFilter, setSelectedTopicFilter] = useState(null); // For filtering charts by topic
     const [searchTerm, setSearchTerm] = useState('');
-    // LLM-generated summary - can be updated dynamically from API
-    const [llmSummary, setLlmSummary] = useState({
-        strongTopics: "Computer Science, Engineering, Mathematics - You're performing exceptionally well in these areas with consistent A- to A grades.",
-        needsHelp: "Literature, History, Philosophy - These topics show performance below class average. Consider scheduling additional study sessions or seeking tutoring.",
-        overallComparison: "You're in the top 25% of your class with an overall grade of A-. Your engagement and interaction rates are 15% higher than the class average."
-    });
+    // LLM-generated summary - fetched from API
+    const [llmSummary, setLlmSummary] = useState('Loading summary...');
+    const [summaryLoading, setSummaryLoading] = useState(true);
+    
+    // State for all chart data
+    const [interactionChartData, setInteractionChartData] = useState({ individual: [], average: [] });
+    const [durationChartData, setDurationChartData] = useState({ individual: [], average: [] });
+    const [accuracyChartData, setAccuracyChartData] = useState({ categories: [], individualData: [], averageData: [], title: 'Answer Accuracy per Question Category' });
+    const [questionCountData, setQuestionCountData] = useState({ categories: [], individualData: [], averageData: [], title: 'Number of Questions per Question Category' });
+    const [topicalPerformanceData, setTopicalPerformanceData] = useState({ categories: [], leftData: [], rightData: [], leftLabel: 'Your Conversations', rightLabel: 'Class Average', title: 'Conversations per Topic' });
+    const [overallGrades, setOverallGrades] = useState({ questionQuality: 'N/A', answerAccuracy: 'N/A', avgQuestionQuality: 'N/A', avgAnswerAccuracy: 'N/A' });
+    const [dataLoading, setDataLoading] = useState(true);
+    
+    // Store raw stats for filtering
+    const [rawIndividualStats, setRawIndividualStats] = useState(null);
+    const [rawGroupStats, setRawGroupStats] = useState(null);
+    
+    // State for topic dependencies
+    const [topicDependencies, setTopicDependencies] = useState([]);
+    const [dependenciesLoading, setDependenciesLoading] = useState(false);
+
+    // Fetch summary from API on component mount
+    useEffect(() => {
+        const fetchSummary = async () => {
+            try {
+                const response = await fetch(API_ENDPOINTS.generateSummary, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ user_id: 103 })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to fetch summary');
+                }
+                
+                const data = await response.json();
+                setLlmSummary(data.summary);
+            } catch (error) {
+                console.error('Error fetching summary:', error);
+                setLlmSummary('Failed to load summary. Please try again later.');
+            } finally {
+                setSummaryLoading(false);
+            }
+        };
+        
+        fetchSummary();
+    }, []);
+
+    // Fetch all statistics data from API
+    useEffect(() => {
+        const fetchAllData = async () => {
+            try {
+                // Fetch individual statistics
+                const individualResponse = await fetch(API_ENDPOINTS.individualStatistics, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: 103 })
+                });
+                
+                // Fetch group statistics
+                const groupResponse = await fetch(API_ENDPOINTS.groupStatistics, {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                if (!individualResponse.ok || !groupResponse.ok) {
+                    throw new Error('Failed to fetch statistics');
+                }
+                
+                const individualStats = await individualResponse.json();
+                const groupStats = await groupResponse.json();
+                
+                console.log('Individual Stats:', individualStats);
+                console.log('Group Stats:', groupStats);
+                
+                // Store raw stats for filtering
+                setRawIndividualStats(individualStats);
+                setRawGroupStats(groupStats);
+                
+                // Transform data (will be re-filtered when topic is selected)
+                transformAndSetChartData(individualStats, groupStats, null);
+                
+            } catch (error) {
+                console.error('Error fetching statistics:', error);
+            } finally {
+                setDataLoading(false);
+            }
+        };
+        
+        fetchAllData();
+    }, []);
+    
+    // Function to transform and filter chart data based on selected topic
+    const transformAndSetChartData = (individualStats, groupStats, filterTopicName) => {
+                // Transform interactions over time data
+                const interactionIndividual = (individualStats.interactions_over_time_by_topic || [])
+                    .filter(item => item.date && item.interaction_count != null)
+                    .filter(item => !filterTopicName || item.topic_name === filterTopicName)
+                    .map(item => ({
+                        date: new Date(item.date),
+                        interactions: Number(item.interaction_count) || 0
+                    }));
+                const interactionAverage = (groupStats.avg_interactions_over_time_by_topic || [])
+                    .filter(item => item.date && item.avg_interaction_count != null)
+                    .filter(item => !filterTopicName || item.topic_name === filterTopicName)
+                    .map(item => ({
+                        date: new Date(item.date),
+                        interactions: Number(item.avg_interaction_count) || 0
+                    }));
+                setInteractionChartData({ individual: interactionIndividual, average: interactionAverage });
+                
+                // Transform duration over time data
+                const durationIndividual = (individualStats.duration_over_time_by_topic || [])
+                    .filter(item => item.date && item.avg_duration != null)
+                    .filter(item => !filterTopicName || item.topic_name === filterTopicName)
+                    .map(item => ({
+                        date: new Date(item.date),
+                        interactions: Number(item.avg_duration) || 0
+                    }));
+                const durationAverage = (groupStats.avg_duration_over_time_by_topic || [])
+                    .filter(item => item.date && item.avg_duration != null)
+                    .filter(item => !filterTopicName || item.topic_name === filterTopicName)
+                    .map(item => ({
+                        date: new Date(item.date),
+                        interactions: Number(item.avg_duration) || 0
+                    }));
+                setDurationChartData({ individual: durationIndividual, average: durationAverage });
+                
+                // Transform accuracy by SOLO data
+                const soloCategories = ['Prestructural', 'Unistructural', 'Multistructural', 'Relational', 'Extended Abstract'];
+                const accuracyIndividual = soloCategories.map(cat => {
+                    const items = filterTopicName 
+                        ? (individualStats.accuracy_by_solo_and_topic || []).filter(item => item.topic_name === filterTopicName)
+                        : (individualStats.accuracy_by_solo_category || []);
+                    const found = items.find(item => (item.category || item.solo_category) === cat);
+                    return { category: cat, value: found ? Math.round(Number(found.avg_accuracy) || 0) : 0 };
+                });
+                const accuracyAverage = soloCategories.map(cat => {
+                    const items = filterTopicName 
+                        ? (groupStats.avg_accuracy_by_solo_and_topic || []).filter(item => item.topic_name === filterTopicName)
+                        : (groupStats.avg_accuracy_by_solo_and_topic || []);
+                    const found = items.find(item => item.solo_category === cat);
+                    return { category: cat, value: found ? Math.round(Number(found.avg_accuracy) || 0) : 0 };
+                });
+                setAccuracyChartData({
+                    categories: soloCategories,
+                    individualData: accuracyIndividual,
+                    averageData: accuracyAverage,
+                    title: 'Answer Accuracy per Question Category'
+                });
+                
+                // Transform question count by SOLO data
+                const questionIndividual = soloCategories.map(cat => {
+                    const items = filterTopicName 
+                        ? (individualStats.questions_by_solo_and_topic || []).filter(item => item.topic_name === filterTopicName)
+                        : (individualStats.questions_by_solo_category || []);
+                    const found = items.find(item => (item.category || item.solo_category) === cat);
+                    return { category: cat, value: found ? (Number(found.question_count) || 0) : 0 };
+                });
+                const questionAverage = soloCategories.map(cat => {
+                    const items = filterTopicName 
+                        ? (groupStats.avg_questions_by_solo_and_topic || []).filter(item => item.topic_name === filterTopicName)
+                        : (groupStats.avg_questions_by_solo_and_topic || []);
+                    const found = items.find(item => item.solo_category === cat);
+                    return { category: cat, value: found ? (Number(found.question_count) || 0) : 0 };
+                });
+                setQuestionCountData({
+                    categories: soloCategories,
+                    individualData: questionIndividual,
+                    averageData: questionAverage,
+                    title: 'Number of Questions per Question Category'
+                });
+                
+                // Transform topical performance data - showing conversation/question counts
+                const topicCategories = (individualStats.grades_by_topic || [])
+                    .filter(t => t.topic_name)
+                    .map(t => t.topic_name);
+                const topicIndividual = (individualStats.grades_by_topic || [])
+                    .filter(t => t.topic_name)
+                    .map(t => ({
+                        category: t.topic_name,
+                        value: Number(t.question_count) || 0  // Show number of questions asked
+                    }));
+                // Calculate average conversations per topic (total conversations / number of users)
+                const numUsers = (groupStats.conversations_per_user || []).length || 1;
+                const topicAverage = topicCategories.map(topicName => {
+                    const found = (groupStats.conversations_by_topic || []).find(t => t.topic_name === topicName);
+                    const totalConversations = found ? (Number(found.conversation_count) || 0) : 0;
+                    return { category: topicName, value: Math.round(totalConversations / numUsers) }; // Show average conversations per user
+                });
+                setTopicalPerformanceData({
+                    categories: topicCategories,
+                    leftData: topicIndividual,
+                    rightData: topicAverage,
+                    leftLabel: 'Your Questions',
+                    rightLabel: 'Class Conversations',
+                    title: 'Topic Activity Comparison'
+                });
+                
+                // Helper function to convert grade points to letter grade
+                const pointToGrade = (points) => {
+                    if (points == null) return 'N/A';
+                    const p = Number(points);
+                    if (p >= 4.0) return 'A';
+                    if (p >= 3.7) return 'A-';
+                    if (p >= 3.3) return 'B+';
+                    if (p >= 3.0) return 'B';
+                    if (p >= 2.7) return 'B-';
+                    if (p >= 2.3) return 'C+';
+                    if (p >= 2.0) return 'C';
+                    if (p >= 1.7) return 'C-';
+                    if (p >= 1.3) return 'D+';
+                    if (p >= 1.0) return 'D';
+                    return 'F';
+                };
+                
+                // Set overall grades
+                setOverallGrades({
+                    questionQuality: pointToGrade(individualStats.average_question_grade),
+                    answerAccuracy: pointToGrade(individualStats.average_question_grade),
+                    avgQuestionQuality: groupStats.overall_average_grade_letter || 'N/A',
+                    avgAnswerAccuracy: groupStats.overall_average_grade_letter || 'N/A'
+                });
+    };
+    
+    // Re-filter data when topic filter changes
+    useEffect(() => {
+        if (rawIndividualStats && rawGroupStats) {
+            transformAndSetChartData(rawIndividualStats, rawGroupStats, selectedTopicFilter);
+        }
+    }, [selectedTopicFilter]);
+    
+    // Handler for topic selection in charts
+    const handleTopicSelection = (topicName) => {
+        setSelectedTopicFilter(selectedTopicFilter === topicName ? null : topicName);
+    };
+    
+    // Fetch topic dependencies when a topic is selected
+    useEffect(() => {
+        const fetchTopicDependencies = async () => {
+            if (!selectedTopic) {
+                setTopicDependencies([]);
+                console.log('no topic able to be selected')
+                return;
+            }
+
+            console.log('proceeding to select')
+            setDependenciesLoading(true);
+            try {
+                const response = await fetch(API_ENDPOINTS.topicDependencies, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ topic_id: selectedTopic })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to fetch topic dependencies');
+                }
+                
+                const dependencies = await response.json();
+                setTopicDependencies(dependencies);
+            } catch (error) {
+                console.error('Error fetching topic dependencies:', error);
+                setTopicDependencies([]);
+            } finally {
+                setDependenciesLoading(false);
+            }
+        };
+        
+        fetchTopicDependencies();
+    }, [selectedTopic]);
 
     // Filter topics based on search term
     const filteredTopicalPerformanceData = {
@@ -300,83 +565,181 @@ export default function DashboardPage() {
             {/* LLM Summary Section */}
             <section style={{
                 width: "100%",
-                marginBottom: "2rem",
-                padding: "1.5rem",
-                backgroundColor: "#f0f7ff",
-                borderRadius: "12px",
-                boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-                borderLeft: "4px solid #2563eb"
+                marginBottom: "2rem"
             }}>
                 <h2 style={{ 
-                    marginTop: 0, 
+                    textAlign: "center",
                     marginBottom: "1.5rem",
-                    color: "#1e40af",
+                    color: "#858996ff",
                     fontSize: "1.3rem"
                 }}>
                     Learning Progress Summary
                 </h2>
-                <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-                    <div>
-                        <h3 style={{ 
-                            fontSize: "1rem", 
-                            fontWeight: "bold", 
-                            color: "#0c4a6e",
-                            marginTop: 0,
-                            marginBottom: "0.5rem"
-                        }}>
-                            Strong areas:
-                        </h3>
-                        <p style={{
-                            fontSize: "0.95rem",
-                            lineHeight: "1.6",
-                            color: "#1e3a8a",
-                            margin: 0,
-                            paddingLeft: "1rem"
-                        }}>
-                            {llmSummary.strongTopics}
-                        </p>
+                {summaryLoading ? (
+                    <div style={{
+                        textAlign: "center",
+                        padding: "2rem",
+                        color: "#64748b",
+                        backgroundColor: "#f0f7ff",
+                        borderRadius: "12px"
+                    }}>
+                        Loading your personalized summary...
                     </div>
-                    <div>
-                        <h3 style={{ 
-                            fontSize: "1rem", 
-                            fontWeight: "bold", 
-                            color: "#0c4a6e",
-                            marginTop: 0,
-                            marginBottom: "0.5rem"
-                        }}>
-                            Areas of improvement:
-                        </h3>
-                        <p style={{
-                            fontSize: "0.95rem",
-                            lineHeight: "1.6",
-                            color: "#1e3a8a",
-                            margin: 0,
-                            paddingLeft: "1rem"
-                        }}>
-                            {llmSummary.needsHelp}
-                        </p>
+                ) : (
+                    <div style={{
+                        display: "flex",
+                        gap: "1.5rem",
+                        flexWrap: "wrap",
+                        justifyContent: "center"
+                    }}>
+                        {(() => {
+                            // Split markdown by ## headings
+                            const sections = llmSummary.split(/(?=## )/);
+                            const strongAreas = sections.find(s => s.includes('## Strong Areas')) || '';
+                            const improvement = sections.find(s => s.includes('## Areas for Improvement') || s.includes('## Areas of Improvement')) || '';
+                            const peerComparison = sections.find(s => s.includes('## Peer Comparison')) || '';
+                            
+                            const markdownComponents = {
+                                h2: ({node, ...props}) => <h3 style={{
+                                    fontSize: "1.1rem",
+                                    fontWeight: "bold",
+                                    color: "#0c4a6e",
+                                    marginTop: 0,
+                                    marginBottom: "0.75rem"
+                                }} {...props} />,
+                                p: ({node, ...props}) => <p style={{
+                                    fontSize: "0.9rem",
+                                    lineHeight: "1.6",
+                                    color: "#1e3a8a",
+                                    marginBottom: "0.75rem"
+                                }} {...props} />,
+                                ul: ({node, ...props}) => <ul style={{
+                                    paddingLeft: "1.5rem",
+                                    marginBottom: "0.75rem",
+                                    color: "#1e3a8a"
+                                }} {...props} />,
+                                li: ({node, ...props}) => <li style={{
+                                    marginBottom: "0.4rem",
+                                    lineHeight: "1.5",
+                                    fontSize: "0.9rem"
+                                }} {...props} />,
+                                strong: ({node, ...props}) => <strong style={{
+                                    fontWeight: "bold",
+                                    color: "#0c4a6e"
+                                }} {...props} />
+                            };
+
+                            return (
+                                <>
+                                    {/* Strong Areas */}
+                                    <div style={{
+                                        flex: "1",
+                                        minWidth: "280px",
+                                        maxWidth: "400px",
+                                        backgroundColor: "#f0fdf4",
+                                        padding: "1.5rem",
+                                        borderRadius: "12px",
+                                        boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+                                        borderLeft: "4px solid #10b981"
+                                    }}>
+                                        <ReactMarkdown components={{
+                                            ...markdownComponents,
+                                            h2: ({node, ...props}) => <h3 style={{
+                                                fontSize: "1.3rem",
+                                                fontWeight: "bold",
+                                                color: "#059669",
+                                                marginTop: 0,
+                                                marginBottom: "0.75rem",
+                                                textTransform: "uppercase",
+                                                letterSpacing: "0.5px"
+                                            }} {...props} />,
+                                            strong: ({node, ...props}) => <strong style={{
+                                                fontWeight: "bold",
+                                                color: "#059669",
+                                                fontSize: "1.05rem"
+                                            }} {...props} />
+                                        }}>
+                                            {strongAreas}
+                                        </ReactMarkdown>
+                                    </div>
+
+                                    {/* Areas for Improvement */}
+                                    <div style={{
+                                        flex: "1",
+                                        minWidth: "280px",
+                                        maxWidth: "400px",
+                                        backgroundColor: "#fef3c7",
+                                        padding: "1.5rem",
+                                        borderRadius: "12px",
+                                        boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+                                        borderLeft: "4px solid #f59e0b"
+                                    }}>
+                                        <ReactMarkdown components={{
+                                            ...markdownComponents,
+                                            h2: ({node, ...props}) => <h3 style={{
+                                                fontSize: "1.3rem",
+                                                fontWeight: "bold",
+                                                color: "#d97706",
+                                                marginTop: 0,
+                                                marginBottom: "0.75rem",
+                                                textTransform: "uppercase",
+                                                letterSpacing: "0.5px"
+                                            }} {...props} />,
+                                            strong: ({node, ...props}) => <strong style={{
+                                                fontWeight: "bold",
+                                                color: "#d97706",
+                                                fontSize: "1.05rem"
+                                            }} {...props} />
+                                        }}>
+                                            {improvement}
+                                        </ReactMarkdown>
+                                    </div>
+
+                                    {/* Peer Comparison */}
+                                    {(() => {
+                                        // Detect if student is above or below average
+                                        const isAboveAverage = peerComparison.toLowerCase().includes('above') || 
+                                                             peerComparison.toLowerCase().includes('exceed') ||
+                                                             !peerComparison.toLowerCase().includes('below');
+                                        
+                                        return (
+                                            <div style={{
+                                                flex: "1",
+                                                minWidth: "280px",
+                                                maxWidth: "400px",
+                                                backgroundColor: isAboveAverage ? "#f0fdf4" : "#fef2f2",
+                                                padding: "1.5rem",
+                                                borderRadius: "12px",
+                                                boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+                                                borderLeft: `4px solid ${isAboveAverage ? "#10b981" : "#ef4444"}`
+                                            }}>
+                                                <ReactMarkdown components={{
+                                                    ...markdownComponents,
+                                                    h2: ({node, ...props}) => <h3 style={{
+                                                        fontSize: "1.3rem",
+                                                        fontWeight: "bold",
+                                                        color: isAboveAverage ? "#059669" : "#dc2626",
+                                                        marginTop: 0,
+                                                        marginBottom: "0.75rem",
+                                                        textTransform: "uppercase",
+                                                        letterSpacing: "0.5px"
+                                                    }} {...props} />,
+                                                    strong: ({node, ...props}) => <strong style={{
+                                                        fontWeight: "bold",
+                                                        color: isAboveAverage ? "#059669" : "#dc2626",
+                                                        fontSize: "1.05rem"
+                                                    }} {...props} />
+                                                }}>
+                                                    {peerComparison}
+                                                </ReactMarkdown>
+                                            </div>
+                                        );
+                                    })()}
+                                </>
+                            );
+                        })()}
                     </div>
-                    <div>
-                        <h3 style={{ 
-                            fontSize: "1rem", 
-                            fontWeight: "bold", 
-                            color: "#0c4a6e",
-                            marginTop: 0,
-                            marginBottom: "0.5rem"
-                        }}>
-                            Peer comparison:
-                        </h3>
-                        <p style={{
-                            fontSize: "0.95rem",
-                            lineHeight: "1.6",
-                            color: "#1e3a8a",
-                            margin: 0,
-                            paddingLeft: "1rem"
-                        }}>
-                            {llmSummary.overallComparison}
-                        </p>
-                    </div>
-                </div>
+                )}
             </section>
 
             <section
@@ -390,45 +753,69 @@ export default function DashboardPage() {
                 className="dashboard-stats-grid"
             >
                
-                <div
-                    style={{
-                        background: "#f5f6fa",
-                        gap: "1rem",
-                        padding: "1rem",
-                        borderRadius: "20px",
-                        minWidth: "160px",
-                        boxShadow: "0 2px 8px #e1e1e1",
-                    }}
-                >   
-                    <div style={{ color: "#888", fontWeight:"bold", fontSize: "small", textAlign: "left" }}>
-                        Overall Estimated Question Quality
-                    </div>
-                    <div style={{ fontSize: "3rem", fontWeight: "bold", color: "#333", textAlign: "center" }}>
-                        {overallEstimatedQuestionQuality}
-                    </div>
-                    <div style={{ color: "#888", fontWeight:"bold", fontSize: "medium", textAlign: "right" }}>
-                        Average: {averageEstimatedQuestionQuality}
-                    </div>
-                </div>
-                <div
-                    style={{
-                        background: "#f5f6fa",
-                        padding: "1rem",
-                        borderRadius: "20px",
-                        minWidth: "160px",
-                        boxShadow: "0 2px 8px #e1e1e1",
-                    }}
-                >   
-                    <div style={{ color: "#888", fontWeight:"bold", fontSize: "small", textAlign: "left" }}>
-                        Overall Estimated Answer Accuracy
-                    </div>
-                    <div style={{ fontSize: "3rem", fontWeight: "bold", color: "#333", textAlign: "center" }}>
-                        {overallEstimatedAnswerAccuracy}
-                    </div>
-                    <div style={{ color: "#888", fontWeight:"bold", fontSize: "medium", textAlign: "right" }}>
-                        Average: {averageAnswerAccuracy}
-                    </div>
-                </div>
+                {(() => {
+                    // Helper function to compare grades
+                    const gradeToNumber = (grade) => {
+                        const gradeMap = { 'A+': 13, 'A': 12, 'A-': 11, 'B+': 10, 'B': 9, 'B-': 8, 'C+': 7, 'C': 6, 'C-': 5, 'D+': 4, 'D': 3, 'D-': 2, 'F': 1 };
+                        return gradeMap[grade] || 0;
+                    };
+                    const isAboveAvg = gradeToNumber(overallGrades.questionQuality) >= gradeToNumber(overallGrades.avgQuestionQuality);
+                    
+                    return (
+                        <div
+                            style={{
+                                background: isAboveAvg ? "#f0fdf4" : "#fef2f2",
+                                gap: "1rem",
+                                padding: "1rem",
+                                borderRadius: "20px",
+                                minWidth: "160px",
+                                boxShadow: isAboveAvg ? "0 2px 12px rgba(16, 185, 129, 0.3)" : "0 2px 12px rgba(239, 68, 68, 0.3)",
+                                border: `2px solid ${isAboveAvg ? "#10b981" : "#ef4444"}`
+                            }}
+                        >   
+                            <div style={{ color: "#666", fontWeight:"bold", fontSize: "0.85rem", textAlign: "left" }}>
+                                Overall Estimated Question Quality
+                            </div>
+                            <div style={{ fontSize: "3.5rem", fontWeight: "bold", color: isAboveAvg ? "#10b981" : "#ef4444", textAlign: "center" }}>
+                                {overallGrades.questionQuality}
+                            </div>
+                            <div style={{ color: "#666", fontWeight:"bold", fontSize: "1rem", textAlign: "right" }}>
+                                Average: <span style={{ color: "#888" }}>{overallGrades.avgQuestionQuality}</span>
+                            </div>
+                        </div>
+                    );
+                })()}
+                {(() => {
+                    // Helper function to compare grades
+                    const gradeToNumber = (grade) => {
+                        const gradeMap = { 'A+': 13, 'A': 12, 'A-': 11, 'B+': 10, 'B': 9, 'B-': 8, 'C+': 7, 'C': 6, 'C-': 5, 'D+': 4, 'D': 3, 'D-': 2, 'F': 1 };
+                        return gradeMap[grade] || 0;
+                    };
+                    const isAboveAvg = gradeToNumber(overallGrades.answerAccuracy) >= gradeToNumber(overallGrades.avgAnswerAccuracy);
+                    
+                    return (
+                        <div
+                            style={{
+                                background: isAboveAvg ? "#f0fdf4" : "#fef2f2",
+                                padding: "1rem",
+                                borderRadius: "20px",
+                                minWidth: "160px",
+                                boxShadow: isAboveAvg ? "0 2px 12px rgba(16, 185, 129, 0.3)" : "0 2px 12px rgba(239, 68, 68, 0.3)",
+                                border: `2px solid ${isAboveAvg ? "#10b981" : "#ef4444"}`
+                            }}
+                        >   
+                            <div style={{ color: "#666", fontWeight:"bold", fontSize: "0.85rem", textAlign: "left" }}>
+                                Overall Estimated Answer Accuracy
+                            </div>
+                            <div style={{ fontSize: "3.5rem", fontWeight: "bold", color: isAboveAvg ? "#10b981" : "#ef4444", textAlign: "center" }}>
+                                {overallGrades.answerAccuracy}
+                            </div>
+                            <div style={{ color: "#666", fontWeight:"bold", fontSize: "1rem", textAlign: "right" }}>
+                                Average: <span style={{ color: "#888" }}>{overallGrades.avgAnswerAccuracy}</span>
+                            </div>
+                        </div>
+                    );
+                })()}
                 {/* <div
                     style={{
                         background: "#4d51f3",
@@ -588,17 +975,21 @@ export default function DashboardPage() {
                             padding: "1rem",
                             width: "100%"
                         }}>
-                            <ResponsiveReflectiveBarChart 
-                                data={{
-                                    ...filteredTopicalPerformanceData,
-                                    title: "", // Remove title
-                                    leftLabel: "", // Remove left label
-                                    rightLabel: "" // Remove right label
-                                }} 
-                                height={Math.max(400, filteredTopicalPerformanceData.categories.length * 35)}
-                                onCategoryClick={(category) => setSelectedTopic(category)}
-                                selectedCategory={selectedTopic}
-                            />
+                            {dataLoading ? (
+                                <div style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>Loading topic data...</div>
+                            ) : (
+                                <ResponsiveReflectiveBarChart 
+                                    data={{
+                                        ...filteredTopicalPerformanceData,
+                                        title: "", // Remove title
+                                        leftLabel: "", // Remove left label
+                                        rightLabel: "" // Remove right label
+                                    }} 
+                                    height={Math.max(400, filteredTopicalPerformanceData.categories.length * 35)}
+                                    onCategoryClick={(category) => handleTopicSelection(category)}
+                                    selectedCategory={selectedTopicFilter}
+                                />
+                            )}
                         </div>
                         
                         <div style={{
@@ -608,10 +999,38 @@ export default function DashboardPage() {
                             color: "#666"
                         }}>
                             <p style={{ margin: "0.5rem 0" }}>
-                                Blue bars: Your Performance | Red bars: Class Average
+                                Blue bars: Your Questions | Red bars: Class Conversations
                             </p>
                             <p style={{ margin: "0.5rem 0" }}>
                                 Showing {filteredTopicalPerformanceData.categories.length} of {topicalPerformanceData.categories.length} subjects
+                            </p>
+                            {selectedTopicFilter && (
+                                <div style={{ marginTop: "1rem" }}>
+                                    <p style={{ margin: "0.5rem 0", color: "#059669", fontWeight: "bold" }}>
+                                        Filtering all charts by: {selectedTopicFilter}
+                                    </p>
+                                    <button 
+                                        onClick={() => setSelectedTopicFilter(null)}
+                                        style={{
+                                            padding: "0.5rem 1rem",
+                                            backgroundColor: "#ef4444",
+                                            color: "white",
+                                            border: "none",
+                                            borderRadius: "6px",
+                                            cursor: "pointer",
+                                            fontSize: "0.85rem",
+                                            fontWeight: "500",
+                                            transition: "background-color 0.2s"
+                                        }}
+                                        onMouseOver={(e) => e.target.style.backgroundColor = "#dc2626"}
+                                        onMouseOut={(e) => e.target.style.backgroundColor = "#ef4444"}
+                                    >
+                                        Clear Filter
+                                    </button>
+                                </div>
+                            )}
+                            <p style={{ margin: "0.5rem 0", fontSize: "0.75rem", fontStyle: "italic" }}>
+                                💡 Click on any topic bar to filter all charts
                             </p>
                         </div>
                     </div>
@@ -684,16 +1103,94 @@ export default function DashboardPage() {
                                 flex: "1",
                                 minHeight: "0",
                                 display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center"
+                                flexDirection: "column",
+                                gap: "1rem"
                             }}>
                                 {selectedTopic ? (
-                                    <TopicGraph 
-                                        selectedTopic={selectedTopic}
-                                        onTopicSelect={setSelectedTopic}
-                                        width={700}
-                                        height={280}
-                                    />
+                                    <>
+                                        <TopicGraph 
+                                            selectedTopic={selectedTopic}
+                                            onTopicSelect={setSelectedTopic}
+                                            width={700}
+                                            height={280}
+                                        />
+                                        
+                                        {/* Dependencies List */}
+                                        <div style={{
+                                            backgroundColor: "#f8fafc",
+                                            padding: "1rem",
+                                            borderRadius: "8px",
+                                            border: "1px solid #e2e8f0"
+                                        }}>
+                                            <h4 style={{
+                                                margin: "0 0 0.75rem 0",
+                                                fontSize: "0.9rem",
+                                                color: "#475569",
+                                                fontWeight: "600"
+                                            }}>
+                                                📚 Related Topics & Dependencies
+                                            </h4>
+                                            {dependenciesLoading ? (
+                                                <div style={{ textAlign: 'center', padding: '1rem', color: '#64748b', fontSize: '0.85rem' }}>
+                                                    Loading dependencies...
+                                                </div>
+                                            ) : topicDependencies.length > 0 ? (
+                                                <div style={{
+                                                    display: "flex",
+                                                    flexDirection: "column",
+                                                    gap: "0.5rem"
+                                                }}>
+                                                    {topicDependencies.map((dep, idx) => {
+                                                        const isPrerequisite = dep.related_topic_id === selectedTopic;
+                                                        const relatedTopic = isPrerequisite ? dep.topic_id : dep.related_topic_id;
+                                                        const relationLabel = dep.relation_type || (isPrerequisite ? 'prerequisite' : 'related');
+                                                        
+                                                        return (
+                                                            <div key={idx} style={{
+                                                                display: "flex",
+                                                                alignItems: "center",
+                                                                gap: "0.75rem",
+                                                                padding: "0.5rem 0.75rem",
+                                                                backgroundColor: "white",
+                                                                borderRadius: "6px",
+                                                                border: "1px solid #e2e8f0",
+                                                                fontSize: "0.85rem"
+                                                            }}>
+                                                                <span style={{
+                                                                    padding: "0.25rem 0.5rem",
+                                                                    backgroundColor: isPrerequisite ? "#fef3c7" : "#dbeafe",
+                                                                    color: isPrerequisite ? "#92400e" : "#1e40af",
+                                                                    borderRadius: "4px",
+                                                                    fontSize: "0.75rem",
+                                                                    fontWeight: "600",
+                                                                    textTransform: "uppercase"
+                                                                }}>
+                                                                    {relationLabel}
+                                                                </span>
+                                                                <span style={{ color: "#475569", fontWeight: "500" }}>
+                                                                    {relatedTopic}
+                                                                </span>
+                                                                {isPrerequisite && (
+                                                                    <span style={{ marginLeft: "auto", fontSize: "0.75rem", color: "#64748b" }}>
+                                                                        ← Required before {selectedTopic}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            ) : (
+                                                <div style={{
+                                                    textAlign: 'center',
+                                                    padding: '1rem',
+                                                    color: '#94a3b8',
+                                                    fontSize: '0.85rem'
+                                                }}>
+                                                    No dependencies found for this topic
+                                                </div>
+                                            )}
+                                        </div>
+                                    </>
                                 ) : (
                                     <div style={{
                                         textAlign: "center",
@@ -874,12 +1371,21 @@ export default function DashboardPage() {
                             color: "#555"
                         }}>
                             Number of Interaction Trends Over Time
+                            {selectedTopicFilter && (
+                                <span style={{ display: "block", fontSize: "0.8rem", color: "#059669", marginTop: "0.25rem" }}>
+                                    📊 Filtered by: {selectedTopicFilter}
+                                </span>
+                            )}
                         </h2>
-                        <ResponsiveLineChart
-                            data={interactionChartData}
-                            height={360}
-                            showResetButton={true}
-                        />
+                        {dataLoading ? (
+                            <div style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>Loading chart data...</div>
+                        ) : (
+                            <ResponsiveLineChart
+                                data={interactionChartData}
+                                height={360}
+                                showResetButton={true}
+                            />
+                        )}
                         <p style={{
                             fontSize: "0.85rem",
                             color: "#666",
@@ -903,13 +1409,22 @@ export default function DashboardPage() {
                             color: "#555"
                         }}>
                             Average Duration of Conversation Over Time
+                            {selectedTopicFilter && (
+                                <span style={{ display: "block", fontSize: "0.8rem", color: "#059669", marginTop: "0.25rem" }}>
+                                    📊 Filtered by: {selectedTopicFilter}
+                                </span>
+                            )}
                         </h2>
-                        <ResponsiveLineChart
-                            data={interactionChartData}
-                            height={360}
-                            showResetButton={true}
-                            yAxisLabel="Duration (minutes)"
-                        />
+                        {dataLoading ? (
+                            <div style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>Loading chart data...</div>
+                        ) : (
+                            <ResponsiveLineChart
+                                data={durationChartData}
+                                height={360}
+                                showResetButton={true}
+                                yAxisLabel="Duration (minutes)"
+                            />
+                        )}
                         <p style={{
                             fontSize: "0.85rem",
                             color: "#666",
@@ -950,6 +1465,11 @@ export default function DashboardPage() {
                                 color: "#555"
                             }}>
                                 Answer Accuracy per Question Category
+                                {selectedTopicFilter && (
+                                    <span style={{ display: "block", fontSize: "0.75rem", color: "#059669", marginTop: "0.25rem" }}>
+                                        📊 Filtered by: {selectedTopicFilter}
+                                    </span>
+                                )}
                             </h3>
                             <p style={{ 
                                 fontSize: "0.8rem", 
@@ -959,13 +1479,17 @@ export default function DashboardPage() {
                                 Based on SOLO taxonomy levels
                             </p>
                         </div>
-                        <VerticalBarChart 
-                            data={bloomsVerticalChartData} 
-                            width={600} 
-                            height={400}
-                            xAxisLabel=""
-                            yAxisLabel="Accuracy (%)" 
-                        />
+                        {dataLoading ? (
+                            <div style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>Loading chart data...</div>
+                        ) : (
+                            <VerticalBarChart 
+                                data={accuracyChartData} 
+                                width={600} 
+                                height={400}
+                                xAxisLabel=""
+                                yAxisLabel="Accuracy (%)" 
+                            />
+                        )}
                         <p style={{ 
                             fontSize: "0.85rem", 
                             color: "#666", 
@@ -992,6 +1516,11 @@ export default function DashboardPage() {
                                 color: "#555"
                             }}>
                                 Number of Questions per Question Category
+                                {selectedTopicFilter && (
+                                    <span style={{ display: "block", fontSize: "0.75rem", color: "#059669", marginTop: "0.25rem" }}>
+                                        📊 Filtered by: {selectedTopicFilter}
+                                    </span>
+                                )}
                             </h3>
                             <p style={{ 
                                 fontSize: "0.8rem", 
@@ -1001,13 +1530,17 @@ export default function DashboardPage() {
                                  Based on SOLO taxonomy levels
                             </p>
                         </div>
-                        <VerticalBarChart 
-                            data={questionCountChartData} 
-                            width={600} 
-                            height={400}
-                            xAxisLabel=""
-                            yAxisLabel="Number of Questions" 
-                        />
+                        {dataLoading ? (
+                            <div style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>Loading chart data...</div>
+                        ) : (
+                            <VerticalBarChart 
+                                data={questionCountData} 
+                                width={600} 
+                                height={400}
+                                xAxisLabel=""
+                                yAxisLabel="Number of Questions" 
+                            />
+                        )}
                         <p style={{ 
                             fontSize: "0.85rem", 
                             color: "#666", 

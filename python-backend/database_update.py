@@ -4,9 +4,10 @@ import pandas as pd
 import psycopg2
 from psycopg2 import sql
 # Importing the modules from another file.
-from models_simple import Base, Chatbot, User, Conversation, Message, Question, Answer 
+from models_simple import Base, Chatbot, User, Conversation, Message, Question, Answer, TopicDependency
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy import create_engine
 from models_simple import User, Conversation, Message, Question, Answer, Chatbot
 from dotenv import load_dotenv
@@ -34,6 +35,22 @@ try:
 except Exception as e:
     print("Error connecting to the database:", e)
 
+def insert_topic_dependency(session, topic_id, related_topic_id, relation_type):
+    """
+    Inserts a topic dependency into the database.
+    """
+    try:
+        dependency = TopicDependency(
+            topic_id=topic_id,
+            related_topic_id=related_topic_id,
+            relation_type=relation_type
+        )
+        session.add(dependency)
+        session.commit()
+        print(f"Inserted dependency: {topic_id} -> {related_topic_id} ({relation_type})")
+    except IntegrityError as e:
+        session.rollback()
+        print(f"Failed to insert dependency: {e}")
 
 def inspect_database(engine):
     inspector=inspect(engine)
@@ -59,6 +76,22 @@ engine = create_engine(database_url)
 # Create all tables defined in models_simple.py
 Base.metadata.drop_all(engine)
 Base.metadata.create_all(engine)
+
+# Enable pgvector extension (if not exists)
+with engine.connect() as conn:
+    conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector;"))
+    conn.commit()
+
+# Create IVFFlat index for document_chunks.embedding
+with engine.connect() as conn:
+    conn.execute(text("""
+    CREATE INDEX IF NOT EXISTS document_chunks_embedding_idx
+    ON document_chunks
+    USING ivfflat (embedding vector_cosine_ops)
+    WITH (lists = 100);
+    """))
+    conn.commit()
+
 # Print out message to signify that we're done at this stage.
 print("Database tables created successfully.")
 
@@ -73,10 +106,6 @@ url = f"{base_url}/api/chatbot/3/conversations"
 headers = {
     "Authorization": f"Bearer {api_key}"
 }
-headers = {
-    "Authorization": f"Bearer {api_key}"
-    
-}
 chat_history_api = f"{base_url}/api/chathistory"
 
 # Send the POST request
@@ -85,7 +114,7 @@ response = requests.post(url, headers=headers)
 # Check if the response status code is 200
 if response.status_code == 200:
     try:
-        # Parse the JSON response
+        # Parse the JSON response (This should be old code now)
         response_json = response.json()
         print("JSON successfully parsed.")
         from sqlalchemy.orm import sessionmaker

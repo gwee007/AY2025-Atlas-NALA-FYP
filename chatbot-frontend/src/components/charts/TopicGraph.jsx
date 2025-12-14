@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
+import API_BASE_URL, { API_ENDPOINTS } from '../../config/api';
 
 /**
  * TopicGraph Component
@@ -11,31 +12,75 @@ import * as d3 from 'd3';
 const TopicGraph = ({ selectedTopic, onTopicSelect, width = 800, height = 600 }) => {
   const svgRef = useRef(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [graphData, setGraphData] = useState(null);
+    const [loading, setLoading] = useState(false);
 
+    useEffect(() => {
+      const fetchDependencies = async () => {
+        if (!selectedTopic) return;
+        console.log('Fetching dependencies: ', selectedTopic)
+        setLoading(true);
+        try {
+          const response = await fetch(API_ENDPOINTS.topicDependencies, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ topic_id: selectedTopic })
+          });
+          
+          if (!response.ok) {
+            throw new Error('Failed to fetch dependencies');
+          }
+          
+          const dependencies = await response.json();
+          
+          // Transform API response into nodes and links
+          const nodesSet = new Set();
+          const links = [];
+          
+          dependencies.forEach(dep => {
+            nodesSet.add(dep.topic_id);
+            nodesSet.add(dep.related_topic_id);
+            
+            links.push({
+              source: dep.topic_id,
+              target: dep.related_topic_id,
+              relation_type: dep.relation_type
+            });
+          });
+          
+          const nodes = Array.from(nodesSet).map(id => ({
+            id: id,
+            radius: 25
+          }));
+          
+          setGraphData({ nodes, links });
+        } catch (error) {
+          console.error('Error fetching graph information:', error);
+        } finally {
+          setLoading(false);
+        }
+        };
+
+        fetchDependencies();
+      }, [selectedTopic]);
+    
   useEffect(() => {
-    if (!svgRef.current || !selectedTopic) return;
+    if (!svgRef.current || !selectedTopic || !graphData) return;
 
     // Clear previous SVG content
     d3.select(svgRef.current).selectAll('*').remove();
 
     // Create graph data with selected topic as root
     // Define full dependency graph with ALL possible nodes (including a default set for any topic)
-    const allNodesMap = new Map([
-      ['Subtopic 0', { id: 'Subtopic 0', radius: 25 }],
-      ['Subtopic 1', { id: 'Subtopic 1', radius: 25 }],
-      ['Subtopic 2', { id: 'Subtopic 2', radius: 25 }],
-      ['Subtopic 3', { id: 'Subtopic 3', radius: 25 }],
-      ['Subtopic 4', { id: 'Subtopic 4', radius: 25 }]
-    ]);
+    const allNodesMap = new Map(
+      graphData.nodes?.map(node => [node.id, { id: node.id, radius: 25 }]) || []
+    );
 
     // Define all dependencies (directed: source depends on target)
-    // For topics from bar chart, we show default Subtopic 0 and 1
-    // For subtopics, we show their specific children
-    const allLinks = [
-      { source: 'Subtopic 0', target: 'Subtopic 2' },
-      { source: 'Subtopic 2', target: 'Subtopic 3' },
-      { source: 'Subtopic 2', target: 'Subtopic 4' }
-    ];
+    const allLinks = graphData.links ||[];
+
     
     // If selected topic is not in our subtopic list, add default children
     const isSubtopic = allNodesMap.has(selectedTopic);
@@ -252,7 +297,7 @@ const TopicGraph = ({ selectedTopic, onTopicSelect, width = 800, height = 600 })
       simulation.stop();
     };
 
-  }, [selectedTopic, width, height, onTopicSelect]);
+  }, [selectedTopic, width, height, onTopicSelect, graphData]);
 
   return (
     <div style={{ position: 'relative' }}>

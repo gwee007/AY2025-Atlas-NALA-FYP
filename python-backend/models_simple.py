@@ -1,8 +1,10 @@
 
-from sqlalchemy import Column, Integer, String, DateTime, Text, JSON, ForeignKey, ARRAY
+from sqlalchemy import Column, Integer, String, DateTime, Text, JSON, ForeignKey, ARRAY, Enum, BigInteger, TIMESTAMP, func
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
+# from pgvector.sqlalchemy import Vector
 from datetime import datetime
+import enum
 
 Base = declarative_base()
 
@@ -106,7 +108,7 @@ class Message(Base):
             'message_metadata': self.message_metadata
         }
 
-
+    
 class Question(Base):
     """
     QUESTION - Represents a question asked by the user
@@ -151,7 +153,7 @@ class Answer(Base):
     message_id = Column(Integer, ForeignKey('message.message_id'), nullable=False)
     topic_id = Column(Integer, nullable=True)  # FK to topic (nullable for now)
     accuracy = Column(Integer, nullable=True)  # Accuracy score (0-100)
-    feedback = Column(Text, nullable=True)
+    feedback = Column(Text, nullable= True)  
     
     # Relationships
     question = relationship('Question', back_populates='answer')
@@ -166,3 +168,34 @@ class Answer(Base):
             'accuracy': self.accuracy,
             'feedback': self.feedback
         }
+
+class Topic(Base):
+    __tablename__ = "topics"
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    topic_name = Column(Text, unique=True, nullable=False)
+    topic_summary = Column(Text, nullable=False)
+    # topic_summary_embedding = Column(Vector(1024))  # Temporarily disabled - requires pgvector extension
+
+class TopicDependency(Base):
+    __tablename__ = "topic_dependencies"
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    topic_id = Column(BigInteger, ForeignKey("topics.id"))
+    related_topic_id = Column(BigInteger, ForeignKey("topics.id"))
+    relation_type = Column(Text, default="related")
+
+class Subtopic(Base):
+    __tablename__ = "subtopics"
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    topic_id = Column(BigInteger, ForeignKey("topics.id"))
+    subtopic_name = Column(Text, nullable=False)
+    subtopic_summary = Column(Text, nullable=False)
+    # subtopic_summary_embedding = Column(Vector(1024))  # Temporarily disabled - requires pgvector extension
+
+class DocumentChunk(Base):
+    __tablename__ = "document_chunks"
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    subtopic_id = Column(BigInteger, ForeignKey("subtopics.id"))
+    content = Column(Text, nullable=False)
+    # embedding = Column(Vector(1024))  # Temporarily disabled - requires pgvector extension
+    created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
+    updated_at = Column(TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now())
