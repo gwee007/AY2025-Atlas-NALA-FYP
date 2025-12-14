@@ -183,6 +183,15 @@ class TopicDependency(Base):
     related_topic_id = Column(BigInteger, ForeignKey("topics.id"))
     relation_type = Column(Text, default="related")
 
+class SubtopicDependency(Base):
+    __tablename__ = "subtopic_dependencies"
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    subtopic_id = Column(BigInteger, ForeignKey("subtopics.id"))
+    related_subtopic_id = Column(BigInteger, ForeignKey("subtopics.id"))
+    relation_type = Column(Text, default="related")
+
+   
+
 class Subtopic(Base):
     __tablename__ = "subtopics"
     id = Column(BigInteger, primary_key=True, autoincrement=True)

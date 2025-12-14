@@ -1,0 +1,42 @@
+[
+  {
+    "topic_name": "Introduction to Process Control",
+    "topic_summary": "Introduction to Process Control is about explaining the importance of process control and process dynamics, determining important elements of the control system, and listing the specific objectives of control. It covers concepts relating to process and process variables, the four control elements, and the use of block diagram. Furthermore, it involves analysing feedback and feedforward control strategies and analysing the control strategies using blending system as an example."
+  },
+  {
+    "topic_name": "Theoretical Models of Chemical Processes",
+    "topic_summary": "Theoretical Models of Chemical Processes is about explaining the concept of process model and modeling principles, listing the three modeling approaches, and explaining the use of assumptions to simplify models. It involves developing dynamic models represented as ordinary differential equations (ODE) using conservation laws, and analysing dynamic models of representative processes such as the blending process, stirred tank heating process, and liquid storage systems."
+  },
+  {
+    "topic_name": "Laplace Transforms",
+    "topic_summary": "Laplace Transforms is about explaining the concept of Laplace transform, computing the Laplace transform, and deriving the Laplace transform for various functions, including constant function, step function, exponential functions, derivatives, and time delay functions. It involves explaining the different properties of Laplace transform such as Linearity, Multiplication of f(t) by t, and \"s shifting\", and determining the solutions of differential equations by Laplace transform techniques using Inverse Laplace Transform and Partial Fraction Expansion (PFE) for Real Distinct Roots, Complex Roots, and Repeated Roots."
+  },
+  {
+    "topic_name": "Transfer Function Models",
+    "topic_summary": "Transfer Function Models is about explaining what is a transfer function, describing the development of transfer functions, and applying the specific steps to derive transfer functions. It involves explaining the properties of transfer functions, specifically Steady State Gain, Time Constant, Order of Transfer Function, Physically Realizable, and Transfer Functions in Series and in Parallel. Furthermore, it covers explaining how to linearize nonlinear processes via the Principle of Linearization and Ordinary Differential Equations (ODEs)."
+  },
+  {
+    "topic_name": "Dynamic Behaviour of First-Order and Second-Order Processes",
+    "topic_summary": "Dynamic Behaviour of First-Order and Second-Order Processes is about explaining the different types of standard process inputs, specifically step input, ramp input, rectangular pulse, sinusoidal input, and impulse input. It involves explaining the response of first-order processes including step response, ramp response, and sinusoidal response, and explaining the response of integrating processes. Furthermore, it covers explaining the response of second-order processes using the example of non-interacting tanks and detailing the three cases of second-order process: overdamped, critically damped, and underdamped."
+  },
+  {
+    "topic_name": "Dynamic Response Characteristics of More Complicated Processes",
+    "topic_summary": "Dynamic Response Characteristics of More Complicated Processes is about explaining the notion of stability of linear systems and explaining the relationship between location of the poles of the transfer functions (TF) and stability. It involves plotting the poles and zeros of a TF in a complex plane, applying more complex TFs in process response, and applying TFs in process with time delays. Furthermore, it covers approximating complicated TFs by simpler-low order models."
+  },
+  {
+    "topic_name": "Feedback Controllers",
+    "topic_summary": "Feedback Controllers is about control algorithms, specifically real life feedback controller and example of feedback control, and distinguishing the different basic control modes: proportional control, integral control, and derivative control. It involves describing the features of PID controllers and distinguishing the three different forms of PID controllers, alongside covering the typical responses of feedback control systems."
+  },
+  {
+    "topic_name": "Dynamic Behaviour of Closed-Loop Control Systems",
+    "topic_summary": "Dynamic Behaviour of Closed-Loop Control Systems is about illustrating the development of block diagram, analysing closed-loop transfer functions, and analysing closed-loop responses of simple control systems. It specifically covers the Effect of Proportional Control on Closed-Loop Responses and the Effect of PI Control on Closed-Loop Responses."
+  },
+  {
+    "topic_name": "Stability of Closed-Loop Control Systems",
+    "topic_summary": "Stability of Closed-Loop Control Systems is about explaining the characteristic equation of open-loop stability and explaining the criterion for general stability. It involves explaining the Routh criterion for stability (Routh Array) and finding the substitute limit by using the direct substitution method."
+  },
+  {
+    "topic_name": "PID Controller Design and Tuning",
+    "topic_summary": "PID Controller Design and Tuning is about explaining the importance of controller tuning and the influence of controller settings on the performance, specifically regarding desired performance for closed-loop systems and the associated trade-off. It involves explaining the different controller design methods and tuning relations for PID controllers, such as the Direct Synthesis (DS) Method. Furthermore, it covers on-line tuning methods, specifically the Ziegler Nichols Method (1942) and the Step Test Method."
+  }
+]

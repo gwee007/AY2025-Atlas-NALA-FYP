@@ -1,4 +1,5 @@
 import os
+import json 
 from datetime import datetime, timedelta
 import random
 from sqlalchemy import create_engine
@@ -9,7 +10,7 @@ import numpy as np
 
 from models_simple import (
     Base, Chatbot, User, Conversation, Message, Question, Answer,
-    Topic, TopicDependency, Subtopic, DocumentChunk
+    Topic, TopicDependency, Subtopic, DocumentChunk, SubtopicDependency
 )
 
 load_dotenv()
@@ -48,77 +49,24 @@ TOPIC_DEPENDENCIES = [
     {"topic_id": 10, "related_topic_id": 7, "relation_type": "prerequisite"}
 ]
 
-SUBTOPICS_DATA = [
-    # Topic 1: Introduction to Process Control
-    {"topic_id": 1, "name": "Process Control Objectives", "summary": "Safety, stability, and optimization in process control"},
-    {"topic_id": 1, "name": "Control System Components", "summary": "Sensors, controllers, actuators, and final control elements"},
-    {"topic_id": 1, "name": "Process Variables and Signals", "summary": "Measurement and manipulation of process variables"},
-    {"topic_id": 1, "name": "Control System Classification", "summary": "Feedback, feedforward, and cascade control strategies"},
-    {"topic_id": 1, "name": "Performance Criteria", "summary": "IAE, ISE, ITAE metrics and controller evaluation"},
-    
-    # Topic 2: Theoretical Models of Chemical Processes
-    {"topic_id": 2, "name": "Material Balance Equations", "summary": "Conservation of mass in chemical processes"},
-    {"topic_id": 2, "name": "Energy Balance Equations", "summary": "Conservation of energy and heat transfer"},
-    {"topic_id": 2, "name": "Momentum Balance", "summary": "Fluid flow and pressure dynamics"},
-    {"topic_id": 2, "name": "Linearization Techniques", "summary": "Taylor series expansion for nonlinear models"},
-    {"topic_id": 2, "name": "State-Space Representation", "summary": "Matrix form of process models"},
-    
-    # Topic 3: Laplace Transforms
-    {"topic_id": 3, "name": "Laplace Transform Properties", "summary": "Linearity, time shifting, and transform pairs"},
-    {"topic_id": 3, "name": "Inverse Laplace Transforms", "summary": "Partial fraction expansion and transform inversion"},
-    {"topic_id": 3, "name": "Transform of Derivatives", "summary": "Converting differential equations to algebraic form"},
-    {"topic_id": 3, "name": "Initial and Final Value Theorems", "summary": "Predicting system behavior without inverse transforms"},
-    {"topic_id": 3, "name": "Convolution Theorem", "summary": "Product of transforms and system responses"},
-    
-    # Topic 4: Transfer Function Models
-    {"topic_id": 4, "name": "Transfer Function Derivation", "summary": "Deriving transfer functions from process models"},
-    {"topic_id": 4, "name": "Block Diagram Algebra", "summary": "Series, parallel, and feedback configurations"},
-    {"topic_id": 4, "name": "Poles and Zeros", "summary": "Transfer function characteristics and stability indicators"},
-    {"topic_id": 4, "name": "Frequency Response", "summary": "Bode plots and frequency domain analysis"},
-    {"topic_id": 4, "name": "Process Gain and Time Constants", "summary": "Physical interpretation of transfer function parameters"},
-    
-    # Topic 5: Dynamic Behaviour of First-Order and Second-Order Processes
-    {"topic_id": 5, "name": "First-Order System Response", "summary": "Time constant, settling time, and step response"},
-    {"topic_id": 5, "name": "Second-Order System Response", "summary": "Damping ratio, natural frequency, and overshoot"},
-    {"topic_id": 5, "name": "Underdamped Systems", "summary": "Oscillatory response and decay characteristics"},
-    {"topic_id": 5, "name": "Critically and Overdamped Systems", "summary": "Non-oscillatory response behavior"},
-    {"topic_id": 5, "name": "Rise Time and Peak Time", "summary": "Transient response performance metrics"},
-    
-    # Topic 6: Dynamic Response Characteristics of More Complicated Processes
-    {"topic_id": 6, "name": "Time Delays in Processes", "summary": "Dead time effects and Padé approximation"},
-    {"topic_id": 6, "name": "Inverse Response Systems", "summary": "Right-half plane zeros and non-minimum phase behavior"},
-    {"topic_id": 6, "name": "Higher-Order Systems", "summary": "Multiple time constants and dominant poles"},
-    {"topic_id": 6, "name": "Interacting vs Non-Interacting Systems", "summary": "Cascade tank systems and process interactions"},
-    {"topic_id": 6, "name": "Multivariable Processes", "summary": "MIMO systems and coupling effects"},
-    
-    # Topic 7: Feedback Controllers
-    {"topic_id": 7, "name": "Proportional Control", "summary": "P-only control and offset"},
-    {"topic_id": 7, "name": "Integral and Derivative Actions", "summary": "Eliminating offset and anticipating changes"},
-    {"topic_id": 7, "name": "PID Controller Structures", "summary": "Ideal, series, and parallel forms"},
-    {"topic_id": 7, "name": "Controller Modes", "summary": "Manual, automatic, and cascade modes"},
-    {"topic_id": 7, "name": "Anti-Windup Mechanisms", "summary": "Preventing integral windup in saturated systems"},
-    
-    # Topic 8: Dynamic Behaviour of Closed-Loop Control Systems
-    {"topic_id": 8, "name": "Servo Response", "summary": "Set-point tracking performance"},
-    {"topic_id": 8, "name": "Regulatory Response", "summary": "Disturbance rejection and load changes"},
-    {"topic_id": 8, "name": "Closed-Loop Transfer Functions", "summary": "Complementary sensitivity and disturbance sensitivity"},
-    {"topic_id": 8, "name": "Offset Analysis", "summary": "Steady-state error in proportional control"},
-    {"topic_id": 8, "name": "Characteristic Equation", "summary": "Poles of closed-loop system and dynamics"},
-    
-    # Topic 9: Stability of Closed-Loop Control Systems
-    {"topic_id": 9, "name": "Routh-Hurwitz Criterion", "summary": "Algebraic stability test for characteristic equations"},
-    {"topic_id": 9, "name": "Root Locus Analysis", "summary": "Graphical method for stability assessment"},
-    {"topic_id": 9, "name": "Gain and Phase Margins", "summary": "Frequency domain stability measures"},
-    {"topic_id": 9, "name": "Nyquist Stability Criterion", "summary": "Encirclements and stability from frequency response"},
-    {"topic_id": 9, "name": "Ultimate Gain and Period", "summary": "Sustained oscillations and stability boundaries"},
-    
-    # Topic 10: PID Controller Design and Tuning
-    {"topic_id": 10, "name": "Ziegler-Nichols Tuning", "summary": "Empirical tuning rules for PID controllers"},
-    {"topic_id": 10, "name": "Cohen-Coon Method", "summary": "Model-based tuning approach"},
-    {"topic_id": 10, "name": "Internal Model Control (IMC)", "summary": "Model-based controller design and tuning"},
-    {"topic_id": 10, "name": "Lambda Tuning", "summary": "Closed-loop time constant specification"},
-    {"topic_id": 10, "name": "Auto-Tuning Methods", "summary": "Relay feedback and adaptive tuning techniques"},
-]
+# loading from subtopic data in the file folder in ./mock_data/subtopic summary
+# goal: for each json, for example
+# {
+#         "topic_id": 1,
+#         "subtopic_name": "Blending System Illustration",
+#         "subtopic_summary": "Block Diagram Representation talks about using block diagrams to visually represent the components and interactions within a control system. It explains how to illustrate the flow of signals between the process, sensor, controller, and final control element, providing a clear overview of the control system's structure and function."
+#     },
+# we want to load them into the Subtopic table
+folder_path = './mock_data/subtopic summary'
+SUBTOPICS_DATA = []
+for filename in os.listdir(folder_path):
+        if filename.endswith('.json'):
+            filepath = os.path.join(folder_path, filename)
+            with open(filepath, 'r') as f:
+                data = json.load(f)
+                for subtopic in data:
+                    SUBTOPICS_DATA.append(subtopic) 
+
 
 def generate_embedding(dimension=1024):
     """Generate a random embedding vector (currently disabled)"""
@@ -166,15 +114,31 @@ def populate_mock_data():
         # 3. Create Subtopics
         print("\nCreating subtopics...")
         subtopics = []
+        number_of_subtopic_dependencies  = 0
+        prev_topic = None
         for subtopic_data in SUBTOPICS_DATA:
+            current_topic = subtopic_data["topic_id"]
             subtopic = Subtopic(
-                topic_id=subtopic_data["topic_id"],
-                subtopic_name=subtopic_data["name"],
-                subtopic_summary=subtopic_data["summary"]
-                # subtopic_summary_embedding=generate_embedding()  # Disabled
+            topic_id=subtopic_data["topic_id"],
+            subtopic_name=subtopic_data["subtopic_name"],
+            subtopic_summary=subtopic_data["subtopic_summary"]
+            # subtopic_summary_embedding=generate_embedding()  # Disabled
             )
             subtopics.append(subtopic)
             session.add(subtopic)
+            
+            # Create prerequisite dependency between consecutive subtopics of the same topic
+            if prev_topic == current_topic and len(subtopics) > 1:
+                number_of_subtopic_dependencies += 1 
+                subtopic_dependency = SubtopicDependency(
+                    subtopic_id=subtopic_data["topic_id"],
+                    related_subtopic_id=subtopics[-2].topic_id,
+                    relation_type="prerequisite"
+                )
+                session.add(subtopic_dependency)
+            
+            prev_topic = current_topic
+
         session.flush()
         print(f"Created {len(subtopics)} subtopics")
         
@@ -356,8 +320,10 @@ def populate_mock_data():
         print("="*50)
         print(f"Topics: {len(topics)}")
         print(f"Topic Dependencies: {len(TOPIC_DEPENDENCIES)}")
+        print(f"Subtopic Dependencies: {number_of_subtopic_dependencies }")
         print(f"Subtopics: {len(subtopics)}")
         print(f"Document Chunks: {len(subtopics) * len(document_contents)}")
+        
         print(f"Chatbots: 1")
         print(f"Users: {len(users)}")
         print(f"Conversations: {conversation_count}")

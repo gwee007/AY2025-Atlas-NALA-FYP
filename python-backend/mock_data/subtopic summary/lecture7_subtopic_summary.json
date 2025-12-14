@@ -1,0 +1,22 @@
+[
+    {
+        "topic_id": 7,
+        "subtopic_name": "Control Algorithms",
+        "subtopic_summary": "Control Algorithms talks about ensuring processes meet design specifications despite disturbances using feedback control, which updates manipulated variables based on measured variables. Unlike feedforward control, feedback does not anticipate disturbances but is less sensitive to modeling errors. Key components include sensors, transmitters, and control valves operating within loops like flow or level control."
+    },
+    {
+        "topic_id": 7,
+        "subtopic_name": "Basic Control Modes",
+        "subtopic_summary": "Basic Control Modes talks about three primary modes: Proportional (P), Integral (I), and Derivative (D). P control adjusts output proportional to the error signal, characterized by controller gain and proportional band, but suffers from steady-state error (offset). Integral control eliminates offset by integrating error over time but causes integral windup and potential instability. Derivative control provides anticipatory action based on the rate of error change to stabilize the process, though it amplifies noise."
+    },
+    {
+        "topic_id": 7,
+        "subtopic_name": "Features of PID Controllers",
+        "subtopic_summary": "Features of PID Controllers talks about combining P, I, and D modes to address present error, accumulation of past error, and prediction of future error. Configurations include parallel (standard), series, and expanded forms, utilizing tuning parameters like controller gain, integral time, and derivative time. Proper tuning of these parameters is essential to balance response time, oscillation, and stability."
+    },
+    {
+        "topic_id": 7,
+        "subtopic_name": "Typical Responses of Feedback Control Systems",
+        "subtopic_summary": "Typical Responses of Feedback Control Systems talks about the dynamic behavior of a system following a step change in a disturbance variable. It illustrates that actual behavior depends on controller type, settings, and process dynamics."
+    }
+]

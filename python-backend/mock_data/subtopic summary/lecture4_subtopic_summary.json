@@ -1,0 +1,17 @@
+[
+    {
+        "topic_id": 4,
+        "subtopic_name": "Introduction to Transfer Functions",
+        "subtopic_summary": "Introduction to Transfer Functions talks about the utility of transfer functions as convenient representations of linear dynamic models, defined as the ratio of the Laplace transform of the output to the input variables. It highlights the critical use of deviation variables to eliminate initial conditions and outlines the systematic steps for deriving transfer functions from dynamic balance equations. Additionally, it illustrates these concepts through examples such as the stirred-tank heating process and integrating processes, demonstrating how the effects of different inputs are additive in linear systems."
+    },
+    {
+        "topic_id": 4,
+        "subtopic_name": "Properties of Transfer Function Models",
+        "subtopic_summary": "Properties of Transfer Function Models talks about the defining characteristics of transfer functions, including the Steady-State Gain (K) which represents the ratio of output to input change, the Time Constant (τ) which indicates the speed of the system response, the Order of a TF Model based on the denominator polynomial and Physical Realizability, where the denominator order must equal or exceed the numerator. Furthermore, it covers the algebraic rules for combining transfer functions for systems arranged in Series (Multiplicative Rule) and Parallel (Additive Rule)."
+    },
+    {
+        "topic_id": 4,
+        "subtopic_name": "Linearization of Nonlinear Models",
+        "subtopic_summary": "Linearization of Nonlinear Models talks about the necessity of approximating nonlinear chemical processes with linear models to facilitate control system design and analysis. It details the Principle of Linearization using a first-order Taylor series expansion around a specific operating point or steady state. The subtopic explains how nonlinear differential equations are converted into transfer functions involving deviation variables, utilizing partial derivatives to represent process dynamics locally."
+    }
+]
