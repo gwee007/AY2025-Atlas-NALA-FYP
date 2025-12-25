@@ -191,12 +191,12 @@ class Subtopic(Base):
     subtopic_summary = Column(Text, nullable=False)
     subtopic_summary_embedding = Column(Vector(1024))  # Temporarily disabled - requires pgvector extension
 
-class SubtopicDependency(Base):
-    __tablename__ = "subtopic_dependencies"
-    id = Column(BigInteger, primary_key=True, autoincrement=True)
-    subtopic_id = Column(BigInteger, ForeignKey("subtopics.id"))
-    related_subtopic_id = Column(BigInteger, ForeignKey("subtopics.id"))
-    relation_type = Column(Text, default="related")
+# class SubtopicDependency(Base):
+#     __tablename__ = "subtopic_dependencies"
+#     id = Column(BigInteger, primary_key=True, autoincrement=True)
+#     subtopic_id = Column(BigInteger, ForeignKey("subtopics.id"))
+#     related_subtopic_id = Column(BigInteger, ForeignKey("subtopics.id"))
+#     relation_type = Column(Text, default="related")
 
 class DocumentChunk(Base):
     __tablename__ = "document_chunks"

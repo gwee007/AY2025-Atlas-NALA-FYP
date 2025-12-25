@@ -2,7 +2,7 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import create_engine, func, case
-from models_simple import Base, Chatbot, User, Conversation, Message, Question, Answer, Topic, TopicDependency, Subtopic, SubtopicDependency
+from models_simple import Base, Chatbot, User, Conversation, Message, Question, Answer, Topic, TopicDependency, Subtopic
 from dotenv import load_dotenv
 import os
 from summary_generation import generate_summary_data
@@ -69,7 +69,7 @@ def get_topic_dependencies():
         topics = session.query(Topic).all()
         subtopics = session.query(Subtopic).all()
         topic_dependencies = session.query(TopicDependency).all()
-        subtopic_dependencies = session.query(SubtopicDependency).all()
+        
         
         # Build nodes for topics
         nodes = []
@@ -100,13 +100,7 @@ def get_topic_dependencies():
                 "relation_type": dep.relation_type
             })
         
-        # Build links for subtopic dependencies (subtopic to subtopic)
-        for dep in subtopic_dependencies:
-            links.append({
-                "source": f"subtopic_{dep.subtopic_id}",
-                "target": f"subtopic_{dep.related_subtopic_id}",
-                "relation_type": dep.relation_type
-            })
+
         
         # Add links from subtopics to their parent topics
         for subtopic in subtopics:
