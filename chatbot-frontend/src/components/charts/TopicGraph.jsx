@@ -64,14 +64,15 @@ const TopicGraph = ({ selectedTopic, onTopicSelect, graphData,gradeData, width =
       return typeof linkProp === 'object' ? linkProp.id : linkProp;
     };
 
-    // Helper: Find parent topic of a subtopic (via "contains" relationship)
+    // Helper: Find parent topic of a subtopic (via "subtopic_of" relationship)
+    // API creates links FROM subtopic TO topic with relation_type='subtopic_of'
     const findParentTopic = (subtopicId) => {
       const parentLink = allLinks.find(link => {
         const sourceId = getLinkId(link.source);
         const targetId = getLinkId(link.target);
-        return targetId === subtopicId && link.relation_type === 'contains' && sourceId.startsWith('t');
+        return sourceId === subtopicId && link.relation_type === 'subtopic_of' && targetId.startsWith('topic_');
       });
-      return parentLink ? getLinkId(parentLink.source) : null;
+      return parentLink ? getLinkId(parentLink.target) : null;
     };
 
     // Helper: Traverse prerequisite subtopics
@@ -142,14 +143,15 @@ const TopicGraph = ({ selectedTopic, onTopicSelect, graphData,gradeData, width =
     };
 
     // Helper: Get all subtopics that belong to a specific topic
+    // API creates links FROM subtopic TO topic with relation_type='subtopic_of'
     const getSubtopicsForTopic = (topicId, connected) => {
       allLinks.forEach(link => {
         const sourceId = getLinkId(link.source);
         const targetId = getLinkId(link.target);
         
-        // Find "contains" links from this topic to subtopics
-        if (sourceId === topicId && targetId.startsWith('s') && link.relation_type === 'contains') {
-          connected.add(targetId);
+        // Find "subtopic_of" links from subtopics to this topic
+        if (targetId === topicId && sourceId.startsWith('subtopic_') && link.relation_type === 'subtopic_of') {
+          connected.add(sourceId);
         }
       });
     };
@@ -256,12 +258,16 @@ const TopicGraph = ({ selectedTopic, onTopicSelect, graphData,gradeData, width =
       .style('background-color', '#fafafa')
       .style('touch-action', 'none'); // Prevent browser handling of touch gestures to fix violation warning
 
-    // Create zoom behavior
+    // Create zoom behavior with passive touch listeners to improve scroll performance
     const zoom = d3.zoom()
       .scaleExtent([0.5, 3])
+      .filter((event) => {
+        // Allow zoom for all events except when actively dragging nodes
+        return !event.button && event.type !== 'dblclick';
+      })
       .on('zoom', (event) => {
         g.attr('transform', event.transform);
-      });'to'
+      });
 
     svg.call(zoom);
 
@@ -420,7 +426,7 @@ const TopicGraph = ({ selectedTopic, onTopicSelect, graphData,gradeData, width =
   }, [selectedTopic, width, height, onTopicSelect, graphData, gradeData]);
 
   return (
-    <div style={{ position: 'relative' }}>
+    <div style={{ position: 'relative', touchAction: 'none' }}>
       <svg ref={svgRef}></svg>
       <div style={{
         position: 'absolute',

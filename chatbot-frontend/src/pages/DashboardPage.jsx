@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, startTransition } from 'react';
 // import {fetchDashboardStats, fetchRecentActivities} from '../services/api'
 import LineChart from '../components/charts/LineChart';
 import ReflectiveBarChart from '../components/charts/ReflectiveBarChart';
@@ -522,77 +522,85 @@ export default function DashboardPage() {
     
     // Handler for topic selection in charts
     const handleTopicSelection = (topicName) => {
-        setSelectedTopicFilter(selectedTopicFilter === topicName ? null : topicName);
-        // Also update the TopicGraph selection
+        const newFilter = selectedTopicFilter === topicName ? null : topicName;
+        
+        // Wrap state updates in startTransition to prevent blocking UI
+        startTransition(() => {
+            setSelectedTopicFilter(newFilter);
+            setSelectedTopic(newFilter);
+        });
+        
         console.log(topicName);
-        setSelectedTopic(topicName);
     };
     
     // Fetch questions when a topic is selected, else fetch all questions
    useEffect(() => {
     const fetchQuestions = async () => {
-        setQuestionsLoading(true);
-        try {
-            // Convert topic name to ID using the mapping
-            const topicId = selectedTopicFilter ? topicIdMap[selectedTopicFilter] : null;
-            
-            console.log('[Debug] Fetching questions:', {
-                selectedTopicFilter,
-                topicId,
-                topicIdMap
-            });
-            
-            // Build URL with optional topic filter using numeric ID
-            const url = topicId 
-                ? `${API_ENDPOINTS.questions}?topic_id=${topicId}`
-                : API_ENDPOINTS.questions;
-            
-            console.log('[Debug] Request URL:', url);
-            
-            const response = await fetch(url, {
-                method: 'GET',
-                headers: { 'Content-Type': 'application/json' }
-            });
-            
-            if (!response.ok) {
-                throw new Error('Failed to fetch question data');
+        // Only fetch if we have the topic ID mapping loaded (or no filter selected)
+        if (!selectedTopicFilter || Object.keys(topicIdMap).length > 0) {
+            setQuestionsLoading(true);
+            try {
+                // Convert topic name to ID using the mapping
+                const topicId = selectedTopicFilter ? topicIdMap[selectedTopicFilter] : null;
+                
+                console.log('[Debug] Fetching questions:', {
+                    selectedTopicFilter,
+                    topicId,
+                    topicIdMap
+                });
+                
+                // Build URL with optional topic filter using numeric ID
+                const url = topicId 
+                    ? `${API_ENDPOINTS.questions}?topic_id=${topicId}`
+                    : API_ENDPOINTS.questions;
+                
+                console.log('[Debug] Request URL:', url);
+                
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to fetch question data');
+                }
+                
+                const responseData = await response.json();
+                console.log('[Debug] Fetched question data:', responseData);
+                
+                // Questions API returns array directly (not paginated)
+                const questionsArray = Array.isArray(responseData) ? responseData : [];
+                
+                // Transform API data to match table format
+                // API returns: { question_id, content, grade, timestamp }
+                const transformedData = questionsArray.map(q => ({
+                    id: q.question_id,
+                    question: q.content || 'No content',
+                    grade: q.grade || 'N/A',
+                    timestamp: q.timestamp
+                        ? new Date(q.timestamp).toLocaleString('en-US', {
+                            year: 'numeric',
+                            month: '2-digit',
+                            day: '2-digit',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        })
+                        : 'N/A'
+                }));
+                
+                setQuestions(transformedData);
+                
+            } catch (error) {
+                console.error('Error fetching questions:', error);
+                setQuestions([]);
+            } finally {
+                setQuestionsLoading(false);
             }
-            
-            const responseData = await response.json();
-            console.log('[Debug] Fetched question data:', responseData);
-            
-            // Questions API returns array directly (not paginated)
-            const questionsArray = Array.isArray(responseData) ? responseData : [];
-            
-            // Transform API data to match table format
-            // API returns: { question_id, content, grade, timestamp }
-            const transformedData = questionsArray.map(q => ({
-                id: q.question_id,
-                question: q.content || 'No content',
-                grade: q.grade || 'N/A',
-                timestamp: q.timestamp
-                    ? new Date(q.timestamp).toLocaleString('en-US', {
-                        year: 'numeric',
-                        month: '2-digit',
-                        day: '2-digit',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                    })
-                    : 'N/A'
-            }));
-            
-            setQuestions(transformedData);
-            
-        } catch (error) {
-            console.error('Error fetching questions:', error);
-            setQuestions([]);
-        } finally {
-            setQuestionsLoading(false);
         }
     };
     
     fetchQuestions();
-}, [selectedTopicFilter, topicIdMap]);
+}, [selectedTopicFilter]);
 
 
     // Fetch topic dependencies when a topic is selected
@@ -634,13 +642,8 @@ export default function DashboardPage() {
                 setTopicIdMap(nameToIdMap);
                 console.log('Topic ID map:', nameToIdMap);
 
-                // Set default selected topic if none selected
-                if (dependencies.nodes && dependencies.nodes.length > 0) {
-                    // Prefer a 'topic' type node, otherwise just the first one
-                    const defaultTopic = dependencies.nodes.find(n => n.type === 'topic') || dependencies.nodes[0];
-                    // Use label if available, otherwise ID (TopicGraph expects label for lookup)
-                    setSelectedTopic(defaultTopic.label || defaultTopic.id);
-                }
+                // Don't auto-select a topic - let user choose
+                // Only set dependencies, user must manually select a topic
 
             } catch (error) {
                 console.error('Error fetching topic dependencies:', error);
@@ -1126,7 +1129,10 @@ export default function DashboardPage() {
                                         Filtering all charts by: {selectedTopicFilter}
                                     </p>
                                     <button 
-                                        onClick={() => setSelectedTopicFilter(null)}
+                                        onClick={() => {
+                                            setSelectedTopicFilter(null);
+                                            setSelectedTopic(null);
+                                        }}
                                         style={{
                                             padding: "0.5rem 1rem",
                                             backgroundColor: "#ef4444",
@@ -1492,7 +1498,7 @@ export default function DashboardPage() {
                         fontWeight: "bold",
                         color: "#0369a1"
                     }}>
-                        Topic: {selectedTopic || "All"}
+                        Topic: {selectedTopic || "Select a topic"}
                     </span>
                 </div>
 

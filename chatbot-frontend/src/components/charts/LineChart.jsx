@@ -141,7 +141,7 @@ const LineChart = ({ data, width = 1000, height = 1000, onResetReady, yAxisLabel
 
     // Add legend
     const legend = g.append('g')
-      .attr('transform', `translate(${innerWidth - 120}, 20)`);
+      .attr('transform', `translate(${innerWidth - 20}, 0)`);
 
     legend.append('line')
       .attr('x1', 0)
