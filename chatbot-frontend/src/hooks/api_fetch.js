@@ -10,7 +10,7 @@ function useFetch(url){
         const response = await fetch(url);
         try{
              if(!response.ok){
-            throw new Error('Error reaching from the local api server');
+            throw new Error('Error reaching from the local apeii server');
         }
         const result= await response.json();
         setData(result);

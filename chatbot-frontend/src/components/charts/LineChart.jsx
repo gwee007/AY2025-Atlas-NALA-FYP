@@ -179,6 +179,21 @@ const LineChart = ({ data, width = 1000, height = 1000, onResetReady, yAxisLabel
       // Get visible date range
       const [minDate, maxDate] = newXScale.domain();
 
+      // Number of days available
+      const dateRange = (maxDate-minDate)/ (1000*60*60*24);
+      let tickCount;
+      if (dateRange > 180){
+        tickCount = 6;
+      } else if (dateRange > 90) {
+        tickCount = 8;
+      } else if (dateRange > 30) {
+        tickCount = 10;
+      } else if (dateRange > 14) {
+        tickCount = 10;
+      } else {
+        tickCount = Math.min(Math.floor(dateRange), 10); 
+      }
+
       // Filter data to visible range
       const visibleIndividual = data.individual.filter(d => d.date >= minDate && d.date <= maxDate);
       const visibleAverage = data.average.filter(d => d.date >= minDate && d.date <= maxDate);
@@ -197,9 +212,15 @@ const LineChart = ({ data, width = 1000, height = 1000, onResetReady, yAxisLabel
       const newYScale = d3.scaleLinear()
         .domain([Math.max(0, yMin - yPadding), yMax + yPadding])
         .range([innerHeight, 0]);
-
+      const tickValues = newXScale.ticks(tickCount);
+      const tickArray = tickValues.length > 10 
+        ? tickValues.filter((_, i) => i % Math.ceil(tickValues.length / 10) === 0).slice(0, 10)
+        : tickValues;
       // Update axes
-      xAxis.call(d3.axisBottom(newXScale).tickFormat(d3.timeFormat('%m/%d')));
+      xAxis.call(
+        d3.axisBottom(newXScale)
+        .tickValues(tickArray)
+        .tickFormat(d3.timeFormat('%m/%d')));
       yAxis.transition().duration(200).call(d3.axisLeft(newYScale));
 
       // Update line generators with new scales
@@ -248,6 +269,7 @@ const LineChart = ({ data, width = 1000, height = 1000, onResetReady, yAxisLabel
       .style('fill', 'none')
       .style('pointer-events', 'all')
       .style('cursor', 'ew-resize')
+      .style('touch-action', 'none') // Prevent browser handling of touch gestures to fix violation warning
       .call(zoom)
       .on('mousedown', function() {
         d3.select(this).style('cursor', 'grabbing');

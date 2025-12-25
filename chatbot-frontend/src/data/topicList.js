@@ -23,18 +23,6 @@ const topicList = [
 		value: "chapter-6-dynamic-response-characteristics-of-more-complicated-processes",
 		label: "Chapter 6: Dynamic Response Characteristics of More Complicated Processes",
 	},
-	{
-		value: "chapter-7-feedback-controllers",
-		label: "Chapter 7: Feedback Controllers",
-	},
-	{
-		value: "chapter-8-dynamic-behavior-of-closed-loop-control-systems",
-		label: "Chapter 8: Dynamic Behavior of Closed-Loop Control Systems",
-	},
-	{
-		value: "chapter-9-stability-of-closed-loop-control-systems",
-		label: "Chapter 9: Stability of Closed-loop Control Systems",
-	},
 ];
 
 export default topicList;

@@ -176,12 +176,20 @@ class Topic(Base):
     topic_summary = Column(Text, nullable=False)
     # topic_summary_embedding = Column(Vector(1024))  # Temporarily disabled - requires pgvector extension
 
-class TopicDependency(Base):
+class TopicDependency(Base): 
     __tablename__ = "topic_dependencies"
     id = Column(BigInteger, primary_key=True, autoincrement=True)
     topic_id = Column(BigInteger, ForeignKey("topics.id"))
     related_topic_id = Column(BigInteger, ForeignKey("topics.id"))
     relation_type = Column(Text, default="related")
+
+class Subtopic(Base):
+    __tablename__ = "subtopics"
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    topic_id = Column(BigInteger, ForeignKey("topics.id"), nullable=False)
+    subtopic_name = Column(Text, nullable=False)
+    subtopic_summary = Column(Text, nullable=False)
+    # subtopic_summary_embedding = Column(Vector(1024))  # Temporarily disabled - requires pgvector extension
 
 class SubtopicDependency(Base):
     __tablename__ = "subtopic_dependencies"
@@ -190,20 +198,10 @@ class SubtopicDependency(Base):
     related_subtopic_id = Column(BigInteger, ForeignKey("subtopics.id"))
     relation_type = Column(Text, default="related")
 
-   
-
-class Subtopic(Base):
-    __tablename__ = "subtopics"
-    id = Column(BigInteger, primary_key=True, autoincrement=True)
-    topic_id = Column(BigInteger, ForeignKey("topics.id"))
-    subtopic_name = Column(Text, nullable=False)
-    subtopic_summary = Column(Text, nullable=False)
-    # subtopic_summary_embedding = Column(Vector(1024))  # Temporarily disabled - requires pgvector extension
-
 class DocumentChunk(Base):
     __tablename__ = "document_chunks"
     id = Column(BigInteger, primary_key=True, autoincrement=True)
-    subtopic_id = Column(BigInteger, ForeignKey("subtopics.id"))
+    subtopic_id = Column(BigInteger, ForeignKey("subtopics.id"))  # References subtopics
     content = Column(Text, nullable=False)
     # embedding = Column(Vector(1024))  # Temporarily disabled - requires pgvector extension
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())

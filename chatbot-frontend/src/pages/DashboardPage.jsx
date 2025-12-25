@@ -211,11 +211,13 @@ const skillMasteryData = {
 
 // MOCK DATA for Chat History - Replace with real API data
 const chatHistoryData = [
-    { id: 1, question: "What is the difference between inheritance and composition?", grade: "A", timestamp: "2024-10-10 14:30" },
-    { id: 2, question: "Explain polymorphism in OOP", grade: "B+", timestamp: "2024-10-09 11:15" },
-    { id: 3, question: "How does encapsulation work?", grade: "A-", timestamp: "2024-10-08 16:45" },
-    { id: 4, question: "What are design patterns?", grade: "B", timestamp: "2024-10-07 10:20" },
-    { id: 5, question: "Describe SOLID principles", grade: "A", timestamp: "2024-10-06 13:00" }
+    { id: 1, question: "What is the difference between a P controller and a PI controller?", grade: "A", timestamp: "2024-12-15 14:30" },
+    { id: 2, question: "Explain the concept of process dead time and its effect on control system design", grade: "B+", timestamp: "2024-12-14 11:15" },
+    { id: 3, question: "How does cascade control improve disturbance rejection?", grade: "A-", timestamp: "2024-12-13 16:45" },
+    { id: 4, question: "What are the Ziegler-Nichols tuning rules for PID controllers?", grade: "B", timestamp: "2024-12-12 10:20" },
+    { id: 5, question: "Describe the stability criteria for feedback control systems", grade: "A", timestamp: "2024-12-11 13:00" },
+    { id: 6, question: "How do you determine the transfer function of a first-order system?", grade: "A-", timestamp: "2024-12-10 09:45" },
+    { id: 7, question: "What is the purpose of feedforward control in process systems?", grade: "B+", timestamp: "2024-12-09 15:20" }
 ];
 
 // Responsive Chart Wrapper Component
@@ -270,7 +272,24 @@ export default function DashboardPage() {
     const [accuracyChartData, setAccuracyChartData] = useState({ categories: [], individualData: [], averageData: [], title: 'Answer Accuracy per Question Category' });
     const [questionCountData, setQuestionCountData] = useState({ categories: [], individualData: [], averageData: [], title: 'Number of Questions per Question Category' });
     const [topicalPerformanceData, setTopicalPerformanceData] = useState({ categories: [], leftData: [], rightData: [], leftLabel: 'Your Conversations', rightLabel: 'Class Average', title: 'Conversations per Topic' });
-    const [overallGrades, setOverallGrades] = useState({ questionQuality: 'N/A', answerAccuracy: 'N/A', avgQuestionQuality: 'N/A', avgAnswerAccuracy: 'N/A' });
+    const [overallGrades, setOverallGrades] = useState({ 
+        questionQuality: 'N/A', 
+        answerAccuracy: 'N/A', 
+        avgQuestionQuality: 'N/A', 
+        avgAnswerAccuracy: 'N/A',
+        questionQualityGPA: null,
+        answerAccuracyGPA: null,
+        avgQuestionQualityGPA: null,
+        avgAnswerAccuracyGPA: null
+    });
+
+    // Add state for questions (replacing conversations)
+    const [conversations, setQuestions] = useState([]);
+    const [conversationsLoading, setQuestionsLoading] = useState(true);
+    const [topicIdMap, setTopicIdMap] = useState({}); // Map topic names to IDs
+
+    
+   
     const [dataLoading, setDataLoading] = useState(true);
     
     // Store raw stats for filtering
@@ -281,6 +300,22 @@ export default function DashboardPage() {
     const [topicDependencies, setTopicDependencies] = useState([]);
     const [dependenciesLoading, setDependenciesLoading] = useState(false);
 
+    // Helper function to convert grade points to letter grade
+    const pointToGrade = (points) => {
+        if (points == null) return 'N/A';
+        const p = Number(points);
+        if (p >= 4.0) return 'A';
+        if (p >= 3.7) return 'A-';
+        if (p >= 3.3) return 'B+';
+        if (p >= 3.0) return 'B';
+        if (p >= 2.7) return 'B-';
+        if (p >= 2.3) return 'C+';
+        if (p >= 2.0) return 'C';
+        if (p >= 1.7) return 'C-';
+        if (p >= 1.3) return 'D+';
+        if (p >= 1.0) return 'D';
+        return 'F';
+    };
     // Fetch summary from API on component mount
     useEffect(() => {
         const fetchSummary = async () => {
@@ -309,7 +344,7 @@ export default function DashboardPage() {
         
         fetchSummary();
     }, []);
-
+    
     // Fetch all statistics data from API
     useEffect(() => {
         const fetchAllData = async () => {
@@ -461,29 +496,18 @@ export default function DashboardPage() {
                     title: 'Topic Activity Comparison'
                 });
                 
-                // Helper function to convert grade points to letter grade
-                const pointToGrade = (points) => {
-                    if (points == null) return 'N/A';
-                    const p = Number(points);
-                    if (p >= 4.0) return 'A';
-                    if (p >= 3.7) return 'A-';
-                    if (p >= 3.3) return 'B+';
-                    if (p >= 3.0) return 'B';
-                    if (p >= 2.7) return 'B-';
-                    if (p >= 2.3) return 'C+';
-                    if (p >= 2.0) return 'C';
-                    if (p >= 1.7) return 'C-';
-                    if (p >= 1.3) return 'D+';
-                    if (p >= 1.0) return 'D';
-                    return 'F';
-                };
+                
                 
                 // Set overall grades
                 setOverallGrades({
                     questionQuality: pointToGrade(individualStats.average_question_grade),
-                    answerAccuracy: pointToGrade(individualStats.average_question_grade),
+                    answerAccuracy: individualStats.average_answer_accuracy, // Note: this will be in the form of float 
                     avgQuestionQuality: groupStats.overall_average_grade_letter || 'N/A',
-                    avgAnswerAccuracy: groupStats.overall_average_grade_letter || 'N/A'
+                    avgAnswerAccuracy: groupStats.overall_average_accuracy || 'N/A', // Float again
+                    questionQualityGPA: Number(individualStats.average_question_grade) || null,
+                    answerAccuracyGPA: Number(individualStats.average_question_grade) || null,
+                    avgQuestionQualityGPA: Number(groupStats.overall_average_grade) || null,
+                    avgAnswerAccuracyGPA: Number(groupStats.overall_average_grade) || null
                 });
     };
     
@@ -493,38 +517,134 @@ export default function DashboardPage() {
             transformAndSetChartData(rawIndividualStats, rawGroupStats, selectedTopicFilter);
         }
     }, [selectedTopicFilter]);
+
+    
     
     // Handler for topic selection in charts
     const handleTopicSelection = (topicName) => {
         setSelectedTopicFilter(selectedTopicFilter === topicName ? null : topicName);
+        // Also update the TopicGraph selection
+        console.log(topicName);
+        setSelectedTopic(topicName);
     };
     
+    // Fetch questions when a topic is selected, else fetch all questions
+   useEffect(() => {
+    const fetchQuestions = async () => {
+        setQuestionsLoading(true);
+        try {
+            // Convert topic name to ID using the mapping
+            const topicId = selectedTopicFilter ? topicIdMap[selectedTopicFilter] : null;
+            
+            console.log('[Debug] Fetching questions:', {
+                selectedTopicFilter,
+                topicId,
+                topicIdMap
+            });
+            
+            // Build URL with optional topic filter using numeric ID
+            const url = topicId 
+                ? `${API_ENDPOINTS.questions}?topic_id=${topicId}`
+                : API_ENDPOINTS.questions;
+            
+            console.log('[Debug] Request URL:', url);
+            
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to fetch question data');
+            }
+            
+            const responseData = await response.json();
+            console.log('[Debug] Fetched question data:', responseData);
+            
+            // Questions API returns array directly (not paginated)
+            const questionsArray = Array.isArray(responseData) ? responseData : [];
+            
+            // Transform API data to match table format
+            // API returns: { question_id, content, grade, timestamp }
+            const transformedData = questionsArray.map(q => ({
+                id: q.question_id,
+                question: q.content || 'No content',
+                grade: q.grade || 'N/A',
+                timestamp: q.timestamp
+                    ? new Date(q.timestamp).toLocaleString('en-US', {
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    })
+                    : 'N/A'
+            }));
+            
+            setQuestions(transformedData);
+            
+        } catch (error) {
+            console.error('Error fetching questions:', error);
+            setQuestions([]);
+        } finally {
+            setQuestionsLoading(false);
+        }
+    };
+    
+    fetchQuestions();
+}, [selectedTopicFilter, topicIdMap]);
+
+
     // Fetch topic dependencies when a topic is selected
     useEffect(() => {
         const fetchTopicDependencies = async () => {
-            if (!selectedTopic) {
-                setTopicDependencies([]);
-                console.log('no topic able to be selected')
-                return;
-            }
 
-            console.log('proceeding to select')
+            console.log('proceeding to select ur mom')
             setDependenciesLoading(true);
             try {
                 const response = await fetch(API_ENDPOINTS.topicDependencies, {
-                    method: 'POST',
+                    method: 'GET',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ topic_id: selectedTopic })
                 });
+
+                // just getting everything for now
                 
                 if (!response.ok) {
+                    console.log('is there an error here?',response.status, await response.text());
+                    // is this a subtopic? let's check
+                    // never mind plan aborted
                     throw new Error('Failed to fetch topic dependencies');
                 }
                 
                 const dependencies = await response.json();
                 setTopicDependencies(dependencies);
+                console.log('Fetched dependencies:', dependencies);
+
+                // Build topic name -> ID mapping
+                const nameToIdMap = {};
+                if (dependencies.nodes) {
+                    dependencies.nodes.forEach(node => {
+                        if (node.type === 'topic' && node.label && node.id) {
+                            // Extract numeric ID from prefixed ID (e.g., "topic_5" -> 5)
+                            const numericId = parseInt(node.id.replace('topic_', ''));
+                            nameToIdMap[node.label] = numericId;
+                        }
+                    });
+                }
+                setTopicIdMap(nameToIdMap);
+                console.log('Topic ID map:', nameToIdMap);
+
+                // Set default selected topic if none selected
+                if (dependencies.nodes && dependencies.nodes.length > 0) {
+                    // Prefer a 'topic' type node, otherwise just the first one
+                    const defaultTopic = dependencies.nodes.find(n => n.type === 'topic') || dependencies.nodes[0];
+                    // Use label if available, otherwise ID (TopicGraph expects label for lookup)
+                    setSelectedTopic(defaultTopic.label || defaultTopic.id);
+                }
+
             } catch (error) {
                 console.error('Error fetching topic dependencies:', error);
+                // 
                 setTopicDependencies([]);
             } finally {
                 setDependenciesLoading(false);
@@ -532,7 +652,7 @@ export default function DashboardPage() {
         };
         
         fetchTopicDependencies();
-    }, [selectedTopic]);
+    }, []);
 
     // Filter topics based on search term
     const filteredTopicalPerformanceData = {
@@ -636,18 +756,18 @@ export default function DashboardPage() {
                                         flex: "1",
                                         minWidth: "280px",
                                         maxWidth: "400px",
-                                        backgroundColor: "#f0fdf4",
+                                        backgroundColor: "#eff6ff",
                                         padding: "1.5rem",
                                         borderRadius: "12px",
                                         boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-                                        borderLeft: "4px solid #10b981"
+                                        borderLeft: "4px solid #3b82f6"
                                     }}>
                                         <ReactMarkdown components={{
                                             ...markdownComponents,
                                             h2: ({node, ...props}) => <h3 style={{
                                                 fontSize: "1.3rem",
                                                 fontWeight: "bold",
-                                                color: "#059669",
+                                                color: "#2563eb",
                                                 marginTop: 0,
                                                 marginBottom: "0.75rem",
                                                 textTransform: "uppercase",
@@ -655,7 +775,7 @@ export default function DashboardPage() {
                                             }} {...props} />,
                                             strong: ({node, ...props}) => <strong style={{
                                                 fontWeight: "bold",
-                                                color: "#059669",
+                                                color: "#2563eb",
                                                 fontSize: "1.05rem"
                                             }} {...props} />
                                         }}>
@@ -754,12 +874,10 @@ export default function DashboardPage() {
             >
                
                 {(() => {
-                    // Helper function to compare grades
-                    const gradeToNumber = (grade) => {
-                        const gradeMap = { 'A+': 13, 'A': 12, 'A-': 11, 'B+': 10, 'B': 9, 'B-': 8, 'C+': 7, 'C': 6, 'C-': 5, 'D+': 4, 'D': 3, 'D-': 2, 'F': 1 };
-                        return gradeMap[grade] || 0;
-                    };
-                    const isAboveAvg = gradeToNumber(overallGrades.questionQuality) >= gradeToNumber(overallGrades.avgQuestionQuality);
+                    // Use actual GPA values for comparison
+                    const studentGPA = overallGrades.questionQualityGPA;
+                    const avgGPA = overallGrades.avgQuestionQualityGPA;
+                    const isAboveAvg = (studentGPA != null && avgGPA != null) ? studentGPA > avgGPA : false;
                     
                     return (
                         <div
@@ -786,12 +904,10 @@ export default function DashboardPage() {
                     );
                 })()}
                 {(() => {
-                    // Helper function to compare grades
-                    const gradeToNumber = (grade) => {
-                        const gradeMap = { 'A+': 13, 'A': 12, 'A-': 11, 'B+': 10, 'B': 9, 'B-': 8, 'C+': 7, 'C': 6, 'C-': 5, 'D+': 4, 'D': 3, 'D-': 2, 'F': 1 };
-                        return gradeMap[grade] || 0;
-                    };
-                    const isAboveAvg = gradeToNumber(overallGrades.answerAccuracy) >= gradeToNumber(overallGrades.avgAnswerAccuracy);
+                    // Use float values for comparison
+                    const studentGPA = overallGrades.answerAccuracyGPA;
+                    const avgGPA = overallGrades.avgAnswerAccuracyGPA;
+                    const isAboveAvg = (studentGPA != null && avgGPA != null) ? studentGPA > avgGPA : false;
                     
                     return (
                         <div
@@ -808,10 +924,10 @@ export default function DashboardPage() {
                                 Overall Estimated Answer Accuracy
                             </div>
                             <div style={{ fontSize: "3.5rem", fontWeight: "bold", color: isAboveAvg ? "#10b981" : "#ef4444", textAlign: "center" }}>
-                                {overallGrades.answerAccuracy}
+                                {Math.round(overallGrades.answerAccuracy)}
                             </div>
                             <div style={{ color: "#666", fontWeight:"bold", fontSize: "1rem", textAlign: "right" }}>
-                                Average: <span style={{ color: "#888" }}>{overallGrades.avgAnswerAccuracy}</span>
+                                Average: <span style={{ color: "#888" }}>{Math.round(overallGrades.avgAnswerAccuracy)}</span>
                             </div>
                         </div>
                     );
@@ -1062,13 +1178,27 @@ export default function DashboardPage() {
                                 alignItems: "center",
                                 marginBottom: "0.75rem"
                             }}>
-                                <h3 style={{ 
-                                    color: "#555",
-                                    margin: 0,
-                                    fontSize: "1.1rem"
-                                }}>
-                                    Topic Dependencies: {selectedTopic || "Select a topic"}
-                                </h3>
+                                <div>
+                                    <h3 style={{ 
+                                        color: "#555",
+                                        margin: 0,
+                                        fontSize: "1.1rem"
+                                    }}>
+                                        Topic Dependencies: {selectedTopic || "Select a topic"}
+                                    </h3>
+                                    <p style={{
+                                        margin: "0.5rem 0 0 0",
+                                        fontSize: "0.75rem",
+                                        color: "#64748b",
+                                        display: "flex",
+                                        gap: "1rem",
+                                        flexWrap: "wrap"
+                                    }}>
+                                        <span><span style={{ color: "#3b82f6", fontWeight: "bold" }}>●</span> Selected Topic</span>
+                                        <span><span style={{ color: "#8b5cf6", fontWeight: "bold" }}>●</span> Subtopics</span>
+                                        <span><span style={{ color: "#10b981", fontWeight: "bold" }}>●</span> Related Topics</span>
+                                    </p>
+                                </div>
                                 {selectedTopic && (
                                     <div style={{
                                         display: "flex",
@@ -1110,12 +1240,14 @@ export default function DashboardPage() {
                                     <>
                                         <TopicGraph 
                                             selectedTopic={selectedTopic}
-                                            onTopicSelect={setSelectedTopic}
+                                            onTopicSelect={handleTopicSelection}
                                             width={700}
                                             height={280}
+                                            graphData = {topicDependencies}
+                                            gradeData={rawIndividualStats?.grades_by_topic} 
                                         />
                                         
-                                        {/* Dependencies List */}
+                                        {/* Dependencies List
                                         <div style={{
                                             backgroundColor: "#f8fafc",
                                             padding: "1rem",
@@ -1128,7 +1260,7 @@ export default function DashboardPage() {
                                                 color: "#475569",
                                                 fontWeight: "600"
                                             }}>
-                                                📚 Related Topics & Dependencies
+                                                Related Topics & Dependencies
                                             </h4>
                                             {dependenciesLoading ? (
                                                 <div style={{ textAlign: 'center', padding: '1rem', color: '#64748b', fontSize: '0.85rem' }}>
@@ -1189,7 +1321,7 @@ export default function DashboardPage() {
                                                     No dependencies found for this topic
                                                 </div>
                                             )}
-                                        </div>
+                                        </div> */}
                                     </>
                                 ) : (
                                     <div style={{
@@ -1211,8 +1343,9 @@ export default function DashboardPage() {
                                 padding: "1rem",
                                 borderRadius: "12px",
                                 boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+                                maxHeight: "400px",
                                 flex: "1",
-                                minHeight: "0",
+                                minHeight: "400px",
                                 display: "flex",
                                 flexDirection: "column"
                             }}>
@@ -1221,7 +1354,7 @@ export default function DashboardPage() {
                                     marginBottom: "0.75rem",
                                     fontSize: "1rem"
                                 }}>
-                                    Recent Conversations
+                                    Recent Questions
                                 </h3>
                                 <div style={{ 
                                     flex: "1",
@@ -1274,44 +1407,58 @@ export default function DashboardPage() {
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {chatHistoryData.map((chat, index) => (
+                                            {conversationsLoading ? (
+                                            <tr>
+                                                <td colSpan="4" style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>
+                                                    Loading questions...
+                                                </td>
+                                            </tr>
+                                        ) : conversations.length === 0 ? (
+                                            <tr>
+                                                <td colSpan="4" style={{ textAlign: 'center', padding: '2rem', color: '#94a3b8' }}>
+                                                    No questions found
+                                                </td>
+                                            </tr>
+                                        ) : (
+                                            conversations.map((chat, index) => (
                                                 <tr key={chat.id} style={{
                                                     backgroundColor: index % 2 === 0 ? "white" : "#f8fafc"
                                                 }}>
-                                                    <td style={{ 
-                                                        padding: "0.6rem",
-                                                        borderBottom: "1px solid #e2e8f0",
-                                                        color: "#334155"
-                                                    }}>{chat.question}</td>
-                                                    <td style={{ 
-                                                        padding: "0.6rem",
-                                                        textAlign: "center",
-                                                        borderBottom: "1px solid #e2e8f0",
-                                                        fontWeight: "bold",
-                                                        color: chat.grade.startsWith('A') ? "#10b981" : "#3b82f6"
-                                                    }}>{chat.grade}</td>
-                                                    <td style={{ 
-                                                        padding: "0.6rem",
-                                                        textAlign: "center",
-                                                        borderBottom: "1px solid #e2e8f0",
-                                                        color: "#64748b",
-                                                        fontSize: "0.8rem"
-                                                    }}>{chat.timestamp}</td>
-                                                    <td style={{ 
-                                                        padding: "0.6rem",
-                                                        textAlign: "center",
-                                                        borderBottom: "1px solid #e2e8f0"
-                                                    }}>
-                                                        <Button 
-                                                            variant="outlined" 
-                                                            size="small"
-                                                            style={{ fontSize: "0.7rem", padding: "0.25rem 0.5rem" }}
-                                                        >
-                                                            Visit
-                                                        </Button>
-                                                    </td>
-                                                </tr>
-                                            ))}
+                                        <td style={{ 
+                                            padding: "0.6rem",
+                                            borderBottom: "1px solid #e2e8f0",
+                                            color: "#334155"
+                                        }}>{chat.question}</td>
+                                        <td style={{ 
+                                            padding: "0.6rem",
+                                            textAlign: "center",
+                                            borderBottom: "1px solid #e2e8f0",
+                                            fontWeight: "bold",
+                                            color: chat.grade.startsWith('A') ? "#10b981" : "#3b82f6"
+                                        }}>{chat.grade}</td>
+                                        <td style={{ 
+                                            padding: "0.6rem",
+                                            textAlign: "center",
+                                            borderBottom: "1px solid #e2e8f0",
+                                            color: "#64748b",
+                                            fontSize: "0.8rem"
+                                        }}>{chat.timestamp}</td>
+                                        <td style={{ 
+                                            padding: "0.6rem",
+                                            textAlign: "center",
+                                            borderBottom: "1px solid #e2e8f0"
+                                        }}>
+                                            <Button 
+                                                variant="outlined" 
+                                                size="small"
+                                                style={{ fontSize: "0.7rem", padding: "0.25rem 0.5rem" }}
+                                            >
+                                                Visit
+                                            </Button>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
                                         </tbody>
                                     </table>
                                 </div>
@@ -1411,7 +1558,7 @@ export default function DashboardPage() {
                             Average Duration of Conversation Over Time
                             {selectedTopicFilter && (
                                 <span style={{ display: "block", fontSize: "0.8rem", color: "#059669", marginTop: "0.25rem" }}>
-                                    📊 Filtered by: {selectedTopicFilter}
+                                    Filtered by: {selectedTopicFilter}
                                 </span>
                             )}
                         </h2>

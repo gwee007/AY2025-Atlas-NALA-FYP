@@ -46,29 +46,6 @@ export const topicNodes = [
   { id: 'id6-4', label: 'Interacting and Noninteracting Processes' },
   { id: 'id6-5', label: 'State-Space and Transfer Function Matrix Models' },
   { id: 'id6-6', label: 'Multiple-Input, Multiple-Output Processes' },
-
-  { id: 'id7', label: 'Feedback Controllers' },
-  { id: 'id7-2', label: 'Basic Control Modes' },
-  { id: 'id7-3', label: 'Features of PID Controllers' },
-  { id: 'id7-4', label: 'Digital Versions of PID Controllers' },
-  { id: 'id7-5', label: 'Typical Responses of Feedback Control Systems' },
-  { id: 'id7-6', label: 'On–Off Controllers' },
-
-  { id: 'id8', label: 'Dynamic Behavior and Stability of Closed-Loop Control Systems' },
-  { id: 'id8-1', label: 'Block Diagram Representation' },
-  { id: 'id8-2', label: 'Closed-Loop Transfer Functions' },
-  { id: 'id8-3', label: 'Closed-Loop Responses of Simple Control Systems' },
-  { id: 'id8-4', label: 'Stability of Closed-Loop Control Systems' },
-  { id: 'id8-5', label: 'Root Locus Diagrams' },
-
-  { id: 'id9', label: 'PID Controller Design, Tuning, and Troubleshooting' },
-  { id: 'id9-1', label: 'Performance Criteria for Closed-Loop Systems' },
-  { id: 'id9-2', label: 'Model-Based Design Methods' },
-  { id: 'id9-3', label: 'Controller Tuning Relations' },
-  { id: 'id9-4', label: 'Controllers with Two Degrees of Freedom' },
-  { id: 'id9-5', label: 'On-Line Controller Tuning' },
-  { id: 'id9-6', label: 'Guidelines for Common Control Loops' },
-  { id: 'id9-7', label: 'Troubleshooting Control Loops' }
 ];
 
 export const topicEdges = [
@@ -114,40 +91,12 @@ export const topicEdges = [
   { from: 'id6-4', to: 'id6-5', type: 'sequence' },
   { from: 'id6-5', to: 'id6-6', type: 'sequence' },
 
-  // id7 branch
-  { from: 'id7', to: 'id7-2', type: 'optional' },
-  { from: 'id7-2', to: 'id7-3', type: 'sequence' },
-  { from: 'id7-3', to: 'id7-4', type: 'sequence' },
-  { from: 'id7-4', to: 'id7-5', type: 'sequence' },
-  { from: 'id7-5', to: 'id7-6', type: 'sequence' },
-
-  // id8 branch
-  { from: 'id8', to: 'id8-1', type: 'optional' },
-  { from: 'id8-1', to: 'id8-2', type: 'sequence' },
-  { from: 'id8-2', to: 'id8-3', type: 'sequence' },
-  { from: 'id8-3', to: 'id8-4', type: 'sequence' },
-  { from: 'id8-4', to: 'id8-5', type: 'sequence' },
-
-  // id9 branch
-  { from: 'id9', to: 'id9-1', type: 'optional' },
-  { from: 'id9-1', to: 'id9-2', type: 'sequence' },
-  { from: 'id9-2', to: 'id9-3', type: 'sequence' },
-  { from: 'id9-3', to: 'id9-4', type: 'sequence' },
-  { from: 'id9-4', to: 'id9-5', type: 'sequence' },
-  { from: 'id9-5', to: 'id9-6', type: 'sequence' },
-  { from: 'id9-6', to: 'id9-7', type: 'sequence' },
-
   // Prerequisite (==>) edges
-  { from: 'id1', to: 'id8', type: 'prerequisite' },
-  { from: 'id5', to: 'id8', type: 'prerequisite' },
-  { from: 'id6', to: 'id8', type: 'prerequisite' },
-  { from: 'id7', to: 'id8', type: 'prerequisite' },
   { from: 'id4', to: 'id6', type: 'prerequisite' },
   { from: 'id5', to: 'id6', type: 'prerequisite' },
   { from: 'id4', to: 'id5', type: 'prerequisite' },
   { from: 'id2', to: 'id4', type: 'prerequisite' },
   { from: 'id3', to: 'id4', type: 'prerequisite' },
-  { from: 'id7', to: 'id9', type: 'prerequisite' }
 ];
 
 // Build adjacency list keyed by node id for quick traversal.

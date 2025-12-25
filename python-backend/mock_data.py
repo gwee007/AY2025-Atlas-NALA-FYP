@@ -2,7 +2,7 @@ import os
 import json 
 from datetime import datetime, timedelta
 import random
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 from dotenv import load_dotenv
 from initialize_database import initialize
@@ -10,7 +10,7 @@ import numpy as np
 
 from models_simple import (
     Base, Chatbot, User, Conversation, Message, Question, Answer,
-    Topic, TopicDependency, Subtopic, DocumentChunk, SubtopicDependency
+    Topic, TopicDependency, Subtopic, SubtopicDependency, DocumentChunk
 )
 
 load_dotenv()
@@ -18,7 +18,27 @@ load_dotenv()
 engine = initialize()
 SessionLocal = sessionmaker(bind=engine)
 
-# Topic data - Chemical Engineering Process Control
+def cleanup_old_tables():
+    """Drop and recreate schema for clean slate"""
+    with engine.connect() as conn:
+        print("Resetting database schema...")
+        conn.execute(text("DROP SCHEMA public CASCADE"))
+        conn.execute(text("CREATE SCHEMA public"))
+        conn.execute(text("GRANT ALL ON SCHEMA public TO postgres"))
+        conn.execute(text("GRANT ALL ON SCHEMA public TO public"))
+        conn.commit()
+        print("Schema reset complete")
+
+# Topic data - Chemical Engineering Process Control // refernce the json
+TOPICS_DATA = []
+folder_path = './mock_data/topic_summary'
+for filename in os.listdir(folder_path):
+        if filename.endswith('.json'):
+            filepath = os.path.join(folder_path, filename)
+            with open(filepath, 'r') as f:
+                data = json.load(f)
+                for subtopic in data:
+                    TOPICS_DATA.append(subtopic)
 TOPICS_DATA = [
     {"id": 1, "name": "Introduction to Process Control", "summary": "Fundamental concepts of process control, control objectives, and basic terminology"},
     {"id": 2, "name": "Theoretical Models of Chemical Processes", "summary": "Mathematical modeling of chemical processes, conservation principles, and process equations"},
@@ -26,11 +46,12 @@ TOPICS_DATA = [
     {"id": 4, "name": "Transfer Function Models", "summary": "Transfer functions, block diagrams, and frequency domain analysis"},
     {"id": 5, "name": "Dynamic Behaviour of First-Order and Second-Order Processes", "summary": "Time-domain response characteristics, step response, and process dynamics"},
     {"id": 6, "name": "Dynamic Response Characteristics of More Complicated Processes", "summary": "Higher-order systems, time delays, and complex process behavior"},
-    {"id": 7, "name": "Feedback Controllers", "summary": "Controller types, feedback control principles, and controller actions"},
-    {"id": 8, "name": "Dynamic Behaviour of Closed-Loop Control Systems", "summary": "Closed-loop dynamics, servo and regulatory responses, and system performance"},
-    {"id": 9, "name": "Stability of Closed-Loop Control Systems", "summary": "Stability criteria, Routh-Hurwitz criterion, and stability analysis methods"},
-    {"id": 10, "name": "PID Controller Design and Tuning", "summary": "PID controller principles, tuning methods, and performance optimization"}
+    # {"id": 7, "name": "Feedback Controllers", "summary": "Controller types, feedback control principles, and controller actions"},
+    # {"id": 8, "name": "Dynamic Behaviour of Closed-Loop Control Systems", "summary": "Closed-loop dynamics, servo and regulatory responses, and system performance"},
+    # {"id": 9, "name": "Stability of Closed-Loop Control Systems", "summary": "Stability criteria, Routh-Hurwitz criterion, and stability analysis methods"},
+    # {"id": 10, "name": "PID Controller Design and Tuning", "summary": "PID controller principles, tuning methods, and performance optimization"}
 ]
+
 
 TOPIC_DEPENDENCIES = [
     {"topic_id": 4, "related_topic_id": 2, "relation_type": "prerequisite"},
@@ -38,25 +59,18 @@ TOPIC_DEPENDENCIES = [
     {"topic_id": 5, "related_topic_id": 4, "relation_type": "prerequisite"},
     {"topic_id": 6, "related_topic_id": 4, "relation_type": "prerequisite"},
     {"topic_id": 6, "related_topic_id": 5, "relation_type": "prerequisite"},
-    {"topic_id": 8, "related_topic_id": 1, "relation_type": "prerequisite"},
-    {"topic_id": 8, "related_topic_id": 5, "relation_type": "prerequisite"},
-    {"topic_id": 8, "related_topic_id": 6, "relation_type": "prerequisite"},
-    {"topic_id": 8, "related_topic_id": 7, "relation_type": "prerequisite"},
-    {"topic_id": 9, "related_topic_id": 1, "relation_type": "prerequisite"},
-    {"topic_id": 9, "related_topic_id": 5, "relation_type": "prerequisite"},
-    {"topic_id": 9, "related_topic_id": 6, "relation_type": "prerequisite"},
-    {"topic_id": 9, "related_topic_id": 7, "relation_type": "prerequisite"},
-    {"topic_id": 10, "related_topic_id": 7, "relation_type": "prerequisite"}
+    # {"topic_id": 8, "related_topic_id": 1, "relation_type": "prerequisite"},
+    # {"topic_id": 8, "related_topic_id": 5, "relation_type": "prerequisite"},
+    # {"topic_id": 8, "related_topic_id": 6, "relation_type": "prerequisite"},
+    # {"topic_id": 8, "related_topic_id": 7, "relation_type": "prerequisite"},
+    # {"topic_id": 9, "related_topic_id": 1, "relation_type": "prerequisite"},
+    # {"topic_id": 9, "related_topic_id": 5, "relation_type": "prerequisite"},
+    # {"topic_id": 9, "related_topic_id": 6, "relation_type": "prerequisite"},
+    # {"topic_id": 9, "related_topic_id": 7, "relation_type": "prerequisite"},
+    # {"topic_id": 10, "related_topic_id": 7, "relation_type": "prerequisite"}
 ]
 
-# loading from subtopic data in the file folder in ./mock_data/subtopic summary
-# goal: for each json, for example
-# {
-#         "topic_id": 1,
-#         "subtopic_name": "Blending System Illustration",
-#         "subtopic_summary": "Block Diagram Representation talks about using block diagrams to visually represent the components and interactions within a control system. It explains how to illustrate the flow of signals between the process, sensor, controller, and final control element, providing a clear overview of the control system's structure and function."
-#     },
-# we want to load them into the Subtopic table
+# Loading subtopic data from JSON files - these will go into Subtopic table
 folder_path = './mock_data/subtopic summary'
 SUBTOPICS_DATA = []
 for filename in os.listdir(folder_path):
@@ -65,7 +79,12 @@ for filename in os.listdir(folder_path):
             with open(filepath, 'r') as f:
                 data = json.load(f)
                 for subtopic in data:
-                    SUBTOPICS_DATA.append(subtopic) 
+                    SUBTOPICS_DATA.append(subtopic)
+
+# Subtopic dependencies (if any exist between subtopics)
+SUBTOPIC_DEPENDENCIES_DATA = []
+# Add any subtopic-to-subtopic dependencies here if needed
+# Example: {"subtopic_id": 1, "related_subtopic_id": 2, "relation_type": "prerequisite"} 
 
 
 def generate_embedding(dimension=1024):
@@ -80,13 +99,18 @@ def populate_mock_data():
     try:
         # Drop and recreate all tables
         print("Dropping and recreating tables...")
-        Base.metadata.drop_all(engine)
+        cleanup_old_tables()
+
+        print("Creating tables")
         Base.metadata.create_all(engine)
         print("Tables created successfully.")
         
-        # 1. Create Topics
+        # 1. Create Topics (main topics only)
         print("\nCreating topics...")
         topics = []
+        topic_id_map = {}  # Map to track topic IDs for later reference
+        
+        # Create main topics
         for topic_data in TOPICS_DATA:
             topic = Topic(
                 id=topic_data["id"],
@@ -95,11 +119,35 @@ def populate_mock_data():
                 # topic_summary_embedding=generate_embedding()  # Disabled
             )
             topics.append(topic)
+            topic_id_map[topic.id] = topic
             session.add(topic)
+        
         session.flush()
         print(f"Created {len(topics)} topics")
         
-        # 2. Create Topic Dependencies
+        # 2. Create Subtopics (separate table)
+        print("\nCreating subtopics...")
+        subtopics = []
+        subtopic_id_map = {}  # Map to track subtopic IDs
+        
+        for subtopic_data in SUBTOPICS_DATA:
+            subtopic = Subtopic(
+                topic_id=subtopic_data["topic_id"],  # References parent topic
+                subtopic_name=subtopic_data["subtopic_name"],
+                subtopic_summary=subtopic_data["subtopic_summary"]
+                # subtopic_summary_embedding=generate_embedding()  # Disabled
+            )
+            subtopics.append(subtopic)
+            session.add(subtopic)
+        
+        session.flush()
+        # Build subtopic ID map after flush
+        for subtopic in subtopics:
+            subtopic_id_map[subtopic.id] = subtopic
+        
+        print(f"Created {len(subtopics)} subtopics")
+        
+        # 3. Create Topic Dependencies (topic to topic prerequisites)
         print("\nCreating topic dependencies...")
         for dep_data in TOPIC_DEPENDENCIES:
             dependency = TopicDependency(
@@ -111,38 +159,19 @@ def populate_mock_data():
         session.flush()
         print(f"Created {len(TOPIC_DEPENDENCIES)} topic dependencies")
         
-        # 3. Create Subtopics
-        print("\nCreating subtopics...")
-        subtopics = []
-        number_of_subtopic_dependencies  = 0
-        prev_topic = None
-        for subtopic_data in SUBTOPICS_DATA:
-            current_topic = subtopic_data["topic_id"]
-            subtopic = Subtopic(
-            topic_id=subtopic_data["topic_id"],
-            subtopic_name=subtopic_data["subtopic_name"],
-            subtopic_summary=subtopic_data["subtopic_summary"]
-            # subtopic_summary_embedding=generate_embedding()  # Disabled
+        # 4. Create Subtopic Dependencies (if any)
+        print("\nCreating subtopic dependencies...")
+        for dep_data in SUBTOPIC_DEPENDENCIES_DATA:
+            dependency = SubtopicDependency(
+                subtopic_id=dep_data["subtopic_id"],
+                related_subtopic_id=dep_data["related_subtopic_id"],
+                relation_type=dep_data["relation_type"]
             )
-            subtopics.append(subtopic)
-            session.add(subtopic)
-            
-            # Create prerequisite dependency between consecutive subtopics of the same topic
-            if prev_topic == current_topic and len(subtopics) > 1:
-                number_of_subtopic_dependencies += 1 
-                subtopic_dependency = SubtopicDependency(
-                    subtopic_id=subtopic_data["topic_id"],
-                    related_subtopic_id=subtopics[-2].topic_id,
-                    relation_type="prerequisite"
-                )
-                session.add(subtopic_dependency)
-            
-            prev_topic = current_topic
-
+            session.add(dependency)
         session.flush()
-        print(f"Created {len(subtopics)} subtopics")
+        print(f"Created {len(SUBTOPIC_DEPENDENCIES_DATA)} subtopic dependencies")
         
-        # 4. Create Document Chunks
+        # 5. Create document chunks for subtopics
         print("\nCreating document chunks...")
         document_contents = [
             "This comprehensive guide covers the theoretical foundations and practical applications.",
@@ -152,10 +181,11 @@ def populate_mock_data():
             "Common challenges, troubleshooting approaches, and implementation guidelines."
         ]
         
+        # Create document chunks for each subtopic
         for subtopic in subtopics:
             for i, content in enumerate(document_contents):
                 chunk = DocumentChunk(
-                    subtopic_id=subtopic.id,
+                    subtopic_id=subtopic.id,  # References subtopic table
                     content=f"{content} (Part {i+1} for {subtopic.subtopic_name})"
                     # embedding=generate_embedding()  # Disabled
                 )
@@ -163,7 +193,7 @@ def populate_mock_data():
         session.flush()
         print(f"Created {len(subtopics) * len(document_contents)} document chunks")
         
-        # 5. Create Chatbot
+        # 6. Create Chatbot
         print("\nCreating chatbot...")
         chatbot = Chatbot(
             chatbot_id=1,
@@ -173,7 +203,7 @@ def populate_mock_data():
         session.flush()
         print("Created chatbot")
         
-        # 6. Create Users
+        # 7. Create Users
         print("\nCreating users...")
         users = []
         for i in range(1, 14):  # Create 13 users total
@@ -187,7 +217,7 @@ def populate_mock_data():
         session.flush()
         print(f"Created {len(users)} users")
         
-        # 7. Create Conversations, Messages, Questions, and Answers
+        # 8. Create Conversations, Messages, Questions, and Answers
         print("\nCreating conversations with messages, questions, and answers...")
         conversation_titles = [
             "Understanding Transfer Functions",
@@ -260,6 +290,9 @@ def populate_mock_data():
                     
                     # Create Question for user messages
                     if is_user_message:
+                        # Select randomly from either topics or subtopics
+                        # Questions can be about main topics or specific subtopics
+                        # For now, we'll use topics only in the question.topic_id field
                         selected_topic = random.choice(topics)
                         
                         # Weight grades - more realistic distribution
@@ -312,16 +345,16 @@ def populate_mock_data():
         
         # Commit all changes
         session.commit()
-        print("\n✅ All mock data successfully created and committed!")
+        print("\nAll mock data successfully created and committed!")
         
         # Print summary
         print("\n" + "="*50)
         print("MOCK DATA SUMMARY")
         print("="*50)
         print(f"Topics: {len(topics)}")
-        print(f"Topic Dependencies: {len(TOPIC_DEPENDENCIES)}")
-        print(f"Subtopic Dependencies: {number_of_subtopic_dependencies }")
         print(f"Subtopics: {len(subtopics)}")
+        print(f"Topic Dependencies: {len(TOPIC_DEPENDENCIES)}")
+        print(f"Subtopic Dependencies: {len(SUBTOPIC_DEPENDENCIES_DATA)}")
         print(f"Document Chunks: {len(subtopics) * len(document_contents)}")
         
         print(f"Chatbots: 1")
@@ -341,5 +374,10 @@ def populate_mock_data():
 
 if __name__ == "__main__":
     print("Starting mock data population...")
+    session = SessionLocal()
+    # display all subtopics dependencies
+   #  subtopic_dependency_query=session.query(SubtopicDependency).all()
+    # subtopic_dependencies=[dep.to_dict() for dep in subtopic_dependency_query]
+   # print(subtopic_dependencies)
     populate_mock_data()
     print("\nDone!")

@@ -3,13 +3,42 @@ import * as d3 from 'd3';
 
 const ReflectiveBarChart = ({ data, width = 600, height = 500, onCategoryClick, selectedCategory }) => {
   const svgRef = useRef();
+      function wrap(text, width) {
+      text.each(function() {
+        var text = d3.select(this),
+              words = text.text().split(/\s+/).reverse(),
+              word,
+              line = [],
+              lineNumber = 0,
+              lineHeight = 1.1, // ems
+              y = text.attr("y"),
+
+              x = text.attr("x"),
+              dy = parseFloat(text.attr("dy")) || 0,
+              tspan = text.text(null).append("tspan").attr("x", x).attr("y", y).attr("dy", dy + "em");
+          while (word = words.pop()) {
+            line.push(word);
+            tspan.text(line.join(" "));
+            if (tspan.node().getComputedTextLength() > width) {
+              line.pop();
+              tspan.text(line.join(" "));
+              line = [word];
+             tspan = text.append("tspan")
+              .attr("x", x)
+              .attr("y", y)
+              .attr("dy", ++lineNumber * lineHeight + dy + "em")
+              .text(word);
+            }
+          }
+        });
+      }
 
   useEffect(() => {
     const svg = d3.select(svgRef.current);
     svg.selectAll("*").remove(); // Clear previous content
 
     // Set up dimensions and margins
-    const margin = { top: 40, right: 80, bottom: 60, left: 120 };
+    const margin = { top: 40, right: 20, bottom: 60, left: 250 };
     const innerWidth = width - margin.left - margin.right;
     const innerHeight = height - margin.top - margin.bottom;
 
@@ -30,8 +59,13 @@ const ReflectiveBarChart = ({ data, width = 600, height = 500, onCategoryClick, 
       ...data.rightData.map(d => Math.abs(d.value))
     ]);
 
+     
+    // Add margin so bars don't touch axes
+    const barMargin = maxValue * 0.25; // 5% of max value as margin
+
+
     const xScale = d3.scaleLinear()
-      .domain([-maxValue, maxValue])
+      .domain([-maxValue - barMargin, maxValue + barMargin])
       .range([0, innerWidth]);
 
     // Add center line (y-axis)
@@ -173,7 +207,7 @@ const ReflectiveBarChart = ({ data, width = 600, height = 500, onCategoryClick, 
       .data(data.categories)
       .enter().append('text')
       .attr('class', 'category-label')
-      .attr('x', -30)
+      .attr('x',-20)
       .attr('y', d => yScale(d) + yScale.bandwidth() / 2)
       .attr('text-anchor', 'end')
       .attr('dominant-baseline', 'middle')
@@ -182,6 +216,7 @@ const ReflectiveBarChart = ({ data, width = 600, height = 500, onCategoryClick, 
       .style('fill', d => d === selectedCategory ? '#1d4ed8' : '#333')
       .style('cursor', onCategoryClick ? 'pointer' : 'default')
       .text(d => d)
+      .call(wrap, 230)
       .on('click', function(event, d) {
         if (onCategoryClick) {
           onCategoryClick(d);
@@ -214,6 +249,7 @@ const ReflectiveBarChart = ({ data, width = 600, height = 500, onCategoryClick, 
       .style('font-size', '11px')
             .style('color', '#666');
 
+
     // Add axis labels
     g.append('text')
       .attr('x', innerWidth / 4)
@@ -222,7 +258,7 @@ const ReflectiveBarChart = ({ data, width = 600, height = 500, onCategoryClick, 
       .style('font-size', '14px')
       .style('font-weight', 'bold')
       .style('fill', '#3b82f6')
-      .text(data.leftLabel || 'Left Distribution');
+      .text(data.leftLabel || 'Class Average');
 
     g.append('text')
       .attr('x', (3 * innerWidth) / 4)
@@ -231,7 +267,7 @@ const ReflectiveBarChart = ({ data, width = 600, height = 500, onCategoryClick, 
       .style('font-size', '14px')
       .style('font-weight', 'bold')
       .style('fill', '#ef4444')
-      .text(data.rightLabel || 'Right Distribution');
+      .text(data.rightLabel || 'Your Conversations');
 
     // Add title
     g.append('text')
@@ -242,11 +278,11 @@ const ReflectiveBarChart = ({ data, width = 600, height = 500, onCategoryClick, 
       .style('font-size', '16px')
       .style('font-weight', 'bold')
       .style('fill', '#333')
-      .text(data.title || 'Comparative Distribution');
+      .text(data.title || 'Number of Conversations Overall Per Topic');
 
     // Add legend
     const legend = g.append('g')
-      .attr('transform', `translate(${innerWidth - 100}, -40)`);
+      .attr('transform', `translate(${innerWidth + 30}, -40)`);
 
     legend.append('rect')
       .attr('width', 15)
