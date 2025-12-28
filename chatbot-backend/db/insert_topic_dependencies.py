@@ -1,10 +1,8 @@
-import sys
 import os
-sys.path.append(os.path.abspath(".."))
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import IntegrityError
-from db.models import TopicDependency
+from models import TopicDependency
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -12,14 +10,17 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Database setup
-def get_database_url():
-    database_url = os.getenv("DATABASE_URL")
-    if not database_url:
-        raise ValueError("DATABASE_URL environment variable is not set")
-    return database_url
+POSTGRES_USER = os.getenv("POSTGRES_USER")
+POSTGRES_PASS = os.getenv("POSTGRES_PASS")
+POSTGRES_HOST = os.getenv("POSTGRES_HOST")
+POSTGRES_DB = os.getenv("POSTGRES_DB")
+POSTGRES_PORT = os.getenv("POSTGRES_PORT")
+
+# Initialise database URL
+database_url = f"postgresql://{POSTGRES_USER}:{POSTGRES_PASS}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
 
 def create_session():
-    engine = create_engine(get_database_url())
+    engine = create_engine(database_url)
     return sessionmaker(bind=engine)()
 
 # Insert topic dependency
@@ -49,16 +50,7 @@ def main():
         {"topic_id": 4, "related_topic_id": 3, "relation_type": "prerequisite"},
         {"topic_id": 5, "related_topic_id": 4, "relation_type": "prerequisite"},
         {"topic_id": 6, "related_topic_id": 4, "relation_type": "prerequisite"},
-        {"topic_id": 6, "related_topic_id": 5, "relation_type": "prerequisite"},
-        {"topic_id": 8, "related_topic_id": 1, "relation_type": "prerequisite"},
-        {"topic_id": 8, "related_topic_id": 5, "relation_type": "prerequisite"},
-        {"topic_id": 8, "related_topic_id": 6, "relation_type": "prerequisite"},
-        {"topic_id": 8, "related_topic_id": 7, "relation_type": "prerequisite"},
-        {"topic_id": 9, "related_topic_id": 1, "relation_type": "prerequisite"},
-        {"topic_id": 9, "related_topic_id": 5, "relation_type": "prerequisite"},
-        {"topic_id": 9, "related_topic_id": 6, "relation_type": "prerequisite"},
-        {"topic_id": 9, "related_topic_id": 7, "relation_type": "prerequisite"},
-        {"topic_id": 10, "related_topic_id": 7, "relation_type": "prerequisite"}
+        {"topic_id": 6, "related_topic_id": 5, "relation_type": "prerequisite"}
     ]
 
     for dependency in topic_dependencies:
