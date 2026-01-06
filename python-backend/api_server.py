@@ -12,7 +12,6 @@ import requests
 from initialize_database import get_engine
 
 load_dotenv()
-
 app = Flask(__name__)
 CORS(app)  # Enable CORS for React frontend (running on different port)
 
@@ -39,7 +38,7 @@ def individual_statistics_end():
     try:
         data = request.get_json()
         user_id = data.get('user_id')
-        
+ 
         if not user_id:
             return jsonify({'error': 'user_id is required'}), 400
         print(f"[DEBUG] Fetching individual stats for user_id: {user_id}")

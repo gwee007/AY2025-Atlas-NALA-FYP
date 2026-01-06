@@ -9,216 +9,6 @@ import API_BASE_URL, { API_ENDPOINTS } from '../config/api';
 import ReactMarkdown from 'react-markdown';
 
 // NOT THE ACTUAL DASHBOARD, JUST A PLACEHOLDER
-// okay got it 
-const stats = [
-    { label: "Active Users", value: 1245 },
-    { label: "New Signups", value: 87 },
-    { label: "Messages Sent", value: 3421 },
-    { label: "System Uptime", value: "99.98%" },
-];
-
-const recentActivities = [
-    { time: "10:05 AM", activity: "User JohnDoe signed in" },
-    { time: "09:50 AM", activity: "New message received" },
-    { time: "09:30 AM", activity: "User JaneSmith registered" },
-    { time: "09:10 AM", activity: "System backup completed" },
-];
-
-// MOCK DATA for LineChart - Replace with real API data
-const interactionChartData = {
-    individual: [
-        { date: new Date('2024-10-01'), interactions: 15 },
-        { date: new Date('2024-10-02'), interactions: 23 },
-        { date: new Date('2024-10-03'), interactions: 18 },
-        { date: new Date('2024-10-04'), interactions: 31 },
-        { date: new Date('2024-10-05'), interactions: 12 },
-        { date: new Date('2024-10-06'), interactions: 28 },
-        { date: new Date('2024-10-07'), interactions: 35 },
-        { date: new Date('2024-10-08'), interactions: 22 },
-        { date: new Date('2024-10-09'), interactions: 19 },
-        { date: new Date('2024-10-10'), interactions: 27 },
-    ],
-    average: [
-        { date: new Date('2024-10-01'), interactions: 20 },
-        { date: new Date('2024-10-02'), interactions: 22 },
-        { date: new Date('2024-10-03'), interactions: 21 },
-        { date: new Date('2024-10-04'), interactions: 24 },
-        { date: new Date('2024-10-05'), interactions: 18 },
-        { date: new Date('2024-10-06'), interactions: 25 },
-        { date: new Date('2024-10-07'), interactions: 26 },
-        { date: new Date('2024-10-08'), interactions: 23 },
-        { date: new Date('2024-10-09'), interactions: 21 },
-        { date: new Date('2024-10-10'), interactions: 24 },
-    ]
-};
-
-// MOCK DATA for SpiderChart - Replace with real assessment data
-const bloomsTaxonomyData = {
-    categories: [
-        { name: 'Remembering', individual: 30, average: 78 },
-        { name: 'Understanding', individual: 78, average: 82 },
-        { name: 'Applying', individual: 92, average: 75 },
-        { name: 'Analyzing', individual: 88, average: 80 },
-        { name: 'Evaluating', individual: 76, average: 85 },
-        { name: 'Creating', individual: 82, average: 70 }
-    ]
-};
-
-// MOCK DATA for SOLO Taxonomy Vertical Bar Chart
-const soloVerticalChartData = {
-    categories: ['Prestructural', 'Unistructural', 'Multistructural', 'Relational', 'Extended Abstract'],
-    individualData: [
-        { category: 'Prestructural', value: 12 },
-        { category: 'Unistructural', value: 35 },
-        { category: 'Multistructural', value: 78 },
-        { category: 'Relational', value: 92 },
-        { category: 'Extended Abstract', value: 67 }
-    ],
-    averageData: [
-        { category: 'Prestructural', value: 18 },
-        { category: 'Unistructural', value: 42 },
-        { category: 'Multistructural', value: 71 },
-        { category: 'Relational', value: 85 },
-        { category: 'Extended Abstract', value: 59 }
-    ],
-    title: 'SOLO Taxonomy Performance'
-};
-
-// MOCK DATA for Bloom's Taxonomy Vertical Bar Chart
-const bloomsVerticalChartData = {
-    categories: ['Prestructural', 'Unistructural', 'Multistructural', 'Relational', 'Extended Abstract'],
-    individualData: [
-        { category: 'Prestructural', value: 21 },
-        { category: 'Unistructural', value: 47 },
-        { category: 'Multistructural', value: 63 },
-        { category: 'Relational', value: 88 },
-        { category: 'Extended Abstract', value: 72 }
-    ],
-    averageData: [
-        { category: 'Prestructural', value: 19 },
-        { category: 'Unistructural', value: 41 },
-        { category: 'Multistructural', value: 69 },
-        { category: 'Relational', value: 84 },
-        { category: 'Extended Abstract', value: 66 }
-    ],
-    title: "Bloom's Taxonomy Performance"
-};
-
-// MOCK DATA for Number of Questions per Category
-const questionCountChartData = {
-    categories: ['Prestructural', 'Unistructural', 'Multistructural', 'Relational', 'Extended Abstract'],
-    individualData: [
-        { category: 'Prestructural', value: 5 },
-        { category: 'Unistructural', value: 12 },
-        { category: 'Multistructural', value: 28 },
-        { category: 'Relational', value: 35 },
-        { category: 'Extended Abstract', value: 20 }
-    ],
-    averageData: [
-        { category: 'Prestructural', value: 8 },
-        { category: 'Unistructural', value: 15 },
-        { category: 'Multistructural', value: 25 },
-        { category: 'Relational', value: 30 },
-        { category: 'Extended Abstract', value: 22 }
-    ],
-    title: 'Number of Questions per Question Category'
-};
-
-// MOCK DATA for Topical Performance with Scrollable List
-const topicalPerformanceData = {
-    categories: [
-        'Mathematics', 'Science', 'Literature', 'History', 'Philosophy', 'Economics',
-        'Computer Science', 'Psychology', 'Sociology', 'Political Science', 'Art History',
-        'Biology', 'Chemistry', 'Physics', 'Statistics', 'Foreign Languages', 'Music Theory',
-        'Engineering', 'Business Ethics', 'Environmental Science', 'Anthropology', 'Geography'
-    ],
-    leftData: [
-        { category: 'Mathematics', value: 88 },
-        { category: 'Science', value: 76 },
-        { category: 'Literature', value: 94 },
-        { category: 'History', value: 82 },
-        { category: 'Philosophy', value: 91 },
-        { category: 'Economics', value: 73 },
-        { category: 'Computer Science', value: 95 },
-        { category: 'Psychology', value: 87 },
-        { category: 'Sociology', value: 79 },
-        { category: 'Political Science', value: 84 },
-        { category: 'Art History', value: 92 },
-        { category: 'Biology', value: 89 },
-        { category: 'Chemistry', value: 77 },
-        { category: 'Physics', value: 85 },
-        { category: 'Statistics', value: 90 },
-        { category: 'Foreign Languages', value: 83 },
-        { category: 'Music Theory', value: 86 },
-        { category: 'Engineering', value: 93 },
-        { category: 'Business Ethics', value: 75 },
-        { category: 'Environmental Science', value: 88 },
-        { category: 'Anthropology', value: 81 },
-        { category: 'Geography', value: 78 }
-    ],
-    rightData: [
-        { category: 'Mathematics', value: 79 },
-        { category: 'Science', value: 85 },
-        { category: 'Literature', value: 81 },
-        { category: 'History', value: 88 },
-        { category: 'Philosophy', value: 74 },
-        { category: 'Economics', value: 86 },
-        { category: 'Computer Science', value: 87 },
-        { category: 'Psychology', value: 82 },
-        { category: 'Sociology', value: 84 },
-        { category: 'Political Science', value: 80 },
-        { category: 'Art History', value: 76 },
-        { category: 'Biology', value: 83 },
-        { category: 'Chemistry', value: 85 },
-        { category: 'Physics', value: 89 },
-        { category: 'Statistics', value: 78 },
-        { category: 'Foreign Languages', value: 87 },
-        { category: 'Music Theory', value: 79 },
-        { category: 'Engineering', value: 91 },
-        { category: 'Business Ethics', value: 82 },
-        { category: 'Environmental Science', value: 84 },
-        { category: 'Anthropology', value: 86 },
-        { category: 'Geography', value: 88 }
-    ],
-    leftLabel: 'Your Performance',
-    rightLabel: 'Class Average',
-    title: 'Subject Performance Comparison'
-};
-
-// Alternative comparison data for skill mastery
-const skillMasteryData = {
-    categories: ['Problem Solving', 'Critical Thinking', 'Communication', 'Collaboration', 'Research Skills'],
-    leftData: [
-        { category: 'Problem Solving', value: 92 },
-        { category: 'Critical Thinking', value: 87 },
-        { category: 'Communication', value: 78 },
-        { category: 'Collaboration', value: 85 },
-        { category: 'Research Skills', value: 90 }
-    ],
-    rightData: [
-        { category: 'Problem Solving', value: 84 },
-        { category: 'Critical Thinking', value: 80 },
-        { category: 'Communication', value: 89 },
-        { category: 'Collaboration', value: 82 },
-        { category: 'Research Skills', value: 77 }
-    ],
-    leftLabel: 'Current Semester',
-    rightLabel: 'Previous Semester',
-    title: 'Skill Development Over Time'
-};
-
-// Grade constants moved to state in DashboardPage component
-
-// MOCK DATA for Chat History - Replace with real API data
-const chatHistoryData = [
-    { id: 1, question: "What is the difference between a P controller and a PI controller?", grade: "A", timestamp: "2024-12-15 14:30" },
-    { id: 2, question: "Explain the concept of process dead time and its effect on control system design", grade: "B+", timestamp: "2024-12-14 11:15" },
-    { id: 3, question: "How does cascade control improve disturbance rejection?", grade: "A-", timestamp: "2024-12-13 16:45" },
-    { id: 4, question: "What are the Ziegler-Nichols tuning rules for PID controllers?", grade: "B", timestamp: "2024-12-12 10:20" },
-    { id: 5, question: "Describe the stability criteria for feedback control systems", grade: "A", timestamp: "2024-12-11 13:00" },
-    { id: 6, question: "How do you determine the transfer function of a first-order system?", grade: "A-", timestamp: "2024-12-10 09:45" },
-    { id: 7, question: "What is the purpose of feedforward control in process systems?", grade: "B+", timestamp: "2024-12-09 15:20" }
-];
 
 // Responsive Chart Wrapper Component
 function ResponsiveReflectiveBarChart({ data, height, onCategoryClick, selectedCategory }) {
@@ -260,7 +50,8 @@ function ResponsiveReflectiveBarChart({ data, height, onCategoryClick, selectedC
 
 export default function DashboardPage() {
     const [selectedTopic, setSelectedTopic] = useState(null);
-    const [selectedTopicFilter, setSelectedTopicFilter] = useState(null); // For filtering charts by topic
+
+   // const [selectedTopic, setselectedTopic] = useState(null); // For filtering charts by topic
     const [searchTerm, setSearchTerm] = useState('');
     // LLM-generated summary - fetched from API
     const [llmSummary, setLlmSummary] = useState('Loading summary...');
@@ -426,7 +217,7 @@ export default function DashboardPage() {
                 setDurationChartData({ individual: durationIndividual, average: durationAverage });
                 
                 // Transform accuracy by SOLO data
-                const soloCategories = ['Prestructural', 'Unistructural', 'Multistructural', 'Relational', 'Extended Abstract'];
+                const soloCategories = ['Unistructural', 'Multistructural', 'Relational', 'Extended Abstract'];
                 const accuracyIndividual = soloCategories.map(cat => {
                     const items = filterTopicName 
                         ? (individualStats.accuracy_by_solo_and_topic || []).filter(item => item.topic_name === filterTopicName)
@@ -514,37 +305,28 @@ export default function DashboardPage() {
     // Re-filter data when topic filter changes
     useEffect(() => {
         if (rawIndividualStats && rawGroupStats) {
-            transformAndSetChartData(rawIndividualStats, rawGroupStats, selectedTopicFilter);
+            transformAndSetChartData(rawIndividualStats, rawGroupStats, selectedTopic);
         }
-    }, [selectedTopicFilter]);
+    }, [selectedTopic]);
 
+    const handleTopicSelection = React.useCallback((topicName) => {
+    // Logic to toggle: if clicking same topic, set to null, else set to new topic
+    setSelectedTopic(prev => prev === topicName ? null : topicName);
+}, []);
     
-    
-    // Handler for topic selection in charts
-    const handleTopicSelection = (topicName) => {
-        const newFilter = selectedTopicFilter === topicName ? null : topicName;
-        
-        // Wrap state updates in startTransition to prevent blocking UI
-        startTransition(() => {
-            setSelectedTopicFilter(newFilter);
-            setSelectedTopic(newFilter);
-        });
-        
-        console.log(topicName);
-    };
     
     // Fetch questions when a topic is selected, else fetch all questions
    useEffect(() => {
     const fetchQuestions = async () => {
         // Only fetch if we have the topic ID mapping loaded (or no filter selected)
-        if (!selectedTopicFilter || Object.keys(topicIdMap).length > 0) {
+        if (!selectedTopic || Object.keys(topicIdMap).length > 0) {
             setQuestionsLoading(true);
             try {
                 // Convert topic name to ID using the mapping
-                const topicId = selectedTopicFilter ? topicIdMap[selectedTopicFilter] : null;
+                const topicId = selectedTopic ? topicIdMap[selectedTopic] : null;
                 
                 console.log('[Debug] Fetching questions:', {
-                    selectedTopicFilter,
+                    selectedTopic,
                     topicId,
                     topicIdMap
                 });
@@ -600,7 +382,7 @@ export default function DashboardPage() {
     };
     
     fetchQuestions();
-}, [selectedTopicFilter]);
+}, [selectedTopic]);
 
 
     // Fetch topic dependencies when a topic is selected
@@ -1106,7 +888,7 @@ export default function DashboardPage() {
                                     }} 
                                     height={Math.max(400, filteredTopicalPerformanceData.categories.length * 35)}
                                     onCategoryClick={(category) => handleTopicSelection(category)}
-                                    selectedCategory={selectedTopicFilter}
+                                    selectedCategory={selectedTopic}
                                 />
                             )}
                         </div>
@@ -1123,14 +905,14 @@ export default function DashboardPage() {
                             <p style={{ margin: "0.5rem 0" }}>
                                 Showing {filteredTopicalPerformanceData.categories.length} of {topicalPerformanceData.categories.length} subjects
                             </p>
-                            {selectedTopicFilter && (
+                            {selectedTopic && (
                                 <div style={{ marginTop: "1rem" }}>
                                     <p style={{ margin: "0.5rem 0", color: "#059669", fontWeight: "bold" }}>
-                                        Filtering all charts by: {selectedTopicFilter}
+                                        Filtering all charts by: {selectedTopic}
                                     </p>
                                     <button 
                                         onClick={() => {
-                                            setSelectedTopicFilter(null);
+                                            // setselectedTopic(null);
                                             setSelectedTopic(null);
                                         }}
                                         style={{
@@ -1524,9 +1306,9 @@ export default function DashboardPage() {
                             color: "#555"
                         }}>
                             Number of Interaction Trends Over Time
-                            {selectedTopicFilter && (
+                            {selectedTopic && (
                                 <span style={{ display: "block", fontSize: "0.8rem", color: "#059669", marginTop: "0.25rem" }}>
-                                    📊 Filtered by: {selectedTopicFilter}
+                                    📊 Filtered by: {selectedTopic}
                                 </span>
                             )}
                         </h2>
@@ -1562,9 +1344,9 @@ export default function DashboardPage() {
                             color: "#555"
                         }}>
                             Average Duration of Conversation Over Time
-                            {selectedTopicFilter && (
+                            {selectedTopic && (
                                 <span style={{ display: "block", fontSize: "0.8rem", color: "#059669", marginTop: "0.25rem" }}>
-                                    Filtered by: {selectedTopicFilter}
+                                    Filtered by: {selectedTopic}
                                 </span>
                             )}
                         </h2>
@@ -1618,9 +1400,9 @@ export default function DashboardPage() {
                                 color: "#555"
                             }}>
                                 Answer Accuracy per Question Category
-                                {selectedTopicFilter && (
+                                {selectedTopic && (
                                     <span style={{ display: "block", fontSize: "0.75rem", color: "#059669", marginTop: "0.25rem" }}>
-                                        📊 Filtered by: {selectedTopicFilter}
+                                        📊 Filtered by: {selectedTopic}
                                     </span>
                                 )}
                             </h3>
@@ -1669,9 +1451,9 @@ export default function DashboardPage() {
                                 color: "#555"
                             }}>
                                 Number of Questions per Question Category
-                                {selectedTopicFilter && (
+                                {selectedTopic && (
                                     <span style={{ display: "block", fontSize: "0.75rem", color: "#059669", marginTop: "0.25rem" }}>
-                                        📊 Filtered by: {selectedTopicFilter}
+                                        📊 Filtered by: {selectedTopic}
                                     </span>
                                 )}
                             </h3>
