@@ -5,7 +5,7 @@ import psycopg2
 from psycopg2 import sql
 # Importing the modules from another file.
 from models_simple import Base, Chatbot, User, Conversation, Message, Question, Answer, TopicDependency
-from sqlalchemy import create_engine, inspect, text
+from sqlalchemy import create_engine, inspect
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import create_engine

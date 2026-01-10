@@ -6,7 +6,8 @@ from dotenv import load_dotenv
 from initialize_database import get_engine
 from averageCalculation import individual_statistics, group_statistics
 from grading_calculation import point_to_grade
-from sqlalchemy import text
+from sqlalchemy import select # Not being used in an insecure context, only for debugging 
+from models_simple import User
 
 # Load environment variables
 load_dotenv()
@@ -341,8 +342,13 @@ if __name__ == "__main__":
     # Query a full list of users for debugging
     engine = get_engine()
     with engine.connect() as conn:
-        result = conn.execute(text("SELECT user_id FROM \"user\" ORDER BY user_id;"))
+        # Build the query object
+        stmt = select(User.user_id).order_by(User.user_id)
+        
+        # Execute the statement directly
+        result = conn.execute(stmt)
         users = result.fetchall()
+        
         print(f"[DEBUG] Sample users in database: {[row[0] for row in users]}")
     
     # Test with user ID 103 (from mock data)

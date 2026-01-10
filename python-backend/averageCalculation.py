@@ -1,583 +1,198 @@
-import requests
-import os
-import pandas as pd
-import psycopg2
-from psycopg2 import sql
-import datetime
 import time
-# Importing the modules from another file.
-from models_simple import Base, Chatbot, User, Conversation, Message, Question, Answer 
-from sqlalchemy import create_engine, inspect, text
+import datetime
+from sqlalchemy import create_engine, select, func, case, desc, cast, Date, distinct, and_, Index
 from sqlalchemy.orm import sessionmaker
-from grading_calculation import grade_to_point, point_to_grade
-from initialize_database import get_engine
-# querying the database
 from dotenv import load_dotenv
+
+# Import your models
+from models_simple import Base, Chatbot, User, Conversation, Message, Question, Answer, Topic
+from grading_calculation import point_to_grade
+from initialize_database import get_engine
+
 load_dotenv()
 
-# Postgres temporary details 
 engine = get_engine()
 SessionLocal = sessionmaker(bind=engine)
-# conversation_duration= session.execute(text("SELECT AVG(created_at-updated_at) FROM \"conversation\" LIMIT 5")).fetchall()
 
-# Returning json of basic calculations
+# --- REUSABLE EXPRESSIONS ---
 
-def individual_statistics(user_id):
-    """
-    OPTIMIZED VERSION with parameterized queries and combined data fetching.
-    Time Complexity with indexes: O(k log N) where k = user's questions
-    Prevents SQL injection and allows query plan caching.
-    """
-    session = SessionLocal()
-    try:
-        # Single optimized query combining all user statistics with CTE
-        result = session.execute(text("""
-        WITH user_questions AS(
-            -- Pre-join once to avoid repetition
-            SELECT 
-                q.question_id,
-                q.grade,
-                q.solo_taxonomy_label,
-                a.accuracy,
-                a.answer_id
-            FROM "question" q
-            JOIN "message" m ON q.message_id = m.message_id
-            JOIN "conversation" c ON m.conversation_id = c.id
-            LEFT JOIN "answer" a ON q.question_id = a.question_id
-            WHERE c.user_id = :user_id
-        ),
-        grade_points AS (
-            SELECT 
-                CASE grade
-                    WHEN 'A+' THEN 4.0
-                    WHEN 'A' THEN 4.0
-                    WHEN 'A-' THEN 3.7
-                    WHEN 'B+' THEN 3.3
-                    WHEN 'B' THEN 3.0
-                    WHEN 'B-' THEN 2.7
-                    WHEN 'C+' THEN 2.3
-                    WHEN 'C' THEN 2.0
-                    WHEN 'C-' THEN 1.7
-                    WHEN 'D+' THEN 1.3
-                    WHEN 'D' THEN 1.0
-                    WHEN 'F' THEN 0.0
-                    ELSE 0.0
-                END as points,
-                solo_taxonomy_label,
-                accuracy
-            FROM user_questions
-        )
-        SELECT 
-            -- Conversation stats
-            (SELECT AVG(updated_at - created_at) FROM "conversation" WHERE user_id = :user_id) as avg_duration,
-            (SELECT COUNT(*) FROM "conversation" WHERE user_id = :user_id) as conv_count,
-            -- Overall stats
-            (SELECT AVG(points) FROM grade_points WHERE points IS NOT NULL) as avg_grade,
-            (SELECT AVG(accuracy) FROM grade_points WHERE accuracy IS NOT NULL) as avg_accuracy
-        """), {"user_id": user_id}).fetchone()
-        
-        # Separate queries for grouped data (still need these for detailed breakdown)
-        accuracy_by_category = session.execute(text("""
-        SELECT 
-            q.solo_taxonomy_label,
-            COUNT(a.answer_id) as answer_count,
-            AVG(a.accuracy) as avg_accuracy
-        FROM "question" q
-        JOIN "message" m ON q.message_id = m.message_id
-        JOIN "conversation" c ON m.conversation_id = c.id
-        JOIN "answer" a ON q.question_id = a.question_id
-        WHERE c.user_id = :user_id 
-            AND q.solo_taxonomy_label IS NOT NULL 
-            AND a.accuracy IS NOT NULL
-        GROUP BY q.solo_taxonomy_label
-        ORDER BY avg_accuracy DESC
-        """), {"user_id": user_id}).fetchall()
-
-        questions_by_category = session.execute(text("""
-        SELECT 
-            q.solo_taxonomy_label,
-            COUNT(q.question_id) as question_count,
-            AVG(
-                CASE q.grade
-                    WHEN 'A+' THEN 4.0
-                    WHEN 'A' THEN 4.0
-                    WHEN 'A-' THEN 3.7
-                    WHEN 'B+' THEN 3.3
-                    WHEN 'B' THEN 3.0
-                    WHEN 'B-' THEN 2.7
-                    WHEN 'C+' THEN 2.3
-                    WHEN 'C' THEN 2.0
-                    WHEN 'C-' THEN 1.7
-                    WHEN 'D+' THEN 1.3
-                    WHEN 'D' THEN 1.0
-                    WHEN 'F' THEN 0.0
-                    ELSE 0.0
-                END
-            ) as avg_grade_points
-        FROM "question" q
-        JOIN "message" m ON q.message_id = m.message_id
-        JOIN "conversation" c ON m.conversation_id = c.id
-        WHERE c.user_id = :user_id AND q.solo_taxonomy_label IS NOT NULL
-        GROUP BY q.solo_taxonomy_label
-        ORDER BY avg_grade_points DESC
-        """), {"user_id": user_id}).fetchall()
-        
-        # GROUP BY TOPIC - for efficient dashboard filtering
-        grades_by_topic = session.execute(text("""
-            SELECT 
-                t.id as topic_id,
-                t.topic_name,
-                COUNT(q.question_id) as question_count,
-                AVG(
-                    CASE q.grade
-                        WHEN 'A+' THEN 4.0
-                        WHEN 'A' THEN 4.0
-                        WHEN 'A-' THEN 3.7
-                        WHEN 'B+' THEN 3.3
-                        WHEN 'B' THEN 3.0
-                        WHEN 'B-' THEN 2.7
-                        WHEN 'C+' THEN 2.3
-                        WHEN 'C' THEN 2.0
-                        WHEN 'C-' THEN 1.7
-                        WHEN 'D+' THEN 1.3
-                        WHEN 'D' THEN 1.0
-                        WHEN 'F' THEN 0.0
-                        ELSE 0.0
-                    END
-                ) as avg_grade_points
-            FROM "topics" t
-            LEFT JOIN "question" q ON t.id = q.topic_id
-            JOIN "message" m ON q.message_id = m.message_id
-            JOIN "conversation" c ON m.conversation_id = c.id
-            WHERE c.user_id = :user_id AND q.grade IS NOT NULL
-            GROUP BY t.id, t.topic_name
-            ORDER BY avg_grade_points DESC
-        """), {"user_id": user_id}).fetchall()
-        
-        accuracy_by_topic = session.execute(text("""
-            SELECT 
-                t.id as topic_id,
-                t.topic_name,
-                COUNT(a.answer_id) as answer_count,
-                AVG(a.accuracy) as avg_accuracy
-            FROM "topics" t
-            LEFT JOIN "answer" a ON t.id = a.topic_id
-            JOIN "question" q ON a.question_id = q.question_id
-            JOIN "message" m ON q.message_id = m.message_id
-            JOIN "conversation" c ON m.conversation_id = c.id
-            WHERE c.user_id = :user_id AND a.accuracy IS NOT NULL
-            GROUP BY t.id, t.topic_name
-            ORDER BY avg_accuracy DESC
-        """), {"user_id": user_id}).fetchall()
-        
-        # TIME SERIES DATA - Interactions over time by topic
-        interactions_over_time_by_topic = session.execute(text("""
-            SELECT 
-                DATE(c.created_at) as date,
-                t.id as topic_id,
-                t.topic_name,
-                COUNT(DISTINCT m.message_id) as interaction_count
-            FROM "conversation" c
-            JOIN "message" m ON c.id = m.conversation_id
-            JOIN "question" q ON m.message_id = q.message_id
-            JOIN "topics" t ON q.topic_id = t.id
-            WHERE c.user_id = :user_id
-            GROUP BY DATE(c.created_at), t.id, t.topic_name
-            ORDER BY date, t.topic_name
-        """), {"user_id": user_id}).fetchall()
-        
-        # TIME SERIES DATA - Conversation duration over time by topic
-        duration_over_time_by_topic = session.execute(text("""
-            SELECT 
-                DATE(c.created_at) as date,
-                t.id as topic_id,
-                t.topic_name,
-                AVG(c.updated_at - c.created_at) as avg_duration
-            FROM "conversation" c
-            JOIN "message" m ON c.id = m.conversation_id
-            JOIN "question" q ON m.message_id = q.message_id
-            JOIN "topics" t ON q.topic_id = t.id
-            WHERE c.user_id = :user_id
-            GROUP BY DATE(c.created_at), t.id, t.topic_name
-            ORDER BY date, t.topic_name
-        """), {"user_id": user_id}).fetchall()
-        
-        # DOUBLE-GROUPED DATA - Accuracy by SOLO category AND topic
-        accuracy_by_solo_and_topic = session.execute(text("""
-            SELECT 
-                q.solo_taxonomy_label,
-                t.id as topic_id,
-                t.topic_name,
-                COUNT(a.answer_id) as answer_count,
-                AVG(a.accuracy) as avg_accuracy
-            FROM "question" q
-            JOIN "message" m ON q.message_id = m.message_id
-            JOIN "conversation" c ON m.conversation_id = c.id
-            JOIN "answer" a ON q.question_id = a.question_id
-            JOIN "topics" t ON q.topic_id = t.id
-            WHERE c.user_id = :user_id 
-                AND q.solo_taxonomy_label IS NOT NULL 
-                AND a.accuracy IS NOT NULL
-            GROUP BY q.solo_taxonomy_label, t.id, t.topic_name
-            ORDER BY t.topic_name, q.solo_taxonomy_label
-        """), {"user_id": user_id}).fetchall()
-        
-        # DOUBLE-GROUPED DATA - Question count by SOLO category AND topic
-        questions_by_solo_and_topic = session.execute(text("""
-            SELECT 
-                q.solo_taxonomy_label,
-                t.id as topic_id,
-                t.topic_name,
-                COUNT(q.question_id) as question_count,
-                AVG(
-                    CASE q.grade
-                        WHEN 'A+' THEN 4.0
-                        WHEN 'A' THEN 4.0
-                        WHEN 'A-' THEN 3.7
-                        WHEN 'B+' THEN 3.3
-                        WHEN 'B' THEN 3.0
-                        WHEN 'B-' THEN 2.7
-                        WHEN 'C+' THEN 2.3
-                        WHEN 'C' THEN 2.0
-                        WHEN 'C-' THEN 1.7
-                        WHEN 'D+' THEN 1.3
-                        WHEN 'D' THEN 1.0
-                        WHEN 'F' THEN 0.0
-                        ELSE 0.0
-                    END
-                ) as avg_grade_points
-            FROM "question" q
-            JOIN "message" m ON q.message_id = m.message_id
-            JOIN "conversation" c ON m.conversation_id = c.id
-            JOIN "topics" t ON q.topic_id = t.id
-            WHERE c.user_id = :user_id 
-                AND q.solo_taxonomy_label IS NOT NULL
-            GROUP BY q.solo_taxonomy_label, t.id, t.topic_name
-            ORDER BY t.topic_name, q.solo_taxonomy_label
-        """), {"user_id": user_id}).fetchall()
-        
-        # Extract values from the combined result
-        conversation_duration = result[0] if result else None
-        conversation_number = result[1] if result else 0
-        question_grade = result[2] if result else None
-        answer_accuracy = result[3] if result else None
-        
-        # Return structured data
-        return {
-            'user_id': user_id,
-            'conversation_duration': str(conversation_duration) if conversation_duration else None,
-            'conversation_count': conversation_number,
-            'average_question_grade': float(question_grade) if question_grade else None,
-            'average_answer_accuracy': float(answer_accuracy) if answer_accuracy else None,
-            'accuracy_by_solo_category': [
-                {
-                    'category': row[0],
-                    'answer_count': row[1],
-                    'avg_accuracy': float(row[2]) if row[2] else None
-                } for row in accuracy_by_category
-            ],
-            'questions_by_solo_category': [
-                {
-                    'category': row[0],
-                    'question_count': row[1],
-                    'avg_grade_points': float(row[2]) if row[2] else None,
-                    'avg_grade_letter': point_to_grade(row[2]) if row[2] else 'N/A'
-                } for row in questions_by_category
-            ],
-            # Topic-based grouping for dashboard filtering
-            'grades_by_topic': [
-                {
-                    'topic_id': row[0],
-                    'topic_name': row[1],
-                    'question_count': row[2],
-                    'avg_grade_points': float(row[3]) if row[3] else None,
-                    'avg_grade_letter': point_to_grade(row[3]) if row[3] else 'N/A'
-                } for row in grades_by_topic
-            ],
-            'accuracy_by_topic': [
-                {
-                    'topic_id': row[0],
-                    'topic_name': row[1],
-                    'answer_count': row[2],
-                    'avg_accuracy': float(row[3]) if row[3] else None
-                } for row in accuracy_by_topic
-            ],
-            # Time series data for charts
-            'interactions_over_time_by_topic': [
-                {
-                    'date': row[0].isoformat() if row[0] else None,
-                    'topic_id': row[1],
-                    'topic_name': row[2],
-                    'interaction_count': row[3]
-                } for row in interactions_over_time_by_topic
-            ],
-            'duration_over_time_by_topic': [
-                {
-                    'date': row[0].isoformat() if row[0] else None,
-                    'topic_id': row[1],
-                    'topic_name': row[2],
-                    'avg_duration': str(row[3]) if row[3] else None
-                } for row in duration_over_time_by_topic
-            ],
-            # Double-grouped data for filtered SOLO taxonomy charts
-            'accuracy_by_solo_and_topic': [
-                {
-                    'solo_category': row[0],
-                    'topic_id': row[1],
-                    'topic_name': row[2],
-                    'answer_count': row[3],
-                    'avg_accuracy': float(row[4]) if row[4] else None
-                } for row in accuracy_by_solo_and_topic
-            ],
-            'questions_by_solo_and_topic': [
-                {
-                    'solo_category': row[0],
-                    'topic_id': row[1],
-                    'topic_name': row[2],
-                    'question_count': row[3],
-                    'avg_grade_points': float(row[4]) if row[4] else None,
-                    'avg_grade_letter': point_to_grade(row[4]) if row[4] else 'N/A'
-                } for row in questions_by_solo_and_topic
-            ]
-        }
-    finally:
-        session.close()
-
-# Create performance indexes for optimized queries (run once on startup)
-def create_indexes_if_needed():
-    """Creates database indexes. IF NOT EXISTS prevents duplicates automatically."""
-    print("\n--- Ensuring Database Indexes Exist ---")
-    session = SessionLocal()
-    try:
-        # IF NOT EXISTS handles duplicates - safe to run multiple times
-        indexes = [
-            "CREATE INDEX IF NOT EXISTS idx_conversation_user_id ON conversation(user_id)",
-            "CREATE INDEX IF NOT EXISTS idx_message_conversation_id ON message(conversation_id)",
-            "CREATE INDEX IF NOT EXISTS idx_question_message_id ON question(message_id)",
-            "CREATE INDEX IF NOT EXISTS idx_answer_question_id ON answer(question_id)",
-            "CREATE INDEX IF NOT EXISTS idx_question_solo_taxonomy ON question(solo_taxonomy_label)",
-            "CREATE INDEX IF NOT EXISTS idx_question_topic_id ON question(topic_id)",
-            "CREATE INDEX IF NOT EXISTS idx_answer_topic_id ON answer(topic_id)",
-            # New indexes for time-series queries
-            "CREATE INDEX IF NOT EXISTS idx_conversation_created_at ON conversation(created_at)",
-            "CREATE INDEX IF NOT EXISTS idx_conversation_user_created ON conversation(user_id, created_at)"
-        ]
-        
-        for idx_sql in indexes:
-            session.execute(text(idx_sql))
-        
-        session.commit()
-        print("Database indexes verified/created successfully")
-    except Exception as e:
-        print(f"Index creation note: {e}")
-        session.rollback()
-    finally:
-        session.close()
+# 1. Reusable Case Expression for converting Grade Letter -> Number
+grade_points_expr = case(
+    (Question.grade == 'A+', 4.0),
+    (Question.grade == 'A', 4.0),
+    (Question.grade == 'A-', 3.7),
+    (Question.grade == 'B+', 3.3),
+    (Question.grade == 'B', 3.0),
+    (Question.grade == 'B-', 2.7),
+    (Question.grade == 'C+', 2.3),
+    (Question.grade == 'C', 2.0),
+    (Question.grade == 'C-', 1.7),
+    (Question.grade == 'D+', 1.3),
+    (Question.grade == 'D', 1.0),
+    (Question.grade == 'F', 0.0),
+    else_=0.0
+).label("grade_points")
 
 def group_statistics():
     """
-    Calculate statistics across ALL users and topics.
-    Call this function explicitly when you need overall statistics.
-    Returns a dictionary with all group-level metrics.
+    Calculates statistics across ALL users using pure SQLAlchemy expressions.
     """
-    print("\n=== Calculating Group Statistics ===")
+    print("\n=== Calculating Group Statistics (ORM) ===")
     session = SessionLocal()
     try:
-        # Average conversation duration across all users
-        avg_conversation_duration = session.execute(text("""
-        SELECT AVG(updated_at - created_at) 
-        FROM "conversation"
-        """)).scalar()
-        
-        # Conversation count per user
-        conversation_counts = session.execute(text("""
-            SELECT user_id, COUNT(*) as count
-            FROM "conversation" 
-            GROUP BY user_id
-        """)).fetchall()
-        
-        # Average conversations per user
-        avg_conversations_per_user = session.execute(text("""
-            SELECT AVG(conversation_count) 
-            FROM (
-                SELECT COUNT(*) AS conversation_count 
-                FROM "conversation" 
-                GROUP BY user_id
-            ) AS subquery
-        """)).scalar()
-        
-        # Average grade of questions answered
-        average_grade = session.execute(text("""
-            SELECT AVG(
-                CASE grade
-                    WHEN 'A+' THEN 4.0
-                    WHEN 'A' THEN 4.0
-                    WHEN 'A-' THEN 3.7
-                    WHEN 'B+' THEN 3.3
-                    WHEN 'B' THEN 3.0
-                    WHEN 'B-' THEN 2.7
-                    WHEN 'C+' THEN 2.3
-                    WHEN 'C' THEN 2.0
-                    WHEN 'C-' THEN 1.7
-                    WHEN 'D+' THEN 1.3
-                    WHEN 'D' THEN 1.0
-                    WHEN 'F' THEN 0.0
-                    ELSE 0.0
-                END
-            ) as average_grade
-            FROM "question"
-        """)).scalar()
+        # 1. Average Duration
+        avg_duration_stmt = select(func.avg(Conversation.updated_at - Conversation.created_at))
+        avg_conversation_duration = session.execute(avg_duration_stmt).scalar()
 
-        # Average accuracy of answers
-        average_accuracy = session.execute(text("""
-            SELECT AVG(accuracy) as average_accuracy
-            FROM "answer"
-            WHERE accuracy IS NOT NULL
-        """)).scalar()
+        # 2. Conversations per User
+        conv_counts_stmt = (
+            select(Conversation.user_id, func.count(Conversation.id).label('count'))
+            .group_by(Conversation.user_id)
+        )
+        conversation_counts = session.execute(conv_counts_stmt).fetchall()
 
-        # Average grade grouped by topic
-        grades_by_topic = session.execute(text("""
-            SELECT 
-                t.topic_name,
-                COUNT(q.question_id) as question_count,
-                AVG(
-                    CASE q.grade
-                        WHEN 'A+' THEN 4.0
-                        WHEN 'A' THEN 4.0
-                        WHEN 'A-' THEN 3.7
-                        WHEN 'B+' THEN 3.3
-                        WHEN 'B' THEN 3.0
-                        WHEN 'B-' THEN 2.7
-                        WHEN 'C+' THEN 2.3
-                        WHEN 'C' THEN 2.0
-                        WHEN 'C-' THEN 1.7
-                        WHEN 'D+' THEN 1.3
-                        WHEN 'D' THEN 1.0
-                        WHEN 'F' THEN 0.0
-                        ELSE 0.0
-                    END
-                ) as avg_grade_points
-            FROM "topics" t
-            LEFT JOIN "question" q ON t.id = q.topic_id
-            WHERE q.grade IS NOT NULL
-            GROUP BY t.id, t.topic_name
-            ORDER BY avg_grade_points DESC
-        """)).fetchall()
+        # 3. Avg Conversations per User (Using a subquery)
+        # SQL equivalent: SELECT AVG(cnt) FROM (SELECT count(*) as cnt ... GROUP BY user)
+        subq = (
+            select(func.count(Conversation.id).label('cnt'))
+            .group_by(Conversation.user_id)
+            .subquery()
+        )
+        avg_conv_per_user_stmt = select(func.avg(subq.c.cnt))
+        avg_conversations_per_user = session.execute(avg_conv_per_user_stmt).scalar()
 
-        # Average accuracy grouped by topic
-        accuracy_by_topic = session.execute(text("""
-            SELECT 
-                t.topic_name,
-                COUNT(a.answer_id) as answer_count,
-                AVG(a.accuracy) as avg_accuracy
-            FROM "topics" t
-            LEFT JOIN "answer" a ON t.id = a.topic_id
-            WHERE a.accuracy IS NOT NULL
-            GROUP BY t.id, t.topic_name
-            ORDER BY avg_accuracy DESC
-        """)).fetchall()
+        # 4. Overall Average Grade
+        avg_grade_stmt = select(func.avg(grade_points_expr))
+        average_grade = session.execute(avg_grade_stmt).scalar()
 
-        # Count conversations per topic
-        conversations_by_topic = session.execute(text("""
-            SELECT 
-                t.topic_name,
-                COUNT(DISTINCT c.id) as conversation_count
-            FROM "topics" t
-            LEFT JOIN "question" q ON t.id = q.topic_id
-            LEFT JOIN "message" m ON q.message_id = m.message_id
-            LEFT JOIN "conversation" c ON m.conversation_id = c.id
-            GROUP BY t.id, t.topic_name
-            ORDER BY conversation_count DESC
-        """)).fetchall()
-        
-        # TIME SERIES DATA - Average interactions over time by topic (for all users)
-        avg_interactions_over_time_by_topic = session.execute(text("""
-            SELECT 
-                user_daily_interactions.date,
-                user_daily_interactions.topic_id,
-                t.topic_name,
-                AVG(user_daily_interactions.interaction_count) as avg_interaction_count
-            FROM (
-                SELECT 
-                    c.user_id,
-                    DATE(c.created_at) as date,
-                    t.id as topic_id,
-                    COUNT(DISTINCT m.message_id) as interaction_count
-                FROM "conversation" c
-                JOIN "message" m ON c.id = m.conversation_id
-                JOIN "question" q ON m.message_id = q.message_id
-                JOIN "topics" t ON q.topic_id = t.id
-                GROUP BY c.user_id, DATE(c.created_at), t.id
-            ) user_daily_interactions
-            JOIN "topics" t ON user_daily_interactions.topic_id = t.id
-            GROUP BY user_daily_interactions.date, user_daily_interactions.topic_id, t.topic_name
-            ORDER BY user_daily_interactions.date, t.topic_name
-        """)).fetchall()
-        
-        # TIME SERIES DATA - Average duration over time by topic (for all users)
-        avg_duration_over_time_by_topic = session.execute(text("""
-            SELECT 
-                DATE(c.created_at) as date,
-                t.id as topic_id,
-                t.topic_name,
-                AVG(c.updated_at - c.created_at) as avg_duration
-            FROM "conversation" c
-            JOIN "message" m ON c.id = m.conversation_id
-            JOIN "question" q ON m.message_id = q.message_id
-            JOIN "topics" t ON q.topic_id = t.id
-            GROUP BY DATE(c.created_at), t.id, t.topic_name
-            ORDER BY date, t.topic_name
-        """)).fetchall()
-        
-        # DOUBLE-GROUPED DATA - Average accuracy by SOLO category AND topic (all users)
-        avg_accuracy_by_solo_and_topic = session.execute(text("""
-            SELECT 
-                q.solo_taxonomy_label,
-                t.id as topic_id,
-                t.topic_name,
-                COUNT(a.answer_id) as answer_count,
-                AVG(a.accuracy) as avg_accuracy
-            FROM "question" q
-            JOIN "answer" a ON q.question_id = a.question_id
-            JOIN "topics" t ON q.topic_id = t.id
-            WHERE q.solo_taxonomy_label IS NOT NULL 
-                AND a.accuracy IS NOT NULL
-            GROUP BY q.solo_taxonomy_label, t.id, t.topic_name
-            ORDER BY t.topic_name, q.solo_taxonomy_label
-        """)).fetchall()
-        
-        # DOUBLE-GROUPED DATA - Average question count by SOLO category AND topic (all users)
-        avg_questions_by_solo_and_topic = session.execute(text("""
-            SELECT 
-                q.solo_taxonomy_label,
-                t.id as topic_id,
-                t.topic_name,
-                COUNT(q.question_id) as question_count,
-                AVG(
-                    CASE q.grade
-                        WHEN 'A+' THEN 4.0
-                        WHEN 'A' THEN 4.0
-                        WHEN 'A-' THEN 3.7
-                        WHEN 'B+' THEN 3.3
-                        WHEN 'B' THEN 3.0
-                        WHEN 'B-' THEN 2.7
-                        WHEN 'C+' THEN 2.3
-                        WHEN 'C' THEN 2.0
-                        WHEN 'C-' THEN 1.7
-                        WHEN 'D+' THEN 1.3
-                        WHEN 'D' THEN 1.0
-                        WHEN 'F' THEN 0.0
-                        ELSE 0.0
-                    END
-                ) as avg_grade_points
-            FROM "question" q
-            JOIN "topics" t ON q.topic_id = t.id
-            WHERE q.solo_taxonomy_label IS NOT NULL
-            GROUP BY q.solo_taxonomy_label, t.id, t.topic_name
-            ORDER BY t.topic_name, q.solo_taxonomy_label
-        """)).fetchall()
-        
-        # Return structured data
+        # 5. Overall Average Accuracy
+        avg_acc_stmt = select(func.avg(Answer.accuracy)).where(Answer.accuracy.is_not(None))
+        average_accuracy = session.execute(avg_acc_stmt).scalar()
+
+        # 6. Grades by Topic
+        grades_topic_stmt = (
+            select(
+                Topic.topic_name,
+                func.count(Question.question_id).label("question_count"),
+                func.avg(grade_points_expr).label("avg_grade_points")
+            )
+            .select_from(Topic)
+            .outerjoin(Question, Topic.id == Question.topic_id)
+            .where(Question.grade.is_not(None))
+            .group_by(Topic.id, Topic.topic_name)
+            .order_by(desc("avg_grade_points"))
+        )
+        grades_by_topic = session.execute(grades_topic_stmt).fetchall()
+
+        # 7. Accuracy by Topic
+        acc_topic_stmt = (
+            select(
+                Topic.topic_name,
+                func.count(Answer.answer_id).label("answer_count"),
+                func.avg(Answer.accuracy).label("avg_accuracy")
+            )
+            .select_from(Topic)
+            .outerjoin(Answer, Topic.id == Answer.topic_id)
+            .where(Answer.accuracy.is_not(None))
+            .group_by(Topic.id, Topic.topic_name)
+            .order_by(desc("avg_accuracy"))
+        )
+        accuracy_by_topic = session.execute(acc_topic_stmt).fetchall()
+
+        # 8. Conversations by Topic (Complex Join)
+        conv_topic_stmt = (
+            select(
+                Topic.topic_name,
+                func.count(distinct(Conversation.id)).label("conversation_count")
+            )
+            .select_from(Topic)
+            .outerjoin(Question, Topic.id == Question.topic_id)
+            .outerjoin(Message, Question.message_id == Message.message_id)
+            .outerjoin(Conversation, Message.conversation_id == Conversation.id)
+            .group_by(Topic.id, Topic.topic_name)
+            .order_by(desc("conversation_count"))
+        )
+        conversations_by_topic = session.execute(conv_topic_stmt).fetchall()
+
+        # 9. Time Series: Interactions (Avg across users)
+        # Note: This matches your SQL logic of calculating daily interactions per user first
+        daily_interactions_subq = (
+            select(
+                Conversation.user_id,
+                cast(Conversation.created_at, Date).label("date"),
+                Topic.id.label("topic_id"),
+                func.count(distinct(Message.message_id)).label("interaction_count")
+            )
+            .join(Message, Conversation.id == Message.conversation_id)
+            .join(Question, Message.message_id == Question.message_id)
+            .join(Topic, Question.topic_id == Topic.id)
+            .group_by(Conversation.user_id, cast(Conversation.created_at, Date), Topic.id)
+            .subquery()
+        )
+
+        avg_interactions_stmt = (
+            select(
+                daily_interactions_subq.c.date,
+                daily_interactions_subq.c.topic_id,
+                Topic.topic_name,
+                func.avg(daily_interactions_subq.c.interaction_count).label("avg_interaction_count")
+            )
+            .join(Topic, daily_interactions_subq.c.topic_id == Topic.id)
+            .group_by(daily_interactions_subq.c.date, daily_interactions_subq.c.topic_id, Topic.topic_name)
+            .order_by(daily_interactions_subq.c.date, Topic.topic_name)
+        )
+        avg_interactions_over_time_by_topic = session.execute(avg_interactions_stmt).fetchall()
+
+        # 10. Time Series: Duration
+        avg_duration_ts_stmt = (
+            select(
+                cast(Conversation.created_at, Date).label("date"),
+                Topic.id.label("topic_id"),
+                Topic.topic_name,
+                func.avg(Conversation.updated_at - Conversation.created_at).label("avg_duration")
+            )
+            .select_from(Conversation)
+            .join(Message, Conversation.id == Message.conversation_id)
+            .join(Question, Message.message_id == Question.message_id)
+            .join(Topic, Question.topic_id == Topic.id)
+            .group_by(cast(Conversation.created_at, Date), Topic.id, Topic.topic_name)
+            .order_by("date", Topic.topic_name)
+        )
+        avg_duration_over_time_by_topic = session.execute(avg_duration_ts_stmt).fetchall()
+
+        # 11. Double Grouped: Accuracy
+        avg_acc_solo_topic_stmt = (
+            select(
+                Question.solo_taxonomy_label,
+                Topic.id.label("topic_id"),
+                Topic.topic_name,
+                func.count(Answer.answer_id).label("answer_count"),
+                func.avg(Answer.accuracy).label("avg_accuracy")
+            )
+            .join(Answer, Question.question_id == Answer.question_id)
+            .join(Topic, Question.topic_id == Topic.id)
+            .where(and_(Question.solo_taxonomy_label.is_not(None), Answer.accuracy.is_not(None)))
+            .group_by(Question.solo_taxonomy_label, Topic.id, Topic.topic_name)
+            .order_by(Topic.topic_name, Question.solo_taxonomy_label)
+        )
+        avg_accuracy_by_solo_and_topic = session.execute(avg_acc_solo_topic_stmt).fetchall()
+
+        # 12. Double Grouped: Question Counts/Grades
+        avg_q_solo_topic_stmt = (
+            select(
+                Question.solo_taxonomy_label,
+                Topic.id.label("topic_id"),
+                Topic.topic_name,
+                func.count(Question.question_id).label("question_count"),
+                func.avg(grade_points_expr).label("avg_grade_points")
+            )
+            .join(Topic, Question.topic_id == Topic.id)
+            .where(Question.solo_taxonomy_label.is_not(None))
+            .group_by(Question.solo_taxonomy_label, Topic.id, Topic.topic_name)
+            .order_by(Topic.topic_name, Question.solo_taxonomy_label)
+        )
+        avg_questions_by_solo_and_topic = session.execute(avg_q_solo_topic_stmt).fetchall()
+
         return {
             'average_conversation_duration': str(avg_conversation_duration) if avg_conversation_duration else None,
             'conversations_per_user': [{'user_id': row[0], 'count': row[1]} for row in conversation_counts],
@@ -585,70 +200,371 @@ def group_statistics():
             'overall_average_grade': float(average_grade) if average_grade else None,
             'overall_average_grade_letter': point_to_grade(average_grade) if average_grade else 'N/A',
             'overall_average_accuracy': float(average_accuracy) if average_accuracy else None,
-            'grades_by_topic': [
-                {
-                    'topic_name': row[0],
-                    'question_count': row[1],
-                    'avg_grade_points': float(row[2]) if row[2] else None,
-                    'avg_grade_letter': point_to_grade(row[2]) if row[2] else 'N/A'
-                } for row in grades_by_topic
-            ],
-            'accuracy_by_topic': [
-                {
-                    'topic_name': row[0],
-                    'answer_count': row[1],
-                    'avg_accuracy': float(row[2]) if row[2] else None
-                } for row in accuracy_by_topic
-            ],
-            'conversations_by_topic': [
-                {
-                    'topic_name': row[0],
-                    'conversation_count': row[1]
-                } for row in conversations_by_topic
-            ],
-            # Time series data for charts (class averages)
-            'avg_interactions_over_time_by_topic': [
-                {
-                    'date': row[0].isoformat() if row[0] else None,
-                    'topic_id': row[1],
-                    'topic_name': row[2],
-                    'avg_interaction_count': float(row[3]) if row[3] else None
-                } for row in avg_interactions_over_time_by_topic
-            ],
-            'avg_duration_over_time_by_topic': [
-                {
-                    'date': row[0].isoformat() if row[0] else None,
-                    'topic_id': row[1],
-                    'topic_name': row[2],
-                    'avg_duration': str(row[3]) if row[3] else None
-                } for row in avg_duration_over_time_by_topic
-            ],
-            # Double-grouped data for filtered SOLO taxonomy charts (class averages)
-            'avg_accuracy_by_solo_and_topic': [
-                {
-                    'solo_category': row[0],
-                    'topic_id': row[1],
-                    'topic_name': row[2],
-                    'answer_count': row[3],
-                    'avg_accuracy': float(row[4]) if row[4] else None
-                } for row in avg_accuracy_by_solo_and_topic
-            ],
-            'avg_questions_by_solo_and_topic': [
-                {
-                    'solo_category': row[0],
-                    'topic_id': row[1],
-                    'topic_name': row[2],
-                    'question_count': row[3],
-                    'avg_grade_points': float(row[4]) if row[4] else None,
-                    'avg_grade_letter': point_to_grade(row[4]) if row[4] else 'N/A'
-                } for row in avg_questions_by_solo_and_topic
-            ]}
-    finally:
-            session.close()
+            'grades_by_topic': [{
+                'topic_name': row.topic_name,
+                'question_count': row.question_count,
+                'avg_grade_points': float(row.avg_grade_points) if row.avg_grade_points else None,
+                'avg_grade_letter': point_to_grade(row.avg_grade_points) if row.avg_grade_points else 'N/A'
+            } for row in grades_by_topic],
+            'accuracy_by_topic': [{
+                'topic_name': row.topic_name,
+                'answer_count': row.answer_count,
+                'avg_accuracy': float(row.avg_accuracy) if row.avg_accuracy else None
+            } for row in accuracy_by_topic],
+            'conversations_by_topic': [{
+                'topic_name': row.topic_name,
+                'conversation_count': row.conversation_count
+            } for row in conversations_by_topic],
+            'avg_interactions_over_time_by_topic': [{
+                'date': row.date.isoformat() if row.date else None,
+                'topic_id': row.topic_id,
+                'topic_name': row.topic_name,
+                'avg_interaction_count': float(row.avg_interaction_count) if row.avg_interaction_count else None
+            } for row in avg_interactions_over_time_by_topic],
+            'avg_duration_over_time_by_topic': [{
+                'date': row.date.isoformat() if row.date else None,
+                'topic_id': row.topic_id,
+                'topic_name': row.topic_name,
+                'avg_duration': str(row.avg_duration) if row.avg_duration else None
+            } for row in avg_duration_over_time_by_topic],
+            'avg_accuracy_by_solo_and_topic': [{
+                'solo_category': row.solo_taxonomy_label,
+                'topic_id': row.topic_id,
+                'topic_name': row.topic_name,
+                'answer_count': row.answer_count,
+                'avg_accuracy': float(row.avg_accuracy) if row.avg_accuracy else None
+            } for row in avg_accuracy_by_solo_and_topic],
+            'avg_questions_by_solo_and_topic': [{
+                'solo_category': row.solo_taxonomy_label,
+                'topic_id': row.topic_id,
+                'topic_name': row.topic_name,
+                'question_count': row.question_count,
+                'avg_grade_points': float(row.avg_grade_points) if row.avg_grade_points else None,
+                'avg_grade_letter': point_to_grade(row.avg_grade_points) if row.avg_grade_points else 'N/A'
+            } for row in avg_questions_by_solo_and_topic]
+        }
 
-# Only run when script is executed directly (not when imported)
+    finally:
+        session.close()
+
+def individual_statistics(user_id):
+    try: 
+        session = SessionLocal()
+        
+        # 1. Overall Stats (Using CTEs for reuse)
+        user_questions_cte = (
+            select(
+                Question.question_id.label("question_id"),
+                Question.grade,
+                Question.solo_taxonomy_label,
+                Answer.accuracy,
+                Answer.answer_id.label("answer_id")
+            )
+            .join(Message, Question.message_id == Message.message_id)
+            .join(Conversation, Message.conversation_id == Conversation.id)
+            .outerjoin(Answer, Question.question_id == Answer.question_id)
+            .where(Conversation.user_id == user_id)
+        ).cte("user_questions")
+        
+        # Reuse the grade_points_expr logic but applied to the CTE columns
+        grade_points_cte = (
+            select(
+                case(
+                    (user_questions_cte.c.grade == 'A+', 4.0),
+                    (user_questions_cte.c.grade == 'A', 4.0),
+                    (user_questions_cte.c.grade == 'A-', 3.7),
+                    (user_questions_cte.c.grade == 'B+', 3.3),
+                    (user_questions_cte.c.grade == 'B', 3.0),
+                    (user_questions_cte.c.grade == 'B-', 2.7),
+                    (user_questions_cte.c.grade == 'C+', 2.3),
+                    (user_questions_cte.c.grade == 'C', 2.0),
+                    (user_questions_cte.c.grade == 'C-', 1.7),
+                    (user_questions_cte.c.grade == 'D+', 1.3),
+                    (user_questions_cte.c.grade == 'D', 1.0),
+                    (user_questions_cte.c.grade == 'F', 0.0),
+                    else_=0.0
+                ).label("points"),
+                user_questions_cte.c.accuracy
+            )
+        ).cte("grade_points")
+
+        avg_duration_subq = (
+            select(func.avg(Conversation.updated_at - Conversation.created_at))
+            .where(Conversation.user_id == user_id)
+            .scalar_subquery()
+        )
+
+        conv_count_subq = (
+            select(func.count())
+            .where(Conversation.user_id == user_id)
+            .scalar_subquery()
+        )
+
+        overall_stats_stmt = select(
+            avg_duration_subq.label("avg_duration"),
+            conv_count_subq.label("conv_count"),
+            func.avg(grade_points_cte.c.points).label("avg_grade"),
+            func.avg(grade_points_cte.c.accuracy).label("avg_accuracy")
+        )
+        
+        overall_stats = session.execute(overall_stats_stmt).fetchone()
+        
+        # 2. Accuracy by Category
+        acc_cat_stmt = (
+            select(
+                Question.solo_taxonomy_label,
+                func.count(Answer.answer_id).label("answer_count"),
+                func.avg(Answer.accuracy).label("avg_accuracy")
+            )
+            .join(Message, Question.message_id == Message.message_id)
+            .join(Conversation, Message.conversation_id == Conversation.id)
+            .join(Answer, Question.question_id == Answer.question_id)
+            .where(
+                Conversation.user_id == user_id,
+                Question.solo_taxonomy_label.is_not(None),
+                Answer.accuracy.is_not(None)
+            )
+            .group_by(Question.solo_taxonomy_label)
+            .order_by(desc("avg_accuracy"))
+        )
+        accuracy_by_category = session.execute(acc_cat_stmt).fetchall()
+
+        # 3. Questions by Category
+        q_cat_stmt = (
+            select(
+                Question.solo_taxonomy_label,
+                func.count(Question.question_id).label("question_count"),
+                func.avg(grade_points_expr).label("avg_grade_points")
+            )
+            .join(Message, Question.message_id == Message.message_id)
+            .join(Conversation, Message.conversation_id == Conversation.id)
+            .where(
+                Conversation.user_id == user_id,
+                Question.solo_taxonomy_label.is_not(None)
+            )
+            .group_by(Question.solo_taxonomy_label)
+            .order_by(desc("avg_grade_points"))
+        )
+        questions_by_category = session.execute(q_cat_stmt).fetchall()
+
+        # 4. Grades by Topic
+        g_topic_stmt = (
+            select(
+                Topic.id.label("topic_id"),
+                Topic.topic_name,
+                func.count(Question.question_id).label("question_count"),
+                func.avg(grade_points_expr).label("avg_grade_points")
+            )
+            .select_from(Topic)
+            .outerjoin(Question, Topic.id == Question.topic_id)
+            .join(Message, Question.message_id == Message.message_id)
+            .join(Conversation, Message.conversation_id == Conversation.id)
+            .where(Conversation.user_id == user_id, Question.grade.is_not(None))
+            .group_by(Topic.id, Topic.topic_name)
+            .order_by(desc("avg_grade_points"))
+        )
+        grades_by_topic = session.execute(g_topic_stmt).fetchall()
+
+        # 5. Accuracy by Topic
+        acc_topic_stmt = (
+            select(
+                Topic.id.label("topic_id"),
+                Topic.topic_name,
+                func.count(Answer.answer_id).label("answer_count"),
+                func.avg(Answer.accuracy).label("avg_accuracy")
+            )
+            .select_from(Topic)
+            .outerjoin(Answer, Topic.id == Answer.topic_id)
+            .join(Question, Answer.question_id == Question.question_id)
+            .join(Message, Question.message_id == Message.message_id)
+            .join(Conversation, Message.conversation_id == Conversation.id)
+            .where(Conversation.user_id == user_id, Answer.accuracy.is_not(None))
+            .group_by(Topic.id, Topic.topic_name)
+            .order_by(desc("avg_accuracy"))
+        )
+        accuracy_by_topic = session.execute(acc_topic_stmt).fetchall()
+
+        # 6. Time Series: Interactions
+        interaction_ts_stmt = (
+            select(
+                cast(Conversation.created_at, Date).label("date"),
+                Topic.id.label("topic_id"),
+                Topic.topic_name,
+                func.count(distinct(Message.message_id)).label("interaction_count")
+            )
+            .select_from(Conversation)
+            .join(Message, Conversation.id == Message.conversation_id)
+            .join(Question, Message.message_id == Question.message_id)
+            .join(Topic, Question.topic_id == Topic.id)
+            .where(Conversation.user_id == user_id)
+            .group_by(cast(Conversation.created_at, Date), Topic.id, Topic.topic_name)
+            .order_by("date", Topic.topic_name)
+        )
+        interactions_over_time_by_topic = session.execute(interaction_ts_stmt).fetchall()
+
+        # 7. Time Series: Duration
+        duration_ts_stmt = (
+            select(
+                cast(Conversation.created_at, Date).label("date"),
+                Topic.id.label("topic_id"),
+                Topic.topic_name,
+                func.avg(Conversation.updated_at - Conversation.created_at).label("avg_duration")
+            )
+            .select_from(Conversation)
+            .join(Message, Conversation.id == Message.conversation_id)
+            .join(Question, Message.message_id == Question.message_id)
+            .join(Topic, Question.topic_id == Topic.id)
+            .where(Conversation.user_id == user_id)
+            .group_by(cast(Conversation.created_at, Date), Topic.id, Topic.topic_name)
+            .order_by("date", Topic.topic_name)
+        )
+        duration_over_time_by_topic = session.execute(duration_ts_stmt).fetchall()
+
+        # 8. Double Grouped: Accuracy
+        acc_solo_topic_stmt = (
+            select(
+                Question.solo_taxonomy_label,
+                Topic.id.label("topic_id"),
+                Topic.topic_name,
+                func.count(Answer.answer_id).label("answer_count"),
+                func.avg(Answer.accuracy).label("avg_accuracy")
+            )
+            .join(Message, Question.message_id == Message.message_id)
+            .join(Conversation, Message.conversation_id == Conversation.id)
+            .join(Answer, Question.question_id == Answer.question_id)
+            .join(Topic, Question.topic_id == Topic.id)
+            .where(
+                Conversation.user_id == user_id,
+                Question.solo_taxonomy_label.is_not(None),
+                Answer.accuracy.is_not(None)
+            )
+            .group_by(Question.solo_taxonomy_label, Topic.id, Topic.topic_name)
+            .order_by(Topic.topic_name, Question.solo_taxonomy_label)
+        )
+        accuracy_by_solo_and_topic = session.execute(acc_solo_topic_stmt).fetchall()
+
+        # 9. Double Grouped: Question Counts/Grades
+        q_solo_topic_stmt = (
+            select(
+                Question.solo_taxonomy_label,
+                Topic.id.label("topic_id"),
+                Topic.topic_name,
+                func.count(Question.question_id).label("question_count"),
+                func.avg(grade_points_expr).label("avg_grade_points")
+            )
+            .join(Message, Question.message_id == Message.message_id)
+            .join(Conversation, Message.conversation_id == Conversation.id)
+            .join(Topic, Question.topic_id == Topic.id)
+            .where(
+                Conversation.user_id == user_id,
+                Question.solo_taxonomy_label.is_not(None)
+            )
+            .group_by(Question.solo_taxonomy_label, Topic.id, Topic.topic_name)
+            .order_by(Topic.topic_name, Question.solo_taxonomy_label)
+        )
+        questions_by_solo_and_topic = session.execute(q_solo_topic_stmt).fetchall()
+
+        # Extract values
+        conversation_duration = overall_stats.avg_duration if overall_stats else None
+        conversation_number = overall_stats.conv_count if overall_stats else 0
+        question_grade = overall_stats.avg_grade if overall_stats else None
+        answer_accuracy = overall_stats.avg_accuracy if overall_stats else None
+        
+        return {
+            'user_id': user_id,
+            'conversation_duration': str(conversation_duration) if conversation_duration else None,
+            'conversation_count': conversation_number,
+            'average_question_grade': float(question_grade) if question_grade else None,
+            'average_answer_accuracy': float(answer_accuracy) if answer_accuracy else None,
+            'accuracy_by_solo_category': [{
+                'category': row.solo_taxonomy_label,
+                'answer_count': row.answer_count,
+                'avg_accuracy': float(row.avg_accuracy) if row.avg_accuracy else None
+            } for row in accuracy_by_category],
+            'questions_by_solo_category': [{
+                'category': row.solo_taxonomy_label,
+                'question_count': row.question_count,
+                'avg_grade_points': float(row.avg_grade_points) if row.avg_grade_points else None,
+                'avg_grade_letter': point_to_grade(row.avg_grade_points) if row.avg_grade_points else 'N/A'
+            } for row in questions_by_category],
+            'grades_by_topic': [{
+                'topic_id': row.topic_id,
+                'topic_name': row.topic_name,
+                'question_count': row.question_count,
+                'avg_grade_points': float(row.avg_grade_points) if row.avg_grade_points else None,
+                'avg_grade_letter': point_to_grade(row.avg_grade_points) if row.avg_grade_points else 'N/A'
+            } for row in grades_by_topic],
+            'accuracy_by_topic': [{
+                'topic_id': row.topic_id,
+                'topic_name': row.topic_name,
+                'answer_count': row.answer_count,
+                'avg_accuracy': float(row.avg_accuracy) if row.avg_accuracy else None
+            } for row in accuracy_by_topic],
+            'interactions_over_time_by_topic': [{
+                'date': row.date.isoformat() if row.date else None,
+                'topic_id': row.topic_id,
+                'topic_name': row.topic_name,
+                'interaction_count': row.interaction_count
+            } for row in interactions_over_time_by_topic],
+            'duration_over_time_by_topic': [{
+                'date': row.date.isoformat() if row.date else None,
+                'topic_id': row.topic_id,
+                'topic_name': row.topic_name,
+                'avg_duration': str(row.avg_duration) if row.avg_duration else None
+            } for row in duration_over_time_by_topic],
+            'accuracy_by_solo_and_topic': [{
+                'solo_category': row.solo_taxonomy_label,
+                'topic_id': row.topic_id,
+                'topic_name': row.topic_name,
+                'answer_count': row.answer_count,
+                'avg_accuracy': float(row.avg_accuracy) if row.avg_accuracy else None
+            } for row in accuracy_by_solo_and_topic],
+            'questions_by_solo_and_topic': [{
+                'solo_category': row.solo_taxonomy_label,
+                'topic_id': row.topic_id,
+                'topic_name': row.topic_name,
+                'question_count': row.question_count,
+                'avg_grade_points': float(row.avg_grade_points) if row.avg_grade_points else None,
+                'avg_grade_letter': point_to_grade(row.avg_grade_points) if row.avg_grade_points else 'N/A'
+            } for row in questions_by_solo_and_topic]
+        }
+    finally:
+        session.close()
+
+def create_indexes_if_needed():
+    """
+    Creates database indexes using SQLAlchemy Core objects.
+    checkfirst=True ensures we don't crash if the index already exists.
+    """
+    print("\n--- Ensuring Database Indexes Exist (SQLAlchemy Core) ---")
+    
+    # Define the indexes you want to ensure exist
+    # Syntax: Index('index_name', ColumnObject, ...)
+    indexes_to_create = [
+        # Single column indexes
+        Index("idx_conversation_user_id", Conversation.user_id),
+        Index("idx_message_conversation_id", Message.conversation_id),
+        Index("idx_question_message_id", Question.message_id),
+        Index("idx_answer_question_id", Answer.question_id),
+        Index("idx_question_solo_taxonomy", Question.solo_taxonomy_label),
+        Index("idx_question_topic_id", Question.topic_id),
+        Index("idx_answer_topic_id", Answer.topic_id),
+        Index("idx_conversation_created_at", Conversation.created_at),
+        
+        # Composite index (Multi-column)
+        Index("idx_conversation_user_created", Conversation.user_id, Conversation.created_at)
+    ]
+
+    # Create them bound to the engine
+    for index in indexes_to_create:
+        try:
+            # checkfirst=True is the Python equivalent of "IF NOT EXISTS"
+            index.create(engine, checkfirst=True)
+            print(f"Verified index: {index.name}")
+        except Exception as e:
+            print(f"Skipping index {index.name}: {e}")
+
 if __name__ == "__main__":
-    # Start timing
     start_time = time.perf_counter()
     
     create_indexes_if_needed()
@@ -656,10 +572,14 @@ if __name__ == "__main__":
     index_time = time.perf_counter()
     print(f"\nIndex creation: {(index_time - start_time)*1000:.2f}ms")
 
-    # Initialization: find a list of users from the absolute mess that is the mock data
-    users = session.execute(text("SELECT DISTINCT user_id FROM \"conversation\"")).fetchall()
-    print(f"\All user ids: {[row[0] for row in users]}")
-    # ... oh it's just 3 lol 
+    # Get unique users via ORM
+    session = SessionLocal()
+    try:
+        users_stmt = select(distinct(Conversation.user_id))
+        users = session.execute(users_stmt).fetchall()
+        print(f"\nAll user ids: {[row[0] for row in users]}")
+    finally:
+        session.close()
     
     # Test group statistics
     print("\n=== Testing Group Statistics ===")
@@ -670,7 +590,7 @@ if __name__ == "__main__":
     print(f"\nOverall Average Question Grade: {group_stats['overall_average_grade_letter']}")
     print(f"Overall Average Accuracy: {group_stats['overall_average_accuracy']:.2f}%" if group_stats['overall_average_accuracy'] else "No data")
     
-    # Test individual statistics
+    # Test individual statistics (Mock User 103)
     print("\n=== Testing Individual Statistics (User 103) ===")
     individual_start = time.perf_counter()
     individual_stats = individual_statistics(103)
@@ -680,25 +600,28 @@ if __name__ == "__main__":
     print(f"User 103 Average Answer Accuracy: {individual_stats['average_answer_accuracy']:.2f}%" if individual_stats['average_answer_accuracy'] else "No data")
     print(f"User 103 Conversation Count: {individual_stats['conversation_count']}")
     
-    # Look at user 1's list of questions and their grades for verification
+    # Verification Query (ORM)
     print("\nUser 103 Questions by Solo Category:")
-    question_query =  session.execute(text("""
-        SELECT 
-            q.question_id,
-            q.solo_taxonomy_label,
-            q.grade
-        FROM "question" q
-        JOIN "message" m ON q.message_id = m.message_id
-        JOIN "conversation" c ON m.conversation_id = c.id
-        WHERE c.user_id = :user_id
-        ORDER BY q.solo_taxonomy_label
-    """), {"user_id": 103}).fetchall()
-    for row in question_query:
-        print(f"  Question ID: {row[0]}, Category: {row[1]}, Grade: {row[2]}")
+    session = SessionLocal()
+    try:
+        q_verify_stmt = (
+            select(
+                Question.question_id.label("question_id"),
+                Question.solo_taxonomy_label,
+                Question.grade
+            )
+            .join(Message, Question.message_id == Message.message_id)
+            .join(Conversation, Message.conversation_id == Conversation.id)
+            .where(Conversation.user_id == 103)
+            .order_by(Question.solo_taxonomy_label)
+        )
+        question_query = session.execute(q_verify_stmt).fetchall()
+        for row in question_query:
+            print(f" Question ID: {row.question_id}, Category: {row.solo_taxonomy_label}, Grade: {row.grade}")
+    finally:
+        session.close()
     
-    # Total execution time
     total_time = time.perf_counter() - start_time
     print(f"\n{'='*50}")
     print(f"⏱️  TOTAL EXECUTION TIME: {total_time*1000:.2f}ms")
     print(f"{'='*50}")
-    

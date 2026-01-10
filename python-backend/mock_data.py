@@ -2,7 +2,7 @@ import os
 import json 
 from datetime import datetime, timedelta
 import random
-from sqlalchemy import create_engine, text
+from sqlalchemy import MetaData
 from sqlalchemy.orm import sessionmaker
 from dotenv import load_dotenv
 from initialize_database import initialize
@@ -19,16 +19,21 @@ engine = initialize()
 SessionLocal = sessionmaker(bind=engine)
 
 def cleanup_old_tables():
-    """Drop and recreate schema for clean slate"""
-    with engine.connect() as conn:
-        print("Resetting database schema...")
-        conn.execute(text("DROP SCHEMA public CASCADE"))
-        conn.execute(text("CREATE SCHEMA public"))
-        conn.execute(text("GRANT ALL ON SCHEMA public TO postgres"))
-        conn.execute(text("GRANT ALL ON SCHEMA public TO public"))
-        conn.commit()
-        print("Schema reset complete")
-
+    print("Resetting database tables...")
+    
+    # 1. Create a blank Metadata container
+    metadata = MetaData()
+    
+    # 2. "Reflect" the database: Read the actual DB and load all 
+    #    existing table definitions into our metadata object.
+    #    This finds tables even if they aren't in your python 'models_simple.py'.
+    metadata.reflect(bind=engine, schema='public')
+    
+    # 3. Drop everything found
+    #    SQLAlchemy handles the order (dropping child tables with Foreign Keys first)
+    metadata.drop_all(bind=engine)
+    
+    print("Clean slate complete. (Extensions and Permissions preserved)")
 # Topic data - Chemical Engineering Process Control // refernce the json
 TOPICS_DATA = []
 folder_path = './mock_data/topic_summary'
