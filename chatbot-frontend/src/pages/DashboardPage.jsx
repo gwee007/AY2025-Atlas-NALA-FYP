@@ -4,7 +4,7 @@ import LineChart from '../components/charts/LineChart';
 import ReflectiveBarChart from '../components/charts/ReflectiveBarChart';
 import VerticalBarChart from '../components/charts/VerticalBarChart';
 import TopicGraph from '../components/charts/TopicGraph';
-import { Button } from '@mui/material';
+import { Button, Tabs, Tab, Box } from '@mui/material';
 import API_BASE_URL, { API_ENDPOINTS } from '../config/api';
 import ReactMarkdown from 'react-markdown';
 
@@ -50,6 +50,13 @@ function ResponsiveReflectiveBarChart({ data, height, onCategoryClick, selectedC
 
 export default function DashboardPage() {
     const [selectedTopic, setSelectedTopic] = useState(null);
+    
+
+    // State to control which page for earlier is visible because of tabulation requirements
+    const [currentTab, setCurrentTab] = useState(0); // Default value should be zero.
+    const handleTabChange = (event, newValue) => {
+        setCurrentTab(newValue);
+    };
 
    // const [selectedTopic, setselectedTopic] = useState(null); // For filtering charts by topic
     const [searchTerm, setSearchTerm] = useState('');
@@ -74,6 +81,44 @@ export default function DashboardPage() {
         avgAnswerAccuracyGPA: null
     });
 
+    // For implementing sorting inside the reflective bar chart
+    const [sortOption, setSortOption]= useState('ascending');
+    const dataAfterFiltering = {
+    ...topicalPerformanceData,
+    categories: topicalPerformanceData.categories.filter(category => 
+        category.toLowerCase().includes(searchTerm.toLowerCase())
+    ),
+    leftData: topicalPerformanceData.leftData.filter(item => 
+        item.category.toLowerCase().includes(searchTerm.toLowerCase())
+    ),
+    rightData: topicalPerformanceData.rightData.filter(item => 
+        item.category.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+    };
+
+    // Sorting logic
+    const getSortedChartData = () => {
+        // Clone the categories array to avoid mutating state directly
+        let sortedDataCategories = [...dataAfterFiltering.categories]; // Spread
+        const getValue = (catName) => {
+            const item = dataAfterFiltering.leftData.find(d => d.category === catName);
+            return item ? item.value : 0;
+        };
+        if (sortOption === 'alphabetical') {
+            sortedDataCategories.sort((a, b) => a.localeCompare(b));
+        } else if (sortOption === 'ascending') {
+            sortedDataCategories.sort((a, b) => getValue(a) - getValue(b));
+        } else if (sortOption === 'descending') {
+            sortedDataCategories.sort((a, b) => getValue(b) - getValue(a));
+        }
+        return {
+            ...dataAfterFiltering,
+            categories: sortedDataCategories
+        };
+    };
+    const processedChartData = getSortedChartData();
+
+    const finalChartData = getSortedChartData();
     // Add state for questions (replacing conversations)
     const [conversations, setQuestions] = useState([]);
     const [conversationsLoading, setQuestionsLoading] = useState(true);
@@ -454,32 +499,136 @@ export default function DashboardPage() {
     };
 
     return (
-        <div style={{ padding: "2rem", maxWidth: "1400px", margin: "0 auto", fontFamily: "sans-serif", display: "flex", flexDirection: "column", alignItems: "flex-start",
-            minHeight: "100vh", overflowY: "auto", overflowX:"hidden" 
-         }}>
-             {/* <header class ="header-light-main">
-                    <h1>
-                        Learning Engagement Analytics
-                    </h1>
-                </header> */}
+        <div style={{ padding: "2rem", maxWidth: "1400px", margin: "0 auto", fontFamily: "sans-serif", minHeight: "100vh" }}>
             
-            <div style={{ padding: "1.2rem", fontSize: "0.7rem", width: "100%", display: "flex", justifyContent: "center" }}>
-                <h1 >NALA-Assess Dashboard</h1>
+            {/* 1. Header & Navigation */}
+            <div style={{ marginBottom: "2rem" }}>
+              
+                <p sx={{textAlign: "center", color: 'text.secondary', fontSize: '8rem'}}>
+                    <h1 style={{textAlign: "center", paddingTop:30}}>NALA-Assess Dashboard</h1>
+                </p>
+                
+                {/* Global Topic Indicator (Always visible so users know what context they are in) */}
+                <div style={{ textAlign: "center", margin: "1rem 0.3rem", paddingTop:10}}>
+                    <span style={{ 
+                        backgroundColor: selectedTopic ? "#e0f2fe" : "#f3f4f6",
+                        padding: "0.5rem 1.5rem", 
+                        borderRadius: "20px",
+                        fontWeight: "bold",
+                        color: selectedTopic ? "#0369a1" : "#666"
+                    }}>
+                        Current Context: {selectedTopic || "All Topics"}
+                    </span>
+                </div>
+
+                {/* Tab Navigation Layer */}
+                <Box sx={{ borderBottom: 1, borderColor: 'divider', display: 'flex', justifyContent: 'center' }}>
+                    <Tabs 
+                        value={currentTab} 
+                        onChange={handleTabChange} 
+                        aria-label="dashboard tabs"
+                        sx={{
+                            '& .MuiTab-root': { 
+                                // IF theme is dark -> White, ELSE -> Black/Grey
+                                color: (theme) => theme.palette.mode === 'dark' ? '#ffffff' : 'text.secondary' 
+                            },
+                            '& .Mui-selected': { 
+                                // Keep the active tab distinct (usually Primary Blue)
+                                color: 'primary.main' 
+                            }
+                        }}
+                    >
+                        <Tab label="Overview & Summary" />
+                        <Tab label="Topic Explorer" />
+                        <Tab label="Detailed Analytics" />
+                    </Tabs>
+                </Box>
             </div>
 
-            {/* LLM Summary Section */}
-            <section style={{
+            {/* ================= TAB 1: OVERVIEW ================= */}
+            {/* Using display: none keeps the components mounted so they don't lose state/animation when switching */}
+            <div role="tabpanel" hidden={currentTab !== 0}>
+                {currentTab === 0 && (
+                    <>
+                        {/* LLM Summary Section (Lines 335-467 in your file) */}
+                        <section style={{ marginBottom: "2rem" }}>
+                            <h2 style={{ textAlign: "center", color: "#858996ff" }}>Learning Progress Summary</h2>
+                            {/* ... Insert your existing LLM Summary JSX here ... */}
+                            {summaryLoading ? <div>Loading...</div> : <div><section style={{
                 width: "100%",
                 marginBottom: "2rem"
             }}>
-                <h2 style={{ 
-                    textAlign: "center",
-                    marginBottom: "1.5rem",
-                    color: "#858996ff",
-                    fontSize: "1.3rem"
-                }}>
-                    Learning Progress Summary
-                </h2>
+                <section
+                style={{
+                    width: "100%",
+                    display: "flex",
+                    justifyContent: "center",
+                    gap: "3rem",
+                    marginBottom: "2rem",
+                }}
+                className="dashboard-stats-grid"
+            >
+               
+                {(() => {
+                    // Use actual GPA values for comparison
+                    const studentGPA = overallGrades.questionQualityGPA;
+                    const avgGPA = overallGrades.avgQuestionQualityGPA;
+                    const isAboveAvg = (studentGPA != null && avgGPA != null) ? studentGPA > avgGPA : false;
+                    
+                    return (
+                        <div
+                            style={{
+                                background: isAboveAvg ? "#f0fdf4" : "#fef2f2",
+                                gap: "1rem",
+                                padding: "1rem",
+                                borderRadius: "20px",
+                                minWidth: "160px",
+                                boxShadow: isAboveAvg ? "0 2px 12px rgba(16, 185, 129, 0.3)" : "0 2px 12px rgba(239, 68, 68, 0.3)",
+                                border: `2px solid ${isAboveAvg ? "#10b981" : "#ef4444"}`
+                            }}
+                        >   
+                            <div style={{ color: "#666", fontWeight:"bold", fontSize: "0.85rem", textAlign: "left" }}>
+                                Overall Estimated Question Quality
+                            </div>
+                            <div style={{ fontSize: "3.5rem", fontWeight: "bold", color: isAboveAvg ? "#10b981" : "#ef4444", textAlign: "center" }}>
+                                {overallGrades.questionQuality}
+                            </div>
+                            <div style={{ color: "#666", fontWeight:"bold", fontSize: "1rem", textAlign: "right" }}>
+                                Average: <span style={{ color: "#888" }}>{overallGrades.avgQuestionQuality}</span>
+                            </div>
+                        </div>
+                    );
+                })()}
+                {(() => {
+                    // Use float values for comparison
+                    const studentGPA = overallGrades.answerAccuracyGPA;
+                    const avgGPA = overallGrades.avgAnswerAccuracyGPA;
+                    const isAboveAvg = (studentGPA != null && avgGPA != null) ? studentGPA > avgGPA : false;
+                    
+                    return (
+                        <div
+                            style={{
+                                background: isAboveAvg ? "#f0fdf4" : "#fef2f2",
+                                padding: "1rem",
+                                borderRadius: "20px",
+                                minWidth: "160px",
+                                boxShadow: isAboveAvg ? "0 2px 12px rgba(16, 185, 129, 0.3)" : "0 2px 12px rgba(239, 68, 68, 0.3)",
+                                border: `2px solid ${isAboveAvg ? "#10b981" : "#ef4444"}`
+                            }}
+                        >   
+                            <div style={{ color: "#666", fontWeight:"bold", fontSize: "0.85rem", textAlign: "left" }}>
+                                Overall Estimated Answer Accuracy
+                            </div>
+                            <div style={{ fontSize: "3.5rem", fontWeight: "bold", color: isAboveAvg ? "#10b981" : "#ef4444", textAlign: "center" }}>
+                                {Math.round(overallGrades.answerAccuracy)}
+                            </div>
+                            <div style={{ color: "#666", fontWeight:"bold", fontSize: "1rem", textAlign: "right" }}>
+                                Average: <span style={{ color: "#888" }}>{Math.round(overallGrades.avgAnswerAccuracy)}</span>
+                            </div>
+                        </div>
+                    );
+                })()}
+            </section>
                 {summaryLoading ? (
                     <div style={{
                         textAlign: "center",
@@ -491,6 +640,7 @@ export default function DashboardPage() {
                         Loading your personalized summary...
                     </div>
                 ) : (
+                    
                     <div style={{
                         display: "flex",
                         gap: "1.5rem",
@@ -645,149 +795,26 @@ export default function DashboardPage() {
                         })()}
                     </div>
                 )}
-            </section>
+            </section></div>}
+                        </section>
 
-            <section
-                style={{
-                    width: "100%",
-                    display: "flex",
-                    justifyContent: "center",
-                    gap: "3rem",
-                    marginBottom: "2rem",
-                }}
-                className="dashboard-stats-grid"
-            >
-               
-                {(() => {
-                    // Use actual GPA values for comparison
-                    const studentGPA = overallGrades.questionQualityGPA;
-                    const avgGPA = overallGrades.avgQuestionQualityGPA;
-                    const isAboveAvg = (studentGPA != null && avgGPA != null) ? studentGPA > avgGPA : false;
-                    
-                    return (
-                        <div
-                            style={{
-                                background: isAboveAvg ? "#f0fdf4" : "#fef2f2",
-                                gap: "1rem",
-                                padding: "1rem",
-                                borderRadius: "20px",
-                                minWidth: "160px",
-                                boxShadow: isAboveAvg ? "0 2px 12px rgba(16, 185, 129, 0.3)" : "0 2px 12px rgba(239, 68, 68, 0.3)",
-                                border: `2px solid ${isAboveAvg ? "#10b981" : "#ef4444"}`
-                            }}
-                        >   
-                            <div style={{ color: "#666", fontWeight:"bold", fontSize: "0.85rem", textAlign: "left" }}>
-                                Overall Estimated Question Quality
-                            </div>
-                            <div style={{ fontSize: "3.5rem", fontWeight: "bold", color: isAboveAvg ? "#10b981" : "#ef4444", textAlign: "center" }}>
-                                {overallGrades.questionQuality}
-                            </div>
-                            <div style={{ color: "#666", fontWeight:"bold", fontSize: "1rem", textAlign: "right" }}>
-                                Average: <span style={{ color: "#888" }}>{overallGrades.avgQuestionQuality}</span>
-                            </div>
-                        </div>
-                    );
-                })()}
-                {(() => {
-                    // Use float values for comparison
-                    const studentGPA = overallGrades.answerAccuracyGPA;
-                    const avgGPA = overallGrades.avgAnswerAccuracyGPA;
-                    const isAboveAvg = (studentGPA != null && avgGPA != null) ? studentGPA > avgGPA : false;
-                    
-                    return (
-                        <div
-                            style={{
-                                background: isAboveAvg ? "#f0fdf4" : "#fef2f2",
-                                padding: "1rem",
-                                borderRadius: "20px",
-                                minWidth: "160px",
-                                boxShadow: isAboveAvg ? "0 2px 12px rgba(16, 185, 129, 0.3)" : "0 2px 12px rgba(239, 68, 68, 0.3)",
-                                border: `2px solid ${isAboveAvg ? "#10b981" : "#ef4444"}`
-                            }}
-                        >   
-                            <div style={{ color: "#666", fontWeight:"bold", fontSize: "0.85rem", textAlign: "left" }}>
-                                Overall Estimated Answer Accuracy
-                            </div>
-                            <div style={{ fontSize: "3.5rem", fontWeight: "bold", color: isAboveAvg ? "#10b981" : "#ef4444", textAlign: "center" }}>
-                                {Math.round(overallGrades.answerAccuracy)}
-                            </div>
-                            <div style={{ color: "#666", fontWeight:"bold", fontSize: "1rem", textAlign: "right" }}>
-                                Average: <span style={{ color: "#888" }}>{Math.round(overallGrades.avgAnswerAccuracy)}</span>
-                            </div>
-                        </div>
-                    );
-                })()}
-                {/* <div
-                    style={{
-                        background: "#4d51f3",
-                        padding: "1.5rem",
-                        borderRadius: "20px",
-                        minWidth: "160px",
-                        boxShadow: "0 2px 8px #e1e1e1",
-                        textAlign: "center",
-                    }}
-                >
-                    <div style={{ fontSize: "3rem", fontWeight: "bold", color: "#e1e1e1" }}>
-                        {conversationSessions}
-                    </div>
-                    <div style={{ color: "#e1e1e1", marginTop: "0.5rem" }}>
-                        Conversation Sessions
-                    </div>
-                </div>
-                <div
-                    style={{
-                        background: "#4d51f3",
-                        padding: "1.5rem",
-                        borderRadius: "20px",
-                        minWidth: "160px",
-                        boxShadow: "0 2px 8px #e1e1e1",
-                        textAlign: "center",
-                    }}
-                >
-                    <div style={{ fontSize: "3rem", fontWeight: "bold", color: "#e1e1e1" }}>
-                        {topicsDiscussed}
-                    </div>
-                    <div style={{ color: "#e1e1e1", marginTop: "0.5rem" }}>
-                        Topics discussed
-                    </div>
-                </div>
-                <div
-                    style={{
-                        background: "#4d51f3",
-                        padding: "1.5rem",
-                        borderRadius: "20px",
-                        minWidth: "160px",
-                        boxShadow: "0 2px 8px #e1e1e1",
-                        textAlign: "center",
-                    }}
-                >
-                    <div style={{ fontSize: "3rem", fontWeight: "bold", color: "#e1e1e1" }}>
-                        {minutesSpent}
-                    </div>
-                    <div style={{ color: "#e1e1e1",  fontWeight: "normal",  marginTop: "0.5rem" }}>
-                        Minutes Spent on Average with Chat
-                    </div>
-                </div> */}
-            </section>
+                        {/* Stats Grid (Lines 469-563) */}
+                        <section className="dashboard-stats-grid" style={{ display: "flex", justifyContent: "center", gap: "3rem" }}>
+                            {/* ... Insert your existing Stats Grid JSX here ... */}
+                            
+                        </section>
+                    </>
+                )}
+            </div>
 
-            {/* Scrollable Topical Performance Section - RIGHT AFTER GRADES */}
-            <section style={{
-                width: "100%",
-                marginTop: "2rem",
-                marginBottom: "2rem"
-            }}>
-
-                
-                
-                <div style={{
-                    display: "flex",
-                    gap: "2rem",
-                    flexWrap: "wrap",
-                    justifyContent: "center",
-                    alignItems: "flex-start"
-                }}>
-                    {/* Left: Scrollable Subject Performance Chart */}
-                    <div style={{
+            {/* ================= TAB 2: TOPIC EXPLORER ================= */}
+            <div role="tabpanel" hidden={currentTab !== 1}>
+                {currentTab === 1 && (
+                    <section style={{ width: "100%", marginTop: "1rem" }}>
+                        <div style={{ display: "flex", gap: "2rem", flexWrap: "wrap", justifyContent: "center", alignItems: "flex-start" }}>
+                            
+                            {/* Left: Scrollable Subject Performance Chart (Lines 576-713) */}
+                            <div style={{
                         flex: "1",
                         minWidth: "450px",
                         maxWidth: "600px",
@@ -844,13 +871,16 @@ export default function DashboardPage() {
                                 alignItems: "center", 
                                 gap: "1rem"
                             }}>
-                                <select style={{ 
+                                <select 
+                                    value = {sortOption}
+                                    onChange = {(e) => setSortOption(e.target.value)}
+                                    style={{ 
                                     padding: "0.5rem", 
                                     borderRadius: "6px", 
                                     border: "1px solid #ccc",
                                     fontSize: "14px"
                                 }}> 
-                                    <option value="">Sort by performance</option>
+                                    <option value="">No sort</option>
                                     <option value="ascending">Ascending</option>
                                     <option value="descending">Descending</option>
                                     <option value="alphabetical">Alphabetical</option>
@@ -938,9 +968,8 @@ export default function DashboardPage() {
                             </p>
                         </div>
                     </div>
-
-                    {/* Right: Topic Graph and Chat History */}
-                    <div style={{
+                            <div style={{ flex: "1", minWidth: "450px" }}>
+                               <div style={{
                         flex: "1",
                         minWidth: "600px",
                         display: "flex",
@@ -1035,81 +1064,6 @@ export default function DashboardPage() {
                                             gradeData={rawIndividualStats?.grades_by_topic} 
                                         />
                                         
-                                        {/* Dependencies List
-                                        <div style={{
-                                            backgroundColor: "#f8fafc",
-                                            padding: "1rem",
-                                            borderRadius: "8px",
-                                            border: "1px solid #e2e8f0"
-                                        }}>
-                                            <h4 style={{
-                                                margin: "0 0 0.75rem 0",
-                                                fontSize: "0.9rem",
-                                                color: "#475569",
-                                                fontWeight: "600"
-                                            }}>
-                                                Related Topics & Dependencies
-                                            </h4>
-                                            {dependenciesLoading ? (
-                                                <div style={{ textAlign: 'center', padding: '1rem', color: '#64748b', fontSize: '0.85rem' }}>
-                                                    Loading dependencies...
-                                                </div>
-                                            ) : topicDependencies.length > 0 ? (
-                                                <div style={{
-                                                    display: "flex",
-                                                    flexDirection: "column",
-                                                    gap: "0.5rem"
-                                                }}>
-                                                    {topicDependencies.map((dep, idx) => {
-                                                        const isPrerequisite = dep.related_topic_id === selectedTopic;
-                                                        const relatedTopic = isPrerequisite ? dep.topic_id : dep.related_topic_id;
-                                                        const relationLabel = dep.relation_type || (isPrerequisite ? 'prerequisite' : 'related');
-                                                        
-                                                        return (
-                                                            <div key={idx} style={{
-                                                                display: "flex",
-                                                                alignItems: "center",
-                                                                gap: "0.75rem",
-                                                                padding: "0.5rem 0.75rem",
-                                                                backgroundColor: "white",
-                                                                borderRadius: "6px",
-                                                                border: "1px solid #e2e8f0",
-                                                                fontSize: "0.85rem"
-                                                            }}>
-                                                                <span style={{
-                                                                    padding: "0.25rem 0.5rem",
-                                                                    backgroundColor: isPrerequisite ? "#fef3c7" : "#dbeafe",
-                                                                    color: isPrerequisite ? "#92400e" : "#1e40af",
-                                                                    borderRadius: "4px",
-                                                                    fontSize: "0.75rem",
-                                                                    fontWeight: "600",
-                                                                    textTransform: "uppercase"
-                                                                }}>
-                                                                    {relationLabel}
-                                                                </span>
-                                                                <span style={{ color: "#475569", fontWeight: "500" }}>
-                                                                    {relatedTopic}
-                                                                </span>
-                                                                {isPrerequisite && (
-                                                                    <span style={{ marginLeft: "auto", fontSize: "0.75rem", color: "#64748b" }}>
-                                                                        ← Required before {selectedTopic}
-                                                                    </span>
-                                                                )}
-                                                            </div>
-                                                        );
-                                                    })}
-                                                </div>
-                                            ) : (
-                                                <div style={{
-                                                    textAlign: 'center',
-                                                    padding: '1rem',
-                                                    color: '#94a3b8',
-                                                    fontSize: '0.85rem'
-                                                }}>
-                                                    No dependencies found for this topic
-                                                </div>
-                                            )}
-                                        </div> */}
                                     </>
                                 ) : (
                                     <div style={{
@@ -1118,7 +1072,7 @@ export default function DashboardPage() {
                                         fontSize: "0.95rem",
                                         padding: "2rem"
                                     }}>
-                                        👈 Click on a topic to visualize dependencies
+                                     Click on a topic to visualize dependencies
                                     </div>
                                 )}
                             </div>
@@ -1253,46 +1207,25 @@ export default function DashboardPage() {
                             </div>
                         )}
                     </div>
-                </div>
-            </section>
+                            </div>
 
-            <section style={{
-                width: "100%",
-                marginTop: "2rem",
-                marginBottom: "2rem",
-            }}>
-                {/* Dynamic Topic Display */}
-                <div style={{
-                    textAlign: "center",
-                    marginBottom: "1.5rem",
-                    padding: "0.75rem 1.5rem",
-                    backgroundColor: "#e0f2fe",
-                    borderRadius: "8px",
-                    display: "inline-block",
-                    margin: "0 auto 1.5rem auto",
-                    width: "fit-content",
-                    position: "relative",
-                    left: "50%",
-                    transform: "translateX(-50%)"
-                }}>
-                    <span style={{
-                        fontSize: "1.1rem",
-                        fontWeight: "bold",
-                        color: "#0369a1"
-                    }}>
-                        Topic: {selectedTopic || "Select a topic"}
-                    </span>
-                </div>
+      
+                            <div style={{ flex: "1", minWidth: "600px" }}>
+                               
+                            </div>
+                        </div>
+                    </section>
+                )}
+            </div>
 
-                <div style={{
-                    display: "flex",
-                    gap: "2rem",
-                    flexWrap: "wrap",
-                    justifyContent: "center",
-                    alignItems: "flex-start"
-                }}>
-                    {/* First chart card */}
-                    <div style={{
+            {/* ================= TAB 3: DETAILED ANALYTICS ================= */}
+            <div role="tabpanel" hidden={currentTab !== 2}>
+                {currentTab === 2 && (
+                    <>
+                        {/* Line Charts (Lines 950-1045) */}
+                        <section style={{ marginTop: "2rem" }}>
+                            <div style={{ display: "flex", gap: "2rem", justifyContent: "center" }}>
+                                <div style={{
                         flex: "1 1 450px",
                         maxWidth: "600px",
                         backgroundColor: "#f9f9f9",
@@ -1369,22 +1302,13 @@ export default function DashboardPage() {
                             Blue line: Your duration per conversation | Red dashed: Class average
                         </p>
                     </div>
-                </div>
-            </section>
+                            </div>
+                        </section>
 
-            <section style={{
-                width: "100%",
-                marginTop: "2rem",
-                marginBottom: "2rem"
-            }}>
-                <div style={{
-                    display: "flex",
-                    gap: "2rem",
-                    flexWrap: "wrap",
-                    justifyContent: "center",
-                    alignItems: "flex-start"
-                }}>
-                    {/* Answer accuracy Vertical Bar Chart */}
+                        {/* Bar Charts (Lines 1047-1135) */}
+                        <section style={{ marginTop: "2rem" }}>
+                            <div style={{ display: "flex", gap: "2rem", justifyContent: "center" }}>
+                               {/* Answer accuracy Vertical Bar Chart */}
                     <div style={{
                         flex: "1",
                         minWidth: "500px",
@@ -1468,25 +1392,28 @@ export default function DashboardPage() {
                         {dataLoading ? (
                             <div style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>Loading chart data...</div>
                         ) : (
-                            <VerticalBarChart 
-                                data={questionCountData} 
-                                width={600} 
-                                height={400}
-                                xAxisLabel=""
-                                yAxisLabel="Number of Questions" 
-                            />
-                        )}
-                        <p style={{ 
-                            fontSize: "0.85rem", 
-                            color: "#666", 
-                            textAlign: "center", 
-                            marginTop: "1rem" 
-                        }}>
-                            Blue bars: Your Questions | Red bars: Class Average
-                        </p>
-                    </div>
-                </div>
-            </section>
+                                <VerticalBarChart 
+                                    data={questionCountData} 
+                                    width={600} 
+                                    height={400}
+                                    xAxisLabel=""
+                                    yAxisLabel="Number of Questions" 
+                                />
+                            )}
+                            <p style={{ 
+                                fontSize: "0.85rem", 
+                                color: "#666", 
+                                textAlign: "center", 
+                                marginTop: "1rem" 
+                            }}>
+                                Blue bars: Your Questions | Red bars: Class Average
+                            </p>
+                        </div>
+                            </div>
+                        </section>
+                    </>
+                )}
+            </div>
         </div>
     );
 }

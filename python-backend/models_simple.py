@@ -174,7 +174,7 @@ class Topic(Base):
     id = Column(BigInteger, primary_key=True, autoincrement=True)
     topic_name = Column(Text, unique=True, nullable=False)
     topic_summary = Column(Text, nullable=False)
-    topic_summary_embedding = Column(Vector(1024))  # Temporarily disabled - requires pgvector extension
+   #  topic_summary_embedding = Column(Vector(1024))  # Temporarily disabled - requires pgvector extension
 
 class TopicDependency(Base): 
     __tablename__ = "topic_dependencies"
@@ -189,7 +189,7 @@ class Subtopic(Base):
     topic_id = Column(BigInteger, ForeignKey("topics.id"), nullable=False)
     subtopic_name = Column(Text, nullable=False)
     subtopic_summary = Column(Text, nullable=False)
-    subtopic_summary_embedding = Column(Vector(1024))  # Temporarily disabled - requires pgvector extension
+    #subtopic_summary_embedding = Column(Vector(1024))  # Temporarily disabled - requires pgvector extension
 
 # class SubtopicDependency(Base):
 #     __tablename__ = "subtopic_dependencies"
