@@ -8,8 +8,6 @@ import { Button, Tabs, Tab, Box } from '@mui/material';
 import API_BASE_URL, { API_ENDPOINTS } from '../config/api';
 import ReactMarkdown from 'react-markdown';
 
-// NOT THE ACTUAL DASHBOARD, JUST A PLACEHOLDER
-
 // Responsive Chart Wrapper Component
 function ResponsiveReflectiveBarChart({ data, height, onCategoryClick, selectedCategory }) {
     const [width, setWidth] = useState(700);
