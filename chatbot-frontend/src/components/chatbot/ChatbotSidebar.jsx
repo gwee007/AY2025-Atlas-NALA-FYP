@@ -35,21 +35,8 @@ export default function ChatbotSidebar({
     mutedForeground: "#9e9e9e",
   };
 
-  // Only include conversations with a topic
-  const grouped = React.useMemo(() => {
-    const map = {};
-    conversations.forEach((conv) => {
-      if (!conv.topic) return; // skip conversations without topic
-      // Check if the conversation contains at least one user message
-      const hasUserMessage = conv.messages.some((msg) => msg.from === "user");
-      if (!hasUserMessage) return;
-
-      const topic = conv.topic;
-      if (!map[topic]) map[topic] = [];
-      map[topic].push(conv);
-    });
-    return Object.entries(map);
-  }, [conversations]);
+  // No filtering needed - backend only returns conversations with messages
+  const filteredConversations = conversations;
 
   return (
     <Box sx={{ display: "flex" }}>
@@ -70,7 +57,7 @@ export default function ChatbotSidebar({
           zIndex: 1099,
         }}
       >
-        <Tooltip title="Toggle Sidebar" arrow>
+        <Tooltip title="Show Sidebar" arrow>
           <IconButton onClick={onToggleSidebar} sx={{ color: colors.sidebarForeground, mb: 2 }}>
             <SidebarIcon />
           </IconButton>
@@ -86,7 +73,7 @@ export default function ChatbotSidebar({
       <Drawer
         variant={isMobile ? "temporary" : "persistent"}
         anchor="left"
-        open={open}
+        open={isMobile ? open : true} // Always open on large screens
         onClose={onToggleSidebar}
         ModalProps={{ keepMounted: true }}
         sx={{
@@ -106,21 +93,24 @@ export default function ChatbotSidebar({
         }}
       >
         {/* Drawer Header */}
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            px: 2,
-            py: 2,
-            borderBottom: `1px solid ${colors.sidebarBorder}`,
-            cursor: "pointer",
-            "&:hover": { bgcolor: "rgba(255,255,255,0.05)" },
-          }}
-          onClick={onToggleSidebar}
-        >
-          <SidebarIcon sx={{ color: "#a9a9a9", mr: 1 }} />
-          <Typography sx={{ fontSize: "16px", color: "#a9a9a9", fontFamily: "Inter" }}>Hide Sidebar</Typography>
-        </Box>
+        {!isMobile && null /* Hide Close Sidebar button on large screens */}
+        {isMobile && (
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              px: 2,
+              py: 2,
+              borderBottom: `1px solid ${colors.sidebarBorder}`,
+              cursor: "pointer",
+              "&:hover": { bgcolor: "rgba(255,255,255,0.05)" },
+            }}
+            onClick={onToggleSidebar}
+          >
+            <SidebarIcon sx={{ color: "#a9a9a9", mr: 1 }} />
+            <Typography sx={{ fontSize: "16px", color: "#a9a9a9", fontFamily: "Inter" }}>Close Sidebar</Typography>
+          </Box>
+        )}
 
         {/* Conversations header */}
         <Box
@@ -163,7 +153,7 @@ export default function ChatbotSidebar({
           }}
         >
           <List sx={{ p: 0 }}>
-            {grouped.length === 0 ? (
+            {filteredConversations.length === 0 ? (
               <Typography
                 variant="body2"
                 sx={{
@@ -176,66 +166,45 @@ export default function ChatbotSidebar({
                 No conversations yet
               </Typography>
             ) : (
-              grouped.map(([topic, convs], idx) => (
-                <React.Fragment key={topic}>
-                  <Typography
+              filteredConversations.map((conversation) => (
+                <ListItem key={conversation.id} disablePadding sx={{ mb: 0.5 }}>
+                  <ListItemButton
+                    onClick={() => onConversationClick(conversation.id)}
+                    selected={activeConversationId === conversation.id}
                     sx={{
-                      fontWeight: 700,
-                      fontSize: "12px",
-                      color: colors.mutedForeground,
-                      textTransform: "uppercase",
-                      letterSpacing: 1,
+                      borderRadius: "8px",
+                      minHeight: 48,
+                      bgcolor: activeConversationId === conversation.id ? "#a9a9a9" : "transparent",
                       px: 2,
-                      pt: idx === 0 ? 1 : 2,
-                      pb: 1,
                     }}
                   >
-                    {topic}
-                  </Typography>
-                  {convs.map((conversation) => (
-                    <ListItem key={conversation.id} disablePadding sx={{ mb: 0.5 }}>
-                      <ListItemButton
-                        onClick={() => onConversationClick(conversation.id)}
-                        selected={activeConversationId === conversation.id}
-                        sx={{
-                          borderRadius: "8px",
-                          minHeight: 48,
-                          bgcolor: activeConversationId === conversation.id ? "#a9a9a9" : "transparent",
-                          "&:hover": { bgcolor: colors.sidebarAccent },
-                          transition: "background 0.2s",
-                          px: 2,
-                        }}
-                      >
-                        <Avatar
-                          sx={{
-                            width: 32,
-                            height: 32,
-                            bgcolor: theme.palette.primary.main + "33",
-                            color: theme.palette.primary.main,
-                            fontSize: 18,
-                            mr: 2,
-                          }}
-                        >
-                          <ChatIcon fontSize="small" />
-                        </Avatar>
-                        <ListItemText
-                          primary={conversation.title}
-                          primaryTypographyProps={{
-                            sx: {
-                              fontSize: "15px",
-                              color: colors.sidebarForeground,
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
-                              whiteSpace: "nowrap",
-                              fontFamily: "Inter",
-                            },
-                          }}
-                        />
-                      </ListItemButton>
-                    </ListItem>
-                  ))}
-                  {idx < grouped.length - 1 && <Divider sx={{ my: 1, borderColor: colors.sidebarBorder }} />}
-                </React.Fragment>
+                    <Avatar
+                      sx={{
+                        width: 32,
+                        height: 32,
+                        bgcolor: theme.palette.primary.main + "33",
+                        color: theme.palette.primary.main,
+                        fontSize: 18,
+                        mr: 2,
+                      }}
+                    >
+                      <ChatIcon fontSize="small" />
+                    </Avatar>
+                    <ListItemText
+                      primary={conversation.title}
+                      primaryTypographyProps={{
+                        sx: {
+                          fontSize: "15px",
+                          color: colors.sidebarForeground,
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                          fontFamily: "Inter, system-ui, -apple-system, sans-serif",
+                        },
+                      }}
+                    />
+                  </ListItemButton>
+                </ListItem>
               ))
             )}
           </List>
