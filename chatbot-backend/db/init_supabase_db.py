@@ -1,6 +1,7 @@
 import os 
 from dotenv import load_dotenv
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, event, DDL, inspect
+from sqlalchemy.schema import Index
 from models import Base
 
 load_dotenv()
@@ -16,63 +17,50 @@ if not all([POSTGRES_USER, POSTGRES_PASS, POSTGRES_HOST, POSTGRES_DB, POSTGRES_P
 database_url = f"postgresql://{POSTGRES_USER}:{POSTGRES_PASS}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
 engine = create_engine(database_url)
 
-def check_table_content(table_name):
-    """Check and print the content of a specific table."""
-    with engine.connect() as conn:
-        result = conn.execute(text(f"SELECT * FROM {table_name}"))
-        rows = result.fetchall()
-        if rows:
-            print(f"Content of table '{table_name}':")
-            for row in rows:
-                print(row)
-        else:
-            print(f"Table '{table_name}' is empty.")
-
-def check_indexes(table_name):
-    """Check and print all indexes for a specific table."""
-    query = text("""
-        SELECT indexname
-        FROM pg_indexes
-        WHERE tablename = :table_name
-    """)
-    with engine.connect() as conn:
-        result = conn.execute(query, {"table_name": table_name})
-        indexes = result.fetchall()
-        if indexes:
-            print(f"Indexes for table '{table_name}':")
-            for index in indexes:
-                print(f"- {index[0]}")
-        else:
-            print(f"No indexes found for table '{table_name}'.")
-
-def create_tables_and_index():
-    """Create tables and add the IVFFlat index for embeddings."""
-    print("Creating tables...")
+def setup_database():
+    # enable vector extension
+    event.listen(
+        Base.metadata, 
+        'before_create', 
+        DDL("CREATE EXTENSION IF NOT EXISTS vector")
+    )
     Base.metadata.create_all(engine)
-    print("Tables created successfully.")
+    print("Tables and Indexes created successfully.")
 
-    with engine.connect() as conn:
-        conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector;"))
-        conn.commit()
-        print("pgvector extension enabled.")
+def verify_setup():
+    """Inspects the database to confirm tables and indexes exist."""
+    inspector = inspect(engine)
+    
+    # check all tables created andd thir indexes
+    tables = inspector.get_table_names()
+    print(f"\nFound Tables: {tables}")
+    
+    for table_name in tables:
+        print(f"\nIndexes on '{table_name}':")
+        indexes = inspector.get_indexes(table_name)
+        for idx in indexes:
+            print(f"- Name: {idx['name']}")
+            print(f"  Columns: {idx['column_names']}")
 
-    # Create IVFFlat index for document_chunks.embedding
-    with engine.connect() as conn:
-        conn.execute(text("""
-        CREATE INDEX IF NOT EXISTS document_chunks_embedding_idx
-        ON document_chunks
-        USING ivfflat (embedding vector_cosine_ops)
-        WITH (lists = 100);
-        """))
-        conn.commit()
-        print("IVFFlat index created for document_chunks.embedding.")
+def drop_index(table_name, index_name):
+    """Drops a specific index from a table."""
+    inspector = inspect(engine)
+    indexes = inspector.get_indexes(table_name)
+    
+    # Check if the index exists
+    if any(idx['name'] == index_name for idx in indexes):
+        with engine.connect() as connection:
+            print(f"Dropping index: {index_name} from table: {table_name}")
+            idx = Index(index_name)
+            idx.drop(connection)
+            print(f"Index '{index_name}' has been dropped.")
+    else:
+        print(f"Index '{index_name}' does not exist on table '{table_name}'.")
 
 if __name__ == "__main__":
-    # Check content of the 'topics' table
-    # check_table_content("topics")
-        
-    # Create tables and add the IVFFlat index
-    create_tables_and_index()
-
-    # check indexes of document_chunks table
-    check_indexes("document_chunks")
+    try:
+        setup_database()
+        verify_setup()
+        # drop_index("subtopics", "subtopics_summary_embedding_idx")
+    except Exception as e:
+        print(f"An error occurred: {e}")

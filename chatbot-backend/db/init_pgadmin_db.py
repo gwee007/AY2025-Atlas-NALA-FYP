@@ -1,3 +1,4 @@
+## ONLY USE FOR LOCAL pgadmin connection ##
 import os
 from dotenv import load_dotenv
 load_dotenv()
