@@ -1,5 +1,8 @@
+import warnings
 from sentence_transformers import SentenceTransformer
 from FlagEmbedding import FlagReranker
+warnings.filterwarnings("ignore", message=".*XLMRobertaTokenizerFast.*__call__.*")
+
 
 # using singleton pattern to load models only once
 class ModelResources:

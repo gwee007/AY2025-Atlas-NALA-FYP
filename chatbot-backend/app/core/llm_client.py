@@ -1,6 +1,7 @@
 import requests
 import time
 from typing import Any, List, Optional, Mapping
+from xml.sax.saxutils import escape  # escaping XML special characters
 from langchain_core.language_models.llms import LLM
 from app.config import Config
 
@@ -17,15 +18,19 @@ class NalaGemini(LLM):
         system_instruction = kwargs.get("system_instruction", "You are a helpful assistant.")
         retries = kwargs.get("retries", 3)
 
+        # Escape special characters in system_instruction and prompt
+        escaped_system_instruction = escape(system_instruction)
+        escaped_prompt = escape(prompt)
+
         xml_body = f"""
         <llm_request>
             <model>{self.model_name}</model>
-            <system_prompt>{system_instruction}</system_prompt>
+            <system_prompt>{escaped_system_instruction}</system_prompt>
             <hyperparameters>
                 <temperature>0</temperature>
                 <top_p>0.1</top_p>
             </hyperparameters>
-            <user_prompt>{prompt}</user_prompt>
+            <user_prompt>{escaped_prompt}</user_prompt>
         </llm_request>
         """
         
