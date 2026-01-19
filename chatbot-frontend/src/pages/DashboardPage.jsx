@@ -62,6 +62,10 @@ export default function DashboardPage() {
     const [llmSummary, setLlmSummary] = useState('Loading summary...');
     const [summaryLoading, setSummaryLoading] = useState(true);
     
+    const [page,setPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const USER_ID = 102; // We're centralising it here
+    
     // State for all chart data
     const [interactionChartData, setInteractionChartData] = useState({ individual: [], average: [] });
     const [durationChartData, setDurationChartData] = useState({ individual: [], average: [] });
@@ -117,7 +121,6 @@ export default function DashboardPage() {
     const processedChartData = getSortedChartData();
 
     const finalChartData = getSortedChartData();
-    // Add state for questions (replacing conversations)
     const [conversations, setQuestions] = useState([]);
     const [conversationsLoading, setQuestionsLoading] = useState(true);
     const [topicIdMap, setTopicIdMap] = useState({}); // Map topic names to IDs
@@ -134,22 +137,6 @@ export default function DashboardPage() {
     const [topicDependencies, setTopicDependencies] = useState([]);
     const [dependenciesLoading, setDependenciesLoading] = useState(false);
 
-    // Helper function to convert grade points to letter grade
-    const pointToGrade = (points) => {
-        if (points == null) return 'N/A';
-        const p = Number(points);
-        if (p >= 4.0) return 'A';
-        if (p >= 3.7) return 'A-';
-        if (p >= 3.3) return 'B+';
-        if (p >= 3.0) return 'B';
-        if (p >= 2.7) return 'B-';
-        if (p >= 2.3) return 'C+';
-        if (p >= 2.0) return 'C';
-        if (p >= 1.7) return 'C-';
-        if (p >= 1.3) return 'D+';
-        if (p >= 1.0) return 'D';
-        return 'F';
-    };
     // Fetch summary from API on component mount
     useEffect(() => {
         const fetchSummary = async () => {
@@ -159,7 +146,7 @@ export default function DashboardPage() {
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ user_id: 103 })
+                    body: JSON.stringify({ user_id: 102 })
                 });
                 
                 if (!response.ok) {
@@ -178,16 +165,17 @@ export default function DashboardPage() {
         
         fetchSummary();
     }, []);
-    
-    // Fetch all statistics data from API
+
+// Fetch all statistics data from API
     useEffect(() => {
+        // 1. Define the async wrapper function
         const fetchAllData = async () => {
             try {
                 // Fetch individual statistics
                 const individualResponse = await fetch(API_ENDPOINTS.individualStatistics, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ user_id: 103 })
+                    body: JSON.stringify({ user_id: USER_ID })
                 });
                 
                 // Fetch group statistics
@@ -220,9 +208,10 @@ export default function DashboardPage() {
             }
         };
         
+        // 2. Call the async function immediately
         fetchAllData();
     }, []);
-    
+
     // Function to transform and filter chart data based on selected topic
     const transformAndSetChartData = (individualStats, groupStats, filterTopicName) => {
                 // Transform interactions over time data
@@ -304,7 +293,6 @@ export default function DashboardPage() {
                     title: 'Number of Questions per Question Category'
                 });
                 
-                // Transform topical performance data - showing conversation/question counts
                 const topicCategories = (individualStats.grades_by_topic || [])
                     .filter(t => t.topic_name)
                     .map(t => t.topic_name);
@@ -314,7 +302,7 @@ export default function DashboardPage() {
                         category: t.topic_name,
                         value: Number(t.question_count) || 0  // Show number of questions asked
                     }));
-                // Calculate average conversations per topic (total conversations / number of users)
+                
                 const numUsers = (groupStats.conversations_per_user || []).length || 1;
                 const topicAverage = topicCategories.map(topicName => {
                     const found = (groupStats.conversations_by_topic || []).find(t => t.topic_name === topicName);
@@ -330,18 +318,15 @@ export default function DashboardPage() {
                     title: 'Topic Activity Comparison'
                 });
                 
-                
-                
-                // Set overall grades
                 setOverallGrades({
-                    questionQuality: pointToGrade(individualStats.average_question_grade),
+                    questionQuality: individualStats.overall_average_grade_letter,
                     answerAccuracy: individualStats.average_answer_accuracy, // Note: this will be in the form of float 
                     avgQuestionQuality: groupStats.overall_average_grade_letter || 'N/A',
                     avgAnswerAccuracy: groupStats.overall_average_accuracy || 'N/A', // Float again
                     questionQualityGPA: Number(individualStats.average_question_grade) || null,
-                    answerAccuracyGPA: Number(individualStats.average_question_grade) || null,
+                    answerAccuracyGPA: Number(individualStats.average_answer_accuracy) || null,
                     avgQuestionQualityGPA: Number(groupStats.overall_average_grade) || null,
-                    avgAnswerAccuracyGPA: Number(groupStats.overall_average_grade) || null
+                    avgAnswerAccuracyGPA: Number(groupStats.overall_average_accuracy) || null
                 });
     };
     
@@ -360,127 +345,111 @@ export default function DashboardPage() {
     
     // Fetch questions when a topic is selected, else fetch all questions
    useEffect(() => {
-    const fetchQuestions = async () => {
-        // Only fetch if we have the topic ID mapping loaded (or no filter selected)
-        if (!selectedTopic || Object.keys(topicIdMap).length > 0) {
-            setQuestionsLoading(true);
-            try {
-                // Convert topic name to ID using the mapping
-                const topicId = selectedTopic ? topicIdMap[selectedTopic] : null;
-                
-                console.log('[Debug] Fetching questions:', {
-                    selectedTopic,
-                    topicId,
-                    topicIdMap
-                });
-                
-                // Build URL with optional topic filter using numeric ID
-                const url = topicId 
-                    ? `${API_ENDPOINTS.questions}?topic_id=${topicId}`
-                    : API_ENDPOINTS.questions;
-                
-                console.log('[Debug] Request URL:', url);
-                
-                const response = await fetch(url, {
-                    method: 'GET',
-                    headers: { 'Content-Type': 'application/json' }
-                });
-                
-                if (!response.ok) {
-                    throw new Error('Failed to fetch question data');
-                }
-                
-                const responseData = await response.json();
-                console.log('[Debug] Fetched question data:', responseData);
-                
-                // Questions API returns array directly (not paginated)
-                const questionsArray = Array.isArray(responseData) ? responseData : [];
-                
-                // Transform API data to match table format
-                // API returns: { question_id, content, grade, timestamp }
-                const transformedData = questionsArray.map(q => ({
-                    id: q.question_id,
-                    question: q.content || 'No content',
-                    grade: q.grade || 'N/A',
-                    timestamp: q.timestamp
-                        ? new Date(q.timestamp).toLocaleString('en-US', {
-                            year: 'numeric',
-                            month: '2-digit',
-                            day: '2-digit',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                        })
-                        : 'N/A'
-                }));
-                
-                setQuestions(transformedData);
-                
-            } catch (error) {
-                console.error('Error fetching questions:', error);
-                setQuestions([]);
-            } finally {
-                setQuestionsLoading(false);
-            }
-        }
-    };
-    
-    fetchQuestions();
-}, [selectedTopic]);
-
-
-    // Fetch topic dependencies when a topic is selected
-    useEffect(() => {
-        const fetchTopicDependencies = async () => {
-
-            console.log('proceeding to select ur mom')
-            setDependenciesLoading(true);
-            try {
-                const response = await fetch(API_ENDPOINTS.topicDependencies, {
-                    method: 'GET',
-                    headers: { 'Content-Type': 'application/json' },
-                });
-
-                // just getting everything for now
-                
-                if (!response.ok) {
-                    console.log('is there an error here?',response.status, await response.text());
-                    // is this a subtopic? let's check
-                    // never mind plan aborted
-                    throw new Error('Failed to fetch topic dependencies');
-                }
-                
-                const dependencies = await response.json();
-                setTopicDependencies(dependencies);
-                console.log('Fetched dependencies:', dependencies);
-
-                // Build topic name -> ID mapping
-                const nameToIdMap = {};
-                if (dependencies.nodes) {
-                    dependencies.nodes.forEach(node => {
-                        if (node.type === 'topic' && node.label && node.id) {
-                            // Extract numeric ID from prefixed ID (e.g., "topic_5" -> 5)
-                            const numericId = parseInt(node.id.replace('topic_', ''));
-                            nameToIdMap[node.label] = numericId;
-                        }
+        const fetchQuestions = async () => {
+            // Only fetch if topic map is ready (or no topic selected)
+            if (!selectedTopic || Object.keys(topicIdMap).length > 0) {
+                setQuestionsLoading(true);
+                try {
+                    const topicId = selectedTopic ? topicIdMap[selectedTopic] : '';
+                    
+                    // REFACTOR 1: Add user_id and page parameters to the URL
+                    // We use `per_page=5` to match your log example
+                    const queryParams = new URLSearchParams({
+                        user_id: USER_ID,
+                        page: page,
+                        per_page: 4, 
+                        ...(topicId && { topic_id: topicId })
                     });
+
+                    const url = `${API_ENDPOINTS.questions}?${queryParams.toString()}`;
+                    console.log('[Debug] Request URL:', url);
+                    
+                    const response = await fetch(url, {
+                        method: 'GET',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                    
+                    if (!response.ok) throw new Error('Failed to fetch question data');
+                    
+                    const responseData = await response.json();
+                    console.log('[Debug] Fetched question data:', responseData);
+                    
+                    // REFACTOR 2: Handle the { data, pagination } structure
+                    // If .data exists, use it. Otherwise check if it's a direct array.
+                    const questionsRaw = responseData.data || (Array.isArray(responseData) ? responseData : []);
+                    
+                    // Update total pages from metadata if available
+                    if (responseData.pagination) {
+                        setTotalPages(responseData.pagination.total_pages);
+                    }
+                    
+                    // Transform data
+                    const transformedData = questionsRaw.map(q => ({
+                        id: q.question_id,
+                        question: q.content || 'No content',
+                        grade: q.grade || 'N/A',
+                        timestamp: q.timestamp
+                            ? new Date(q.timestamp).toLocaleString('en-US', {
+                                year: 'numeric', month: '2-digit', day: '2-digit',
+                                hour: '2-digit', minute: '2-digit'
+                            })
+                            : 'N/A'
+                    }));
+                    
+                    setQuestions(transformedData); // Note: Your state is named 'conversations' in the snippet, ensure this matches
+                    
+                } catch (error) {
+                    console.error('Error fetching questions:', error);
+                    setQuestions([]);
+                } finally {
+                    setQuestionsLoading(false);
                 }
-                setTopicIdMap(nameToIdMap);
-                console.log('Topic ID map:', nameToIdMap);
-
-                // Don't auto-select a topic - let user choose
-                // Only set dependencies, user must manually select a topic
-
-            } catch (error) {
-                console.error('Error fetching topic dependencies:', error);
-                // 
-                setTopicDependencies([]);
-            } finally {
-                setDependenciesLoading(false);
             }
         };
         
-        fetchTopicDependencies();
-    }, []);
+        fetchQuestions();
+    }, [selectedTopic, page]);
+
+
+            // Fetch topic dependencies when a topic is selected
+        useEffect(() => {
+
+            if (!USER_ID) return; // Safety check
+
+            const fetchTopicDependencies = async () => {
+                setDependenciesLoading(true);
+                try {
+                    // 1. Pass user_id to backend (so it injects grades automatically)
+                    const response = await fetch(`${API_ENDPOINTS.topicDependencies}?user_id=${USER_ID}`);
+                    
+                    if (!response.ok) throw new Error('Failed to fetch topic dependencies');
+                    
+                    const data = await response.json();
+
+                    // 2. Set Data Directly (Backend now handles structure, grades, and types)
+                    setTopicDependencies(data);
+
+                    // 3. Condensed Map Logic (Reduced from 10 lines to 5)
+                    const idMap = (data.nodes || []).reduce((acc, node) => {
+                        if (node.type === 'topic') {
+                            const numericId = parseInt(node.id.replace('topic_', '')) || node.id;
+                            acc[node.label] = numericId;
+                        }
+                        return acc;
+                    }, {});
+                    
+                    setTopicIdMap(idMap);
+
+                } catch (error) {
+                    console.error('Dependency fetch failed:', error);
+                    setTopicDependencies({ nodes: [], links: [] }); // Safe fallback
+                } finally {
+                    setDependenciesLoading(false);
+                }
+            };
+
+            fetchTopicDependencies();
+        }, [USER_ID]); // <--- IMPORTANT: Re-run this if the user changes
 
     // Filter topics based on search term
     const filteredTopicalPerformanceData = {
@@ -1059,7 +1028,6 @@ export default function DashboardPage() {
                                             width={700}
                                             height={280}
                                             graphData = {topicDependencies}
-                                            gradeData={rawIndividualStats?.grades_by_topic} 
                                         />
                                         
                                     </>
@@ -1195,12 +1163,41 @@ export default function DashboardPage() {
                                             >
                                                 Visit
                                             </Button>
-                                        </td>
-                                    </tr>
-                                ))
-                            )}
+                                                </td>
+                                            </tr>
+                                        ))
+                                    )}
                                         </tbody>
                                     </table>
+                            <div style={{ 
+                                display: "flex", 
+                                justifyContent: "space-between", 
+                                alignItems: "center",
+                                paddingTop: "1rem",
+                                borderTop: "1px solid #e2e8f0"
+                            }}>
+                                <Button 
+                                    variant="outlined" 
+                                    size="small"
+                                    disabled={page === 1 || conversationsLoading}
+                                    onClick={() => setPage(prev => Math.max(prev - 1, 1))}
+                                >
+                                    Previous
+                                </Button>
+                                
+                                <span style={{ fontSize: "0.85rem", color: "#64748b" }}>
+                                    Page <strong>{page}</strong> of <strong>{totalPages}</strong>
+                                </span>
+                                
+                                <Button 
+                                    variant="outlined" 
+                                    size="small"
+                                    disabled={page >= totalPages || conversationsLoading}
+                                    onClick={() => setPage(prev => prev + 1)}
+                                >
+                                    Next
+                                </Button>
+                            </div>
                                 </div>
                             </div>
                         )}
@@ -1324,7 +1321,7 @@ export default function DashboardPage() {
                                 Answer Accuracy per Question Category
                                 {selectedTopic && (
                                     <span style={{ display: "block", fontSize: "0.75rem", color: "#059669", marginTop: "0.25rem" }}>
-                                        📊 Filtered by: {selectedTopic}
+                                        Filtered by: {selectedTopic}
                                     </span>
                                 )}
                             </h3>

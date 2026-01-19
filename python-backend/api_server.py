@@ -1,19 +1,23 @@
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy import create_engine, func, case
-from models_simple import Base, Chatbot, User, Conversation, Message, Question, Answer, Topic, TopicDependency, Subtopic
+from sqlalchemy import func, case, desc
+# UPDATED: Import from models.py instead of models_simple
+from models import Base, User, Conversation, Message, Question, Answer, Topic, TopicDependency, Subtopic, question_topics
 from dotenv import load_dotenv
 import os
-from summary_generation import generate_summary_data
-from grading_calculation import point_to_grade, grade_to_point
-from averageCalculation import individual_statistics, group_statistics
-import requests
-from initialize_database import get_engine
+import traceback
 
+# UPDATED: Import your refactored summary logic
+from summary_generation import generate_summary_data
+from grading_calculation import point_to_grade
+from averageCalculation import individual_statistics, group_statistics
+from initialize_database import get_engine
+from redis_client import get_redis_client
+red_client = get_redis_client()
 load_dotenv()
 app = Flask(__name__)
-CORS(app)  # Enable CORS for React frontend (running on different port)
+CORS(app)  # Enable CORS for React frontend
 
 # Database connection
 engine = get_engine()
@@ -45,7 +49,6 @@ def individual_statistics_end():
         stats = individual_statistics(user_id)
         return jsonify(stats)
     except Exception as e:
-        import traceback
         print(f"[ERROR] individual_statistics failed: {str(e)}")
         print(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
@@ -53,44 +56,76 @@ def individual_statistics_end():
 @app.route("/api/group-statistics", methods=["GET"])
 def group_statistics_end():
     try:
-        # Call group statistics logic
         stats = group_statistics()
         return jsonify(stats)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-#  I realize we might just need to just pull the whole damn tree every load 
 @app.route('/api/topic-dependencies', methods=['GET'])
 def get_topic_dependencies():
     session = SessionLocal()
+    
+    # CRITICAL: We need the user_id to know WHICH grades to fetch.
+    # We grab it from the query parameters (e.g., ?user_id=101)
+    user_id = request.args.get('user_id')
+    
     try:
-        # Fetch all topics and subtopics
+        grade_lookup = {}
+        
+        if user_id:
+            try:
+                # Fetch the full stats object
+                user_stats = individual_statistics(int(user_id))
+                
+                # Extract the combined list (check both keys just in case)
+                grades_list = user_stats.get('grades_by_topic', []) or user_stats.get('node_data', [])
+                
+                # Build a fast lookup map: "type_id" -> "Grade Letter"
+                # Example: "topic_1" -> "A"
+                for item in grades_list:
+                    key = f"{item['type']}_{item['topic_id']}"
+                    grade_lookup[key] = item.get('avg_grade_letter', 'N/A')
+                    
+            except Exception as e:
+                print(f"[WARN] Could not fetch stats for user {user_id}: {e}")
+
+        # ---------------------------------------------------------
+        # 2. BUILD NODES (Now with Grades!)
+        # ---------------------------------------------------------
         topics = session.query(Topic).all()
         subtopics = session.query(Subtopic).all()
         topic_dependencies = session.query(TopicDependency).all()
         
-        
-        # Build nodes for topics
         nodes = []
+        
+        # Process Main Topics
         for topic in topics:
+            node_id = f"topic_{topic.id}"
             nodes.append({
-                "id": f"topic_{topic.id}",
+                "id": node_id,
                 "label": topic.topic_name,
                 "type": "topic",
-                "radius": 40
+                "radius": 40,
+                # INJECT GRADE HERE
+                "grade": grade_lookup.get(node_id, "N/A") 
             })
         
-        # Build nodes for subtopics
+        # Process Subtopics
         for subtopic in subtopics:
+            node_id = f"subtopic_{subtopic.id}"
             nodes.append({
-                "id": f"subtopic_{subtopic.id}",
+                "id": node_id,
                 "label": subtopic.subtopic_name,
                 "type": "subtopic",
                 "radius": 25,
-                "parent_topic_id": subtopic.topic_id
+                "parent_topic_id": subtopic.topic_id,
+                # INJECT GRADE HERE
+                "grade": grade_lookup.get(node_id, "N/A")
             })
         
-        # Build links for topic dependencies (topic to topic)
+        # ---------------------------------------------------------
+        # 3. BUILD LINKS (Standard)
+        # ---------------------------------------------------------
         links = []
         for dep in topic_dependencies:
             links.append({
@@ -99,9 +134,6 @@ def get_topic_dependencies():
                 "relation_type": dep.relation_type
             })
         
-
-        
-        # Add links from subtopics to their parent topics
         for subtopic in subtopics:
             links.append({
                 "source": f"subtopic_{subtopic.id}",
@@ -112,8 +144,9 @@ def get_topic_dependencies():
         return jsonify({"nodes": nodes, "links": links})
     
     except Exception as e:
-        import traceback
         print(f"[ERROR] get_topic_dependencies failed: {str(e)}")
+        # Import traceback inside the function if not global, or ensure it's imported at top
+        import traceback
         print(traceback.format_exc())
         return jsonify({"error": str(e)}), 500
     finally:
@@ -122,6 +155,12 @@ def get_topic_dependencies():
 @app.route("/api/dashboard-stats", methods=["GET"])
 def get_dashboard_stats():
     print("Fetching dashboard stats...")
+    CASH_KEY = "dashboard_stats"
+    cached_stats = red_client.get(CASH_KEY)
+    if cached_stats:
+        print("Returning cached dashboard stats.")
+        return jsonify(eval(cached_stats))
+    print("No cached stats found, querying database...")
     session = SessionLocal()
     try:
         user_count = session.query(User).count()
@@ -140,27 +179,33 @@ def get_dashboard_stats():
             "topic_count": topic_count
         }
         print("Dashboard stats fetched successfully:", stats)
+        red_client.setex(CASH_KEY, 300, str(stats))  # Cache for 5 minutes
         return jsonify(stats)
     except Exception as e:
         print("Error fetching dashboard stats:", e)
         return jsonify({"error": "Failed to fetch dashboard stats"}), 500
-
     finally:
         session.close()
-
 
 @app.route('/api/users', methods=['GET'])
 def get_users():
     session = SessionLocal()
     try:
         users = session.query(User).all()
-        users_data = [user.to_dict() for user in users]  # Assuming to_dict() method exists
+        # Ensure your User model has a to_dict method, or construct manually
+        users_data = []
+        for user in users:
+            users_data.append({
+                "id": user.id,
+                "name": user.name,
+                "email": user.email,
+                "created_at": user.created_at.isoformat() if user.created_at else None
+            })
         return jsonify(users_data)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
     finally:
         session.close()
-
 
 @app.route('/api/conversations', methods=['GET'])
 def get_conversations():
@@ -169,11 +214,8 @@ def get_conversations():
         topic_id = request.args.get('topic_id', type=int)
         page = request.args.get('page', 1, type=int)
         per_page = request.args.get('per_page', 50, type=int)
-        print("[DEBUG] get_conversations called with topic_id:", topic_id, "page:", page, "per_page:", per_page)
-        # Create a CASE expression to convert letter grades to numeric points
-        # This mirrors your grade_to_point() logic but runs in SQL
-        from sqlalchemy import case
         
+        # 1. Define Grade to Numeric logic
         grade_to_numeric = case(
             (Question.grade == 'A+', 4.5),
             (Question.grade == 'A', 4.0),
@@ -190,54 +232,47 @@ def get_conversations():
             else_=None
         )
         
-        # Build base query with a single aggregated subquery
-        grade_subquery = session.query(
-            Message.conversation_id,
-            func.avg(grade_to_numeric).label('mean_grade')
-        ).join(
-            Question, Message.message_id == Question.message_id
-        ).group_by(
-            Message.conversation_id
-        ).subquery()
-        
-        # Main query - join conversations with pre-calculated grades
+        # 2. Build Query
+        # Join Strategy: Conversation -> Message -> Question
         query = session.query(
             Conversation,
-            grade_subquery.c.mean_grade
-        ).outerjoin(
-            grade_subquery,
-            Conversation.id == grade_subquery.c.conversation_id
-        )
+            func.avg(grade_to_numeric).label('mean_grade')
+        ).outerjoin(Message, Conversation.id == Message.conversation_id)\
+         .outerjoin(Question, Message.id == Question.message_id) # UPDATED: Message.id
         
-        # Apply topic filter if provided
+        # 3. Apply Topic Filter (Many-to-Many logic)
         if topic_id:
-            query = query.join(
-                Message, Conversation.id == Message.conversation_id
-            ).join(
-                Question, Message.message_id == Question.message_id
-            ).filter(
-                Question.topic_id == topic_id
-            ).distinct()
+            # We need to join Question -> question_topics -> Topic
+            query = query.join(question_topics, Question.id == question_topics.c.question_id)\
+                         .filter(question_topics.c.topic_id == topic_id)
+
+        # Group by Conversation
+        query = query.group_by(Conversation.id)
         
-        # Add pagination
+        # Add Pagination
         total = query.count()
         conversations = query.limit(per_page).offset((page - 1) * per_page).all()
         
-        # Build response data
+        # 4. Format Output
         conv_data = []
         for conv, mean_grade in conversations:
-            conv_dict = conv.to_dict()
+            conv_dict = {
+                "id": conv.id,
+                "user_id": conv.user_id,
+                "title": conv.title,
+                # New schema has last_accessed, not created_at
+                "last_accessed": conv.last_accessed.isoformat() if conv.last_accessed else None
+            }
             
-            if mean_grade:
-                conv_dict['mean_grade_points'] = round(mean_grade, 2)
-                conv_dict['mean_grade'] = point_to_grade(mean_grade)
+            if mean_grade is not None:
+                conv_dict['mean_grade_points'] = round(float(mean_grade), 2)
+                conv_dict['mean_grade'] = point_to_grade(float(mean_grade))
             else:
                 conv_dict['mean_grade_points'] = None
                 conv_dict['mean_grade'] = None
             
-            conv_dict['created_at'] = conv.created_at.isoformat() if hasattr(conv, 'created_at') else None
             conv_data.append(conv_dict)
-        print(f"[DEBUG] Successfully returning {len(conv_data)} conversations")
+            
         return jsonify({
             'data': conv_data,
             'page': page,
@@ -247,7 +282,6 @@ def get_conversations():
         })
         
     except Exception as e:
-        import traceback
         print(f"[ERROR] get_conversations failed: {str(e)}")
         print(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
@@ -259,7 +293,7 @@ def get_topics():
     session = SessionLocal()
     try:
         topics = session.query(Topic).all()
-        topics_data = [topic.to_dict() for topic in topics]
+        topics_data = [{"id": t.id, "topic_name": t.topic_name, "summary": t.topic_summary} for t in topics]
         return jsonify(topics_data)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -270,31 +304,51 @@ def get_topics():
 def get_questions():
     session = SessionLocal()
     try:
-        topic_id = request.args.get('topic_id', type=int)  
+        topic_id = request.args.get('topic_id', type=int) 
+         
+        user_id = request.args.get('user_id', type=int)
+        # pagination parameters 
 
-        # Join Question with Message to get timestamp and content
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 5, type=int)
+        offset= (page - 1) * per_page
+
+        # Join Question -> Message
         query = session.query(Question, Message).join(
-            Message, Question.message_id == Message.message_id
+            Message, Question.message_id == Message.id # UPDATED: Message.id
         )
         
-        # Filter by topic_id if provided
+        # Filter by topic_id if provided (Many-to-Many)
+        if user_id:
+            query = query.join(Conversation, Message.conversation_id == Conversation.id)\
+                         .filter(Conversation.user_id == user_id)
         if topic_id:
-            query = query.filter(Question.topic_id == topic_id)
-        
+            query = query.join(question_topics, Question.id == question_topics.c.question_id)\
+                         .filter(question_topics.c.topic_id == topic_id)
+        total_items = query.count() # total items for pagination
+        query = query.order_by(Question.created_at.desc())\
+                     .limit(per_page).offset(offset) # pagination
         questions = query.all()
         questions_data = []
         
         for q, msg in questions:
             questions_data.append({
-                'question_id': q.question_id,
-                'content': msg.content,  # Question message content
+                'question_id': q.id, # UPDATED: q.id
+                'content': msg.content,
                 'grade': q.grade,
                 'timestamp': msg.timestamp.isoformat() if msg.timestamp else None
             })
 
-        return jsonify(questions_data)
+        return jsonify({
+            'data': questions_data,
+            'pagination': {
+                'total': total_items,
+                'page': page,
+                'per_page': per_page,
+                'total_pages': (total_items + per_page - 1) // per_page
+            }
+        })
     except Exception as e:
-        import traceback
         print(f"[ERROR] get_questions failed: {str(e)}")
         print(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
@@ -305,13 +359,13 @@ def get_questions():
 def get_recent_activities():
     session = SessionLocal()
     try:
-        # Get recent conversations as activities
-        recent_convs = session.query(Conversation).order_by(Conversation.created_at.desc()).limit(5).all()
+        # Use last_accessed for sorting since created_at is gone
+        recent_convs = session.query(Conversation).order_by(Conversation.last_accessed.desc()).limit(5).all()
         activities = []
         for conv in recent_convs:
             activities.append({
-                'time': conv.created_at.isoformat() if conv.created_at else 'Unknown',
-                'activity': f"New conversation: {conv.title or 'Untitled'}"
+                'time': conv.last_accessed.isoformat() if conv.last_accessed else 'Unknown',
+                'activity': f"Accessed conversation: {conv.title or 'Untitled'}"
             })
         return jsonify(activities)
     except Exception as e:
@@ -329,12 +383,20 @@ def generate_summary_endpoint():
             return jsonify({'error': 'user_id is required'}), 400
         
         print(f"[DEBUG] Generating summary for user_id: {user_id}")
-        # Call summary generation logic - returns Markdown string
-        summary = generate_summary_data(user_id)
         
-        return jsonify({'summary': summary})
+        # UPDATED: Use the LLM function you just debugged
+        # It handles the API call internally and has a robust try/except
+        summary_response = generate_summary_data(user_id)
+        
+        if summary_response:
+             # Assuming LLM returns {"summary": "markdown string..."} or similar
+             # If your LLM function returns the raw JSON from API, pass it through
+             return jsonify(summary_response)
+        else:
+             # Fallback if LLM fails (you can import generate_summary_data if you want a pure backup)
+             return jsonify({'error': 'Failed to generate summary'}), 500
+
     except Exception as e:
-        import traceback
         print(f"[ERROR] generate_summary failed: {str(e)}")
         print(traceback.format_exc())
         return jsonify({'error': str(e)}), 500

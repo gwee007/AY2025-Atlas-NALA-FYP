@@ -1,7 +1,7 @@
 import os
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, text
-from models_simple import Base
+from models import Base
 
 load_dotenv()
 
@@ -21,7 +21,7 @@ def initialize():
     print(f"Connecting to database at {database_url}")
     # Supabase uses connection pooling (Port 6543 for transaction mode, 5432 for session)
     # For initial table creation, session mode (5432) is generally preferred.
-    engine = create_engine(database_url)
+    engine = create_engine(database_url, pool_size=5, max_overflow=0, pool_timeout = 30, pool_recycle= 1800)
 
     # 1. Enable pgvector (Supabase supports this by default!)
     # with engine.connect() as conn:
@@ -44,7 +44,7 @@ def initialize():
         """))
         conn.commit()
 
-    print("Supabase initialization complete.")
+    print("Database initialization complete.")
     return engine
 
 def get_engine():

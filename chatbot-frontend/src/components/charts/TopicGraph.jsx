@@ -1,67 +1,71 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import * as d3 from 'd3';
 
-const TopicGraph = ({ selectedTopic, onTopicSelect, graphData, gradeData, width = 800, height = 600 }) => {
+const TopicGraph = ({ selectedTopic, onTopicSelect, graphData, width = 800, height = 600 }) => {
   const svgRef = useRef(null);
-  const [isDragging, setIsDragging] = useState(false);
+
+  // Helper: Get Color based on Grade Letter
+  const getGradeColor = (grade) => {
+      if (!grade || grade === 'N/A') return '#cbd5e1';
+      const letter = grade.charAt(0).toUpperCase();
+      switch (letter) {
+          case 'A': return '#10b981';
+          case 'B': return '#3b82f6';
+          case 'C': return '#eab308';
+          case 'D': return '#f97316';
+          case 'F': return '#ef4444';
+          default: return '#cbd5e1';
+      }
+  };
 
   useEffect(() => {
-    if (!svgRef.current || !graphData) return; // Removed selectedTopic check to allow rendering empty state
+    if (!svgRef.current || !graphData) return;
 
-    // Clear previous SVG content
+    // Clear canvas
     d3.select(svgRef.current).selectAll('*').remove();
 
-    const gradeLookup = new Map(
-      gradeData?.map(g => [g.topic_name, g.avg_grade_letter]) || []
-    );
-
-    // 1. Helper to safely get ID from link (handles D3 object conversion)
+    // ---------------------------------------------------------
+    // 1. PRE-PROCESS RELATIONSHIPS & LOOKUPS
+    // ---------------------------------------------------------
     const getLinkId = (linkProp) => (typeof linkProp === 'object' ? linkProp.id : linkProp);
-
-    // 2. Pre-process relationships: Map Subtopic ID -> Parent Topic ID
-    // We do this to quickly check if a subtopic belongs to the selected topic
+    
+    // Map Subtopic -> Parent Topic (for visibility logic)
     const subtopicToParent = new Map();
     (graphData.links || []).forEach(link => {
       if (link.relation_type === 'subtopic_of') {
         const sourceId = getLinkId(link.source);
         const targetId = getLinkId(link.target);
-        // Assuming link is FROM subtopic TO topic based on your previous logic
         subtopicToParent.set(sourceId, targetId); 
       }
     });
-
-    // 3. Lookup maps
+    console.log("graph data:", graphData);
     const labelToIdMap = new Map(graphData.nodes?.map(n => [n.label, n.id]) || []);
     const selectedTopicId = selectedTopic ? labelToIdMap.get(selectedTopic) : null;
 
-    // 4. FILTER NODES: The Core Logic Change
+    // ---------------------------------------------------------
+    // 2. FILTER & PREPARE NODES
+    // ---------------------------------------------------------
     const nodes = [];
     const visibleNodeIds = new Set();
 
     (graphData.nodes || []).forEach(rawNode => {
-      // Create a fresh node object for D3
+      // Create D3 Node (Spread rawNode to keep grade, type, etc.)
       const node = { 
-        id: rawNode.id, 
-        label: rawNode.label || rawNode.id, 
-        type: rawNode.type,
-        grade: gradeLookup.get(rawNode.label) || '' 
+        ...rawNode, 
+        x: Math.random() * width, // Random start pos prevents stack overflow
+        y: Math.random() * height
       };
-
+      
       let isVisible = false;
 
+      // Visibility Rule 1: Always show main topics
       if (node.type === 'topic') {
-        // RULE 1: Always show main topics
         isVisible = true;
-        // visual distinction for selected vs unselected
-        if (node.id === selectedTopicId) {
-            node.group = 'root';
-            node.radius = 45;
-        } else {
-            node.group = 'topic';
-            node.radius = 40;
-        }
-      } else if (node.type === 'subtopic') {
-        // RULE 2: Only show subtopics if their parent is the selected topic
+        node.group = (node.id === selectedTopicId) ? 'root' : 'topic';
+        node.radius = (node.id === selectedTopicId) ? 45 : 40;
+      } 
+      // Visibility Rule 2: Show subtopics ONLY if parent is selected
+      else if (node.type === 'subtopic') {
         const parentId = subtopicToParent.get(node.id);
         if (parentId === selectedTopicId) {
             isVisible = true;
@@ -76,7 +80,9 @@ const TopicGraph = ({ selectedTopic, onTopicSelect, graphData, gradeData, width 
       }
     });
 
-    // 5. FILTER LINKS: Only keep links connecting two visible nodes
+    // ---------------------------------------------------------
+    // 3. FILTER LINKS
+    // ---------------------------------------------------------
     const links = (graphData.links || [])
       .filter(link => {
         const source = getLinkId(link.source);
@@ -86,11 +92,13 @@ const TopicGraph = ({ selectedTopic, onTopicSelect, graphData, gradeData, width 
       .map(link => ({
         source: getLinkId(link.source),
         target: getLinkId(link.target),
-        relation_type: link.relation_type
+        relation_type: link.relation_type,
+        id: link.id // Keep ID if exists
       }));
 
-    // --- STANDARD D3 SETUP BELOW (Unchanged) ---
-
+    // ---------------------------------------------------------
+    // 4. D3 VISUALIZATION SETUP
+    // ---------------------------------------------------------
     const svg = d3.select(svgRef.current)
       .attr('width', width)
       .attr('height', height)
@@ -100,43 +108,58 @@ const TopicGraph = ({ selectedTopic, onTopicSelect, graphData, gradeData, width 
       .style('touch-action', 'none');
 
     const zoom = d3.zoom()
-      .scaleExtent([0.1, 4]) // Increased zoom range for full graph visibility
+      .scaleExtent([0.1, 4])
       .filter((event) => !event.button && event.type !== 'dblclick')
       .on('zoom', (event) => g.attr('transform', event.transform));
 
     svg.call(zoom);
-
     const g = svg.append('g');
 
-    // Arrowhead definition
-    svg.append('defs').append('marker')
-      .attr('id', 'arrowhead')
-      .attr('viewBox', '0 -5 10 10')
-      .attr('refX', 20)
-      .attr('refY', 0)
-      .attr('markerWidth', 8)
-      .attr('markerHeight', 8)
-      .attr('orient', 'auto')
-      .append('path')
-      .attr('d', 'M0,-5L10,0L0,5')
-      .attr('fill', '#64748b');
+    // Define Arrow Markers
+    const defs = svg.append('defs');
+    const createMarker = (id, offset) => {
+      defs.append('marker')
+        .attr('id', id)
+        .attr('viewBox', '0 -5 10 10')
+        .attr('refX', offset)
+        .attr('refY', 0)
+        .attr('markerWidth', 6)
+        .attr('markerHeight', 6)
+        .attr('orient', 'auto')
+        .append('path')
+        .attr('d', 'M0,-5L10,0L0,5')
+        .attr('fill', '#94a3b8')
+        .style('stroke', 'none');
+    };
+    createMarker('arrow-root', 55);
+    createMarker('arrow-topic', 50);
+    createMarker('arrow-subtopic', 35);
 
-    // Force Simulation - Tweaked for stability
+    // Force Simulation
     const simulation = d3.forceSimulation(nodes)
-      .force('link', d3.forceLink(links).id(d => d.id).distance(150)) // Shorter distance
+      .force('link', d3.forceLink(links).id(d => d.id).distance(150))
       .force('charge', d3.forceManyBody().strength(-1000))
       .force('center', d3.forceCenter(width / 2, height / 2))
       .force('collision', d3.forceCollide().radius(d => d.radius + 20));
+
+    const nodeMap = new Map(nodes.map(n => [n.id, n]));
 
     // Draw Links
     const link = g.append('g')
       .selectAll('line')
       .data(links)
       .enter().append('line')
-      .attr('stroke', '#64748b')
+      .attr('stroke', '#cbd5e1')
       .attr('stroke-width', 2)
-      .attr('stroke-opacity', 0.4)
-      .attr('marker-end', 'url(#arrowhead)');
+      .attr('stroke-opacity', 0.6)
+      .attr('marker-end', d => {
+          const targetId = (typeof d.target === 'object') ? d.target.id : d.target;
+          const targetNode = nodeMap.get(targetId);
+          if (!targetNode) return null;
+          if (targetNode.group === 'root') return 'url(#arrow-root)';
+          if (targetNode.type === 'topic') return 'url(#arrow-topic)';
+          return 'url(#arrow-subtopic)';
+      });
 
     // Draw Nodes
     const node = g.append('g')
@@ -154,66 +177,61 @@ const TopicGraph = ({ selectedTopic, onTopicSelect, graphData, gradeData, width 
         onTopicSelect(d.label || d.id);
       });
 
-    // Visuals (Circles)
+    // Node Visuals (Circles)
     node.append('circle')
       .attr('r', d => d.radius)
-      .attr('fill', d => {
-        if (d.group === 'root') return '#3b82f6';
-        if (d.type === 'topic') return '#10b981';
-        return '#8b5cf6';
-      })
-      .attr('stroke', '#fff')
-      .attr('stroke-width', 3)
-      .attr('opacity', d => d.group === 'root' ? 1 : 0.7)
+      .attr('fill', d => getGradeColor(d.grade))
+      .attr('stroke', d => d.group === 'root' ? '#1e293b' : '#fff') 
+      .attr('stroke-width', d => d.group === 'root' ? 5 : 2)
+      .attr('opacity', d => d.group === 'root' ? 1 : 0.9)
       .style('filter', 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))')
       .on('mouseover', function(event, d) {
-         // 1. Bring hovered node to front (so label isn't hidden)
-         d3.select(this.parentNode).raise();
+         const connectedNodeIds = new Set();
+         connectedNodeIds.add(d.id);
 
-         // 2. Dim ALL nodes (fade out "everything else")
-         node.transition().duration(200)
-             .style('opacity', 0.3); // <--- The "Focus Mode" effect
+         link.each(function(l) {
+             const isSource = l.source.id === d.id;
+             const isTarget = l.target.id === d.id;
+             
+             if (isSource || isTarget) {
+                 const neighborNode = isSource ? l.target : l.source;
+                 const isHoveringMainTopic = (d.type === 'topic' || d.group === 'root');
+                 const isNeighborSubtopic = (neighborNode.type === 'subtopic' || neighborNode.group === 'subtopic');
 
-         // 3. Dim ALL links
-         link.transition().duration(200)
-             .style('opacity', 0.3);
+                 if (isHoveringMainTopic && isNeighborSubtopic) return;
+                 connectedNodeIds.add(neighborNode.id);
+             }
+         });
 
-         // 4. Highlight THIS node (Parent Group)
-         d3.select(this.parentNode)
-           .transition().duration(200)
-           .style('opacity', 1); // Keep this fully visible
+         // Highlight Logic
+         node.transition().duration(200).style('opacity', n => connectedNodeIds.has(n.id) ? 1 : 0.1);
+         link.transition().duration(200).style('opacity', l => {
+                 const isConnected = l.source.id === d.id || l.target.id === d.id;
+                 const isBothVisible = connectedNodeIds.has(l.source.id) && connectedNodeIds.has(l.target.id);
+                 return (isConnected && isBothVisible) ? 1 : 0.05;
+             })
+             .attr('stroke', l => {
+                 const isConnected = l.source.id === d.id || l.target.id === d.id;
+                 const isBothVisible = connectedNodeIds.has(l.source.id) && connectedNodeIds.has(l.target.id);
+                 return (isConnected && isBothVisible) ? '#3b82f6' : '#64748b';
+             })
+             .attr('stroke-width', l => {
+                 const isConnected = l.source.id === d.id || l.target.id === d.id;
+                 const isBothVisible = connectedNodeIds.has(l.source.id) && connectedNodeIds.has(l.target.id);
+                 return (isConnected && isBothVisible) ? 3 : 2;
+             });
 
-         // 5. Expand the Circle (Visual effect)
-         d3.select(this)
-           .transition().duration(200)
-           .attr('r', d.radius * 1.2); // Grow slightly larger
-
-         // 6. Show the Label
-         d3.select(this.parentNode).select('.node-label')
-           .transition().duration(200)
-           .style('opacity', 1);
+         node.select('.node-label').transition().duration(200).style('opacity', n => connectedNodeIds.has(n.id) ? 1 : 0);
+         d3.select(this).transition().duration(200).attr('r', d.radius * 1.2);
       })
       .on('mouseout', function(event, d) {
-         // 1. Reset ALL nodes to full visibility
-         node.transition().duration(200)
-             .style('opacity', 1);
-
-         // 2. Reset ALL links
-         link.transition().duration(200)
-             .style('opacity', 1);
-
-         // 3. Reset the Circle size
-         d3.select(this)
-           .transition().duration(200)
-           .attr('r', d.radius);
-
-         // 4. Hide the Label again
-         d3.select(this.parentNode).select('.node-label')
-           .transition().duration(200)
-           .style('opacity', 0);
+         node.transition().duration(200).style('opacity', 1);
+         link.transition().duration(200).style('opacity', 0.4).attr('stroke', '#64748b').attr('stroke-width', 2);
+         d3.select(this).transition().duration(200).attr('r', d.radius);
+         node.select('.node-label').transition().duration(200).style('opacity', 0);
       });
 
-    // Visuals (Grades)
+    // Node Text (Grades)
     node.append('text')
       .attr('text-anchor', 'middle')
       .attr('dy', '0.35em')
@@ -221,9 +239,9 @@ const TopicGraph = ({ selectedTopic, onTopicSelect, graphData, gradeData, width 
       .style('font-weight', 'bold')
       .style('fill', '#fff')
       .style('pointer-events', 'none')
-      .text(d => d.grade || '');
-
-    // Visuals (Labels)
+      .text(d => (d.grade === 'N/A' || !d.grade) ? '' : d.grade);
+    
+    // Node Labels (Hidden by default)
     node.append('text')
     .attr('class', 'node-label')
       .text(d => d.label)
@@ -235,7 +253,7 @@ const TopicGraph = ({ selectedTopic, onTopicSelect, graphData, gradeData, width 
       .style('pointer-events', 'none')
       .style('opacity',0);
 
-    // Simulation Tick
+    // Simulation Handlers
     simulation.on('tick', () => {
       link
         .attr('x1', d => d.source.x)
@@ -246,12 +264,10 @@ const TopicGraph = ({ selectedTopic, onTopicSelect, graphData, gradeData, width 
       node.attr('transform', d => `translate(${d.x},${d.y})`);
     });
 
-    // Drag Handlers
     function dragstarted(event, d) {
       if (!event.active) simulation.alphaTarget(0.3).restart();
       d.fx = d.x;
       d.fy = d.y;
-      setIsDragging(true);
     }
     function dragged(event, d) {
       d.fx = event.x;
@@ -261,12 +277,11 @@ const TopicGraph = ({ selectedTopic, onTopicSelect, graphData, gradeData, width 
       if (!event.active) simulation.alphaTarget(0);
       d.fx = null;
       d.fy = null;
-      setIsDragging(false);
     }
 
     return () => simulation.stop();
 
-  }, [selectedTopic, width, height, onTopicSelect, graphData, gradeData]);
+  }, [selectedTopic, width, height, onTopicSelect, graphData]);
 
   return (
     <div style={{ position: 'relative', touchAction: 'none' }}>
