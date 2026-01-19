@@ -21,7 +21,11 @@ def initialize():
     print(f"Connecting to database at {database_url}")
     # Supabase uses connection pooling (Port 6543 for transaction mode, 5432 for session)
     # For initial table creation, session mode (5432) is generally preferred.
-    engine = create_engine(database_url, pool_size=5, max_overflow=0, pool_timeout = 30, pool_recycle= 1800)
+    engine = create_engine(database_url, 
+        pool_pre_ping=True,  # Test connections before using
+        pool_recycle=3600,   # Recycle connections every hour
+        max_overflow=10,     # Max overflow connections
+        echo=False )
 
     # 1. Enable pgvector (Supabase supports this by default!)
     # with engine.connect() as conn:

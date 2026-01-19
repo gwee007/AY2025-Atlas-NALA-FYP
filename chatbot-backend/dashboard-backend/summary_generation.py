@@ -38,24 +38,29 @@ def generate_summary_data(user_id):
     
     # === FILTER OUT N/A TOPICS ===
     raw_topics = individual_stats.get('grades_by_topic', [])
+    
+
     valid_topics = [
         t for t in raw_topics 
         if t.get('avg_grade_points') is not None 
         and t.get('avg_grade_letter') != 'N/A'
     ]
-    
     # Sort valid topics by grade descending (Highest to Lowest)
     valid_topics.sort(key=lambda x: x['avg_grade_points'], reverse=True)
 
+    print(f"[DEBUG] Valid topics for user {user_id}: {[t['topic_name'] for t in valid_topics]}")
+
     # Extract top 3 and bottom 3 from the VALID list
     top_3_topics = valid_topics[:3]
-    
+    print(f"[DEBUG] Top 3 topics: {[t['topic_name'] for t in top_3_topics]}")
+
     # Create group average lookup
     group_avg_by_topic = {
         t['topic_name']: t['avg_grade_points'] 
         for t in group_stats.get('grades_by_topic', [])
     }
-    
+    print(f"[DEBUG] Group average by topic: {group_avg_by_topic}")
+
     # Calculate topic differences only for VALID topics
     topic_differences = []
     for topic in valid_topics:
@@ -70,12 +75,13 @@ def generate_summary_data(user_id):
                 'individual_letter': topic['avg_grade_letter'],
                 'difference': ind_g - grp_g
             })
-    
     # Sort by difference
     topic_differences.sort(key=lambda x: x['difference'], reverse=True)
     topics_above_average = [t for t in topic_differences if t['difference'] > 0]
     topics_below_average = [t for t in topic_differences if t['difference'] < 0]
-
+    print(f"[DEBUG] Topic differences: {topic_differences}")
+    print(f"[DEBUG] Topics above average: {[t['topic_name'] for t in topics_above_average]}")
+    print(f"[DEBUG] Topics below average: {[t['topic_name'] for t in topics_below_average]}")
     # Overall Averages
     ind_grade_raw = individual_stats.get('average_question_grade')
     
@@ -103,11 +109,11 @@ Once data is available, this section will compare you against your peers to high
     if group_overall_grade > 0:
         performance_diff = ((individual_overall_grade - group_overall_grade) / group_overall_grade) * 100
     else:
-        performance_diff = 0
-
+        performance_diff = 0    
+    # breakpoint()
     # Build Markdown summary
     summary = []
-
+    #breakpoint()
     # === STRONG AREAS SECTION ===
     summary.append("## Strong Areas\n")
     
@@ -254,7 +260,7 @@ def generate_LLM_summary_2(user_id):
     
     # LLM API setup
     api_key = os.getenv("NALA_API_KEY")
-    base_url = os.getenv("BASE_URL")
+    base_url = os.getenv("NALA_BASE_URL")
     
     if not api_key or not base_url:
         print("[ERROR] Missing NALA_API_KEY or BASE_URL in environment")
@@ -345,7 +351,7 @@ def generate_LLM_summary_2(user_id):
         print(f"[ERROR] An error occurred while generating summary: {e}")
         return None
 
-BASE_URL = os.getenv("BASE_URL")
+BASE_URL = os.getenv("NALA_BASE_URL")
 NALA_API_KEY = os.getenv("NALA_API_KEY")
 headers = {
     "Authorization": f"Bearer {NALA_API_KEY}"
@@ -355,7 +361,7 @@ headers = {
 if __name__ == "__main__":
     try:
         # NOTE: Ensure this user_id exists in your NEW database
-        test_user_id = 102
+        test_user_id = 1
         result = generate_summary_data(test_user_id)
         print("\n[DEBUG] === Rule-Based Summary Generation Successful ===")
         print(result)

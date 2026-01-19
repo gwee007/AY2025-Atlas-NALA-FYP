@@ -146,7 +146,7 @@ export default function DashboardPage() {
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ user_id: 102 })
+                    body: JSON.stringify({ user_id: USER_ID})
                 });
                 
                 if (!response.ok) {
