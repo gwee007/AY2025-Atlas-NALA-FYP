@@ -1,4 +1,4 @@
-from redis_client import get_redis_client
+from .redis_client import get_redis_client
 
 r = get_redis_client()
 

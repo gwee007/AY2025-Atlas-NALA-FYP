@@ -2,18 +2,18 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import func, case, desc
-# UPDATED: Import from models.py instead of models_simple
-from models import Base, User, Conversation, Message, Question, Answer, Topic, TopicDependency, Subtopic, question_topics
+# UPDATED: Import from db.models.py instead of models_simple
+from db.models import Base, User, Conversation, Message, Question, Answer, Topic, TopicDependency, Subtopic, question_topics
 from dotenv import load_dotenv
 import os
 import traceback
 
 # UPDATED: Import your refactored summary logic
-from summary_generation import generate_summary_data
-from grading_calculation import point_to_grade
-from averageCalculation import individual_statistics, group_statistics
-from initialize_database import get_engine
-from redis_client import get_redis_client
+from .summary_generation import generate_summary_data
+from .grading_calculation import point_to_grade
+from .averageCalculation import individual_statistics, group_statistics
+from .initialize_database import get_engine
+from .redis_client import get_redis_client
 red_client = get_redis_client()
 load_dotenv()
 app = Flask(__name__)

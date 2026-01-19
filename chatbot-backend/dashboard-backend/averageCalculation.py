@@ -7,10 +7,10 @@ from sqlalchemy.orm import sessionmaker
 from dotenv import load_dotenv
 
 # --- IMPORTS ---
-from models import Base, User, Conversation, Message, Question, Subtopic, Answer, Topic, question_topics, question_subtopics
-from grading_calculation import point_to_grade
-from initialize_database import get_engine
-from redis_client import get_redis_client
+from db.models import Base, User, Conversation, Message, Question, Subtopic, Answer, Topic, question_topics, question_subtopics
+from .grading_calculation import point_to_grade
+from .initialize_database import get_engine
+from .redis_client import get_redis_client
 
 load_dotenv()
 

@@ -1,5 +1,5 @@
 from sqlalchemy import text
-from initialize_database import get_engine
+from .initialize_database import get_engine
 
 engine = get_engine()
 

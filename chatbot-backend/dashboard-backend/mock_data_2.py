@@ -6,8 +6,8 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from sqlalchemy.orm import sessionmaker, joinedload
-from initialize_database import get_engine
-from models import Question, Subtopic, Topic
+from .initialize_database import get_engine
+from db.models import Question, Subtopic, Topic
 
 # Setup Database Connection
 engine = get_engine()

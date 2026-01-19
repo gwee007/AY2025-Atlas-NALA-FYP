@@ -7,8 +7,8 @@ from sqlalchemy.orm import sessionmaker
 from dotenv import load_dotenv
 
 # --- IMPORTS ---
-from initialize_database import get_engine
-from models import (
+from .initialize_database import get_engine
+from db.models import (
     Base, User, Conversation, Message, Question, Answer,
     Topic, TopicDependency, Subtopic, DocumentChunk,
     question_topics, question_subtopics
