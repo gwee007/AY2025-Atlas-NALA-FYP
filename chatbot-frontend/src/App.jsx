@@ -2,7 +2,6 @@ import './App.css'
 import Navbar from './components/Navbar'
 import ChatbotPage from './pages/ChatbotPage'
 import DashboardPage from './pages/DashboardPage'
-import ChatbotLearnPage from './pages/ChatbotLearnPage'
 import ChatbotAssessPage from './pages/ChatbotAssessPage'
 import { createBrowserRouter, RouterProvider, Outlet, Navigate } from "react-router-dom";
 
@@ -28,10 +27,6 @@ const router = createBrowserRouter([
       {
         path: "chatbot",
         element: <ChatbotPage />,
-      },
-      {
-        path: "chatbot/learn",
-        element: <ChatbotLearnPage />,
       },
       {
         path: "chatbot/assess",

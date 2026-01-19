@@ -18,6 +18,7 @@
     "autoprefixer": "^10.4.21",
     "d3": "^7.9.0",
     "dotenv": "^17.2.3",
+    "katex": "^0.16.27",
     "postcss": "^8.5.6",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
@@ -25,6 +26,8 @@
     "react-router-dom": "^7.9.4",
     "react-server-dom-turbopack": "^19.2.3",
     "react-server-dom-webpack": "^19.2.3",
+    "rehype-katex": "^7.0.1",
+    "remark-math": "^6.0.0",
     "tailwindcss": "^4.1.14"
   },
   "devDependencies": {

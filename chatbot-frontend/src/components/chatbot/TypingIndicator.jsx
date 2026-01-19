@@ -7,22 +7,26 @@ export default function TypingIndicator() {
       sx={{
         display: "flex",
         justifyContent: "flex-start",
-        mb: 1.5,
+        mb: 3,
+        px: { xs: 2, md: 4 },
+        py: 1,
       }}
     >
       <Box
         sx={{
           display: "flex",
           alignItems: "flex-start",
-          gap: 1.5,
+          gap: 2,
+          maxWidth: "75%",
         }}
       >
         <Avatar
           sx={{
             width: 32,
             height: 32,
-            bgcolor: "#e2e3e5",
-            color: "#222",
+            bgcolor: "#764ba2",
+            color: "#fff",
+            flexShrink: 0,
           }}
         >
           <SmartToyRoundedIcon fontSize="small" />
@@ -30,11 +34,15 @@ export default function TypingIndicator() {
 
         <Box
           sx={{
-            bgcolor: "#f0ededff",
-            borderRadius: 2,
-            p: 1.5,
+            bgcolor: "#ffffff",
+            border: "1px solid #e2e8f0",
+            borderRadius: 3,
+            py: 2,
+            px: 2.5,
             display: "flex",
-            gap: 0.5,
+            gap: 0.7,
+            alignItems: "center",
+            boxShadow: "0 1px 3px rgba(0, 0, 0, 0.05)",
           }}
         >
           {[0, 1, 2].map((i) => (
@@ -44,12 +52,13 @@ export default function TypingIndicator() {
                 width: 8,
                 height: 8,
                 borderRadius: "50%",
-                bgcolor: "#bbb",
+                bgcolor: "#9ca3af",
                 animation: "pulse 1.4s ease-in-out infinite",
-                animationDelay: `${i * 0.2}s`,
+                animationDelay: `${i * 0.16}s`,
                 "@keyframes pulse": {
-                  "0%, 80%, 100%": { opacity: 0.3 },
-                  "40%": { opacity: 1 },
+                  "0%": { opacity: 0.4 },
+                  "50%": { opacity: 1 },
+                  "100%": { opacity: 0.4 },
                 },
               }}
             />
