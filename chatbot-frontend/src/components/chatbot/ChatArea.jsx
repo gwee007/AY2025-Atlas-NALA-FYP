@@ -15,8 +15,8 @@ export default function ChatArea({
 	return (
 		<>
 			<Box sx={classes.messagesBox}>
-				{messages.map((msg, i) => (
-					<ChatMessage key={i} from={msg.from} text={msg.text} />
+				{messages.map((msg) => (
+					<ChatMessage key={msg.id} from={msg.from} text={msg.text} />
 				))}
 				{isTyping && <TypingIndicator />}
 			</Box>

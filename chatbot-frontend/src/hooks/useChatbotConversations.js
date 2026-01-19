@@ -10,7 +10,8 @@ export default function useChatbotConversations() {
     const [messages, setMessages] = useState([]);
     const [input, setInput] = useState("");
     const [isTyping, setIsTyping] = useState(false);
-    const [userId] = useState(1); // Can be made dynamic later
+    const [userId] = useState(1);
+    const [_localMessageIds, setLocalMessageIds] = useState(new Set()); // Track optimistically added messages
 
     // Fetch conversations from backend on mount
     useEffect(() => {
@@ -48,6 +49,7 @@ export default function useChatbotConversations() {
             if (response.ok) {
                 const data = await response.json();
                 const formattedMessages = data.map(msg => ({
+                    id: msg.id, // Include backend message ID
                     from: msg.sender,
                     text: msg.content,
                     timestamp: new Date(msg.timestamp)
@@ -55,14 +57,23 @@ export default function useChatbotConversations() {
                 
                 // If no messages, add welcome message
                 if (formattedMessages.length === 0) {
-                    formattedMessages.push({ from: "bot", text: DEFAULT_FIRST_MESSAGE });
+                    formattedMessages.push({ 
+                        id: `welcome-${Date.now()}`, 
+                        from: "bot", 
+                        text: DEFAULT_FIRST_MESSAGE 
+                    });
                 }
                 
                 setMessages(formattedMessages);
+                setLocalMessageIds(new Set()); // Reset local message tracking
             }
         } catch (error) {
             console.error("Error loading messages:", error);
-            setMessages([{ from: "bot", text: DEFAULT_FIRST_MESSAGE }]);
+            setMessages([{ 
+                id: `welcome-${Date.now()}`, 
+                from: "bot", 
+                text: DEFAULT_FIRST_MESSAGE 
+            }]);
         }
     };
 
@@ -70,7 +81,12 @@ export default function useChatbotConversations() {
     const handleAddConversation = () => {
         // Start with no active conversation - it will be created on first message
         setActiveConversationId(null);
-        setMessages([{ from: "bot", text: DEFAULT_FIRST_MESSAGE }]);
+        setMessages([{ 
+            id: `welcome-${Date.now()}`, 
+            from: "bot", 
+            text: DEFAULT_FIRST_MESSAGE 
+        }]);
+        setLocalMessageIds(new Set());
     };
 
     // Initial Setup - create first conversation if none exist
@@ -84,8 +100,17 @@ export default function useChatbotConversations() {
     const handleSend = async () => {
         if (!input.trim()) return;
 
-        // 1. Optimistically add user message
-        const userMsg = { from: "user", text: input };
+        // 1. Create unique local ID for optimistic update
+        const localMessageId = `local-user-${Date.now()}`;
+        const userMsg = { 
+            id: localMessageId, 
+            from: "user", 
+            text: input 
+        };
+        
+        // Track this as a local message
+        setLocalMessageIds(prev => new Set(prev).add(localMessageId));
+        
         setMessages((prev) => [...prev, userMsg]);
         setInput("");
         setIsTyping(true);
@@ -119,6 +144,7 @@ export default function useChatbotConversations() {
 
             // 4. Process Response
             const botMsg = { 
+                id: `bot-${data.chatbot_message_id || Date.now()}`,
                 from: "bot", 
                 text: data.response || "Sorry, I encountered an error.",
                 evaluationType: data.evaluation_type,
@@ -126,14 +152,38 @@ export default function useChatbotConversations() {
                 metadata: data.metadata
             };
 
-            setMessages((prev) => [...prev, botMsg]);
+            // Replace local user message with backend version and add bot response
+            setMessages((prev) => {
+                const updated = prev.map(msg => 
+                    msg.id === localMessageId 
+                        ? { ...msg, id: `user-${data.user_message_id || Date.now()}` }
+                        : msg
+                );
+                return [...updated, botMsg];
+            });
+
+            // Clear local message tracking
+            setLocalMessageIds(prev => {
+                const newSet = new Set(prev);
+                newSet.delete(localMessageId);
+                return newSet;
+            });
 
         } catch (error) {
             console.error("Chat Error:", error);
-            setMessages((prev) => [...prev, { 
+            
+            const errorMsg = { 
+                id: `bot-error-${Date.now()}`,
                 from: "bot", 
                 text: "⚠️ **Network Error**: Could not connect to the chatbot backend. Please ensure the backend server is running on port 8000." 
-            }]);
+            };
+            
+            setMessages((prev) => [...prev, errorMsg]);
+            setLocalMessageIds(prev => {
+                const newSet = new Set(prev);
+                newSet.delete(localMessageId);
+                return newSet;
+            });
         } finally {
             setIsTyping(false);
         }
