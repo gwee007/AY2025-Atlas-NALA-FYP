@@ -121,7 +121,7 @@ class QuestionEvaluationService:
             - Unistructural: Asks about a fact or definition. Grade: C
             - Multistructural: Asks about listing or describing multiple concepts of the same topic. Grade: B
             - Relational: Asks about causes, compares, analyzes, or integrates concepts from different topics. Grade: A
-            - Extended Abstract: Generalizes or hypothesizes topic concepts to real-world industrial chemical engineering applications. Grade: A+
+            - Extended Abstract: Attempts to use an appropriate real-world industrial chemical engineering application example to apply topic concepts. Grade: A+
 
             OUTPUT REQUIREMENTS:
             - SOLO Level.
