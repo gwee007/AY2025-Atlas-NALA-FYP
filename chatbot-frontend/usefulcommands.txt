@@ -1,0 +1,12 @@
+
+python -m dashboard-backend.
+averageCalculation
+summary_generation
+manual_cache_invalidation
+api_server
+test_cache_invalidation
+
+cd chatbot-backend
+cd chatbot-frontend
+npm run dev
+python run.py

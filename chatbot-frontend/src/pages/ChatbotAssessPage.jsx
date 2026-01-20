@@ -1,4 +1,5 @@
 import { Box, useMediaQuery, useTheme } from "@mui/material";
+import { useParams, useNavigate } from "react-router-dom";
 import ChatbotSidebar from "../components/chatbot/ChatbotSidebar";
 import ChatHeader from "../components/chatbot/ChatHeader";
 import ChatArea from "../components/chatbot/ChatArea";
@@ -8,6 +9,9 @@ import useStyles from "../styles/useStyles";
 export default function ChatbotAssessPage() {
 	const theme = useTheme();
 	const isMobile = useMediaQuery(theme.breakpoints.down("md"));
+	const { userId, conversationId } = useParams(); // Extract from URL
+	const navigate = useNavigate();
+	
 	const {
 		sidebarOpen,
 		setSidebarOpen,
@@ -20,7 +24,14 @@ export default function ChatbotAssessPage() {
 		handleConversationClick,
 		handleAddConversation,
 		setInput,
-	} = useChatbotConversations();
+	} = useChatbotConversations(userId, conversationId); // Pass to hook
+
+	// Wrapper to update URL when clicking conversations
+	const handleConversationClickWithNav = (id) => {
+		const userIdParam = userId || '1';
+		navigate(`/chatbot/${userIdParam}/${id}`);
+		handleConversationClick(id);
+	};
 
 	const handleToggleSidebar = () => setSidebarOpen((prev) => !prev);
 
@@ -33,7 +44,7 @@ export default function ChatbotAssessPage() {
 				open={sidebarOpen}
 				conversations={conversations}
 				activeConversationId={activeConversationId}
-				onConversationClick={handleConversationClick}
+				onConversationClick={handleConversationClickWithNav}
 				onToggleSidebar={handleToggleSidebar}
 				onAddConversation={handleAddConversation}
 			/>

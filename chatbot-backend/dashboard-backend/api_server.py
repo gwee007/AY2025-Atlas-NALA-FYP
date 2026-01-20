@@ -13,7 +13,7 @@ from .summary_generation import generate_summary_data
 from .grading_calculation import point_to_grade
 from .averageCalculation import individual_statistics, group_statistics
 from .initialize_database import get_engine
-from .redis_client import get_redis_client
+from .redis_client import get_redis_client, invalidate_user_cache
 red_client = get_redis_client()
 load_dotenv()
 app = Flask(__name__)
@@ -36,6 +36,23 @@ def test_db():
         return jsonify({"status": "Database OK", "user_count": user_count}), 200
     except Exception as e:
         return jsonify({"error": str(e), "type": str(type(e).__name__)}), 500
+
+@app.route("/api/cache/invalidate/<int:user_id>", methods=["POST"])
+def invalidate_cache(user_id):
+    """Invalidate cache for a specific user."""
+    try:
+        deleted_count = invalidate_user_cache(user_id)
+        return jsonify({
+            "status": "success",
+            "user_id": user_id,
+            "keys_deleted": deleted_count,
+            "message": f"Cache invalidated for user {user_id}"
+        }), 200
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "error": str(e)
+        }), 500
 
 @app.route("/api/individual-statistics", methods=["POST"])
 def individual_statistics_end():
@@ -343,7 +360,8 @@ def get_questions():
                 'question_id': q.id, # UPDATED: q.id
                 'content': msg.content,
                 'grade': q.grade,
-                'timestamp': msg.timestamp.isoformat() if msg.timestamp else None
+                'timestamp': msg.timestamp.isoformat() if msg.timestamp else None,
+                'conversation_id': msg.conversation_id  # Add conversation_id for linking
             })
 
         return jsonify({

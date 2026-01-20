@@ -3,20 +3,58 @@ import { useState, useEffect } from "react";
 import { DEFAULT_FIRST_MESSAGE } from "../data/defaultMessages";
 import { API_ENDPOINTS } from "../config/api";
 
-export default function useChatbotConversations() {
+export default function useChatbotConversations(urlUserId = null, urlConversationId = null) {
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [activeConversationId, setActiveConversationId] = useState(null);
     const [conversations, setConversations] = useState([]);
     const [messages, setMessages] = useState([]);
     const [input, setInput] = useState("");
     const [isTyping, setIsTyping] = useState(false);
-    const userId = 1; // default user id for testing.
+    const userId = urlUserId ? parseInt(urlUserId) : 1; // Use URL userId or default to 1
     const [_localMessageIds, setLocalMessageIds] = useState(new Set()); // Track optimistically added messages
+    
+    // Track if user is in chatbot and if they've asked new questions
+    useEffect(() => {
+        // Mark that user entered chatbot area
+        sessionStorage.setItem(`chatbot_active_${userId}`, 'true');
+        
+        // Cleanup: Invalidate cache if new questions were asked
+        return () => {
+            const hasNewQuestions = sessionStorage.getItem(`chatbot_new_questions_${userId}`) === 'true';
+            const wasActive = sessionStorage.getItem(`chatbot_active_${userId}`) === 'true';
+            
+            if (wasActive && hasNewQuestions) {
+                // Invalidate cache asynchronously
+                fetch(API_ENDPOINTS.invalidateCache(userId), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                }).catch(err => console.warn('Cache invalidation failed:', err));
+            }
+            
+            // Clear session flags
+            sessionStorage.removeItem(`chatbot_active_${userId}`);
+            sessionStorage.removeItem(`chatbot_new_questions_${userId}`);
+        };
+    }, [userId]);
 
     // Fetch conversations from backend on mount
     useEffect(() => {
         fetchConversations();
-    }, []);
+    }, [userId]);
+    
+    // Load specific conversation from URL if provided
+    useEffect(() => {
+        if (urlConversationId && conversations.length > 0) {
+            const convId = parseInt(urlConversationId);
+            const conversationExists = conversations.some(c => c.id === convId);
+            
+            // Only load if the conversation exists and is different from current
+            if (conversationExists && convId !== activeConversationId) {
+                setActiveConversationId(convId);
+                loadConversationMessages(convId);
+            }
+        }
+    }, [urlConversationId, conversations]);
 
     const fetchConversations = async () => {
         try {
@@ -32,7 +70,17 @@ export default function useChatbotConversations() {
                 }));
                 setConversations(formattedConversations);
                 
-                // if no active conversation and conversations exist, set the first one
+                // If URL conversation ID is provided, load that one
+                if (urlConversationId) {
+                    const convId = parseInt(urlConversationId);
+                    if (formattedConversations.some(c => c.id === convId)) {
+                        setActiveConversationId(convId);
+                        await loadConversationMessages(convId);
+                        return; // Skip default logic
+                    }
+                }
+                
+                // Default: if no active conversation and conversations exist, set the first one
                 if (!activeConversationId && formattedConversations.length > 0) {
                     const firstConv = formattedConversations[0];
                     setActiveConversationId(firstConv.id);
@@ -143,8 +191,13 @@ export default function useChatbotConversations() {
                 // Refetch conversations to get the new one from backend
                 await fetchConversations();
             }
+            
+            // 4. Mark that a new question was asked (for cache invalidation)
+            if (data.evaluation_type === 'QUESTION_GRADED' || data.question_id) {
+                sessionStorage.setItem(`chatbot_new_questions_${userId}`, 'true');
+            }
 
-            // 4. Replace local user message with backend version and add bot response
+            // 5. Replace local user message with backend version and add bot response
             setMessages((prev) => {
                 const updated = prev.map(msg => 
                     msg.id === localMessageId 

@@ -1,8 +1,9 @@
 import React, { useEffect, useRef } from 'react';
 import * as d3 from 'd3';
 
-const TopicGraph = ({ selectedTopic, onTopicSelect, graphData, width = 800, height = 600 }) => {
+const TopicGraph = ({ selectedTopic, onTopicSelect, graphData, width = 800, height = 600, onResetReady }) => {
   const svgRef = useRef(null);
+  const zoomRef = useRef(null);
 
   // Helper: Get Color based on Grade Letter
   const getGradeColor = (grade) => {
@@ -113,7 +114,18 @@ const TopicGraph = ({ selectedTopic, onTopicSelect, graphData, width = 800, heig
       .on('zoom', (event) => g.attr('transform', event.transform));
 
     svg.call(zoom);
+    zoomRef.current = zoom;
     const g = svg.append('g');
+
+    // Provide reset function to parent
+    if (onResetReady && typeof onResetReady === 'function') {
+      onResetReady(() => {
+        svg.transition().duration(750).call(
+          zoom.transform,
+          d3.zoomIdentity
+        );
+      });
+    }
 
     // Define Arrow Markers
     const defs = svg.append('defs');

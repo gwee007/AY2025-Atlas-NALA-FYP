@@ -98,29 +98,7 @@ export default function DashboardPage() {
     )
     };
 
-    // Sorting logic
-    const getSortedChartData = () => {
-        // Clone the categories array to avoid mutating state directly
-        let sortedDataCategories = [...dataAfterFiltering.categories]; // Spread
-        const getValue = (catName) => {
-            const item = dataAfterFiltering.leftData.find(d => d.category === catName);
-            return item ? item.value : 0;
-        };
-        if (sortOption === 'alphabetical') {
-            sortedDataCategories.sort((a, b) => a.localeCompare(b));
-        } else if (sortOption === 'ascending') {
-            sortedDataCategories.sort((a, b) => getValue(a) - getValue(b));
-        } else if (sortOption === 'descending') {
-            sortedDataCategories.sort((a, b) => getValue(b) - getValue(a));
-        }
-        return {
-            ...dataAfterFiltering,
-            categories: sortedDataCategories
-        };
-    };
-    const processedChartData = getSortedChartData();
-
-    const finalChartData = getSortedChartData();
+   
     const [conversations, setQuestions] = useState([]);
     const [conversationsLoading, setQuestionsLoading] = useState(true);
     const [topicIdMap, setTopicIdMap] = useState({}); // Map topic names to IDs
@@ -136,6 +114,7 @@ export default function DashboardPage() {
     // State for topic dependencies
     const [topicDependencies, setTopicDependencies] = useState([]);
     const [dependenciesLoading, setDependenciesLoading] = useState(false);
+    const [topicGraphResetFn, setTopicGraphResetFn] = useState(null);
 
     // Fetch summary from API on component mount
     useEffect(() => {
@@ -211,7 +190,53 @@ export default function DashboardPage() {
         // 2. Call the async function immediately
         fetchAllData();
     }, []);
+ // Sorting logic
+    const getSortedChartData = () => {
+        // Clone the categories array to avoid mutating state directly
+        let sortedDataCategories = [...dataAfterFiltering.categories]; // Spread
+        const getValue = (catName) => {
+            const item = dataAfterFiltering.leftData.find(d => d.category === catName);
+            return item ? item.value : 0;
+        };
+        
+        // Helper to get grade from rawIndividualStats
+        const getGrade = (catName) => {
+            // Check if rawIndividualStats exists (it might not during initial render)
+            try {
+                if (!rawIndividualStats || !rawIndividualStats.grades_by_topic) return 0;
+                const topic = rawIndividualStats.grades_by_topic.find(t => t.topic_name === catName);
+                if (!topic || !topic.avg_grade_points) return 0;
+                const gradeValue = Number(topic.avg_grade_points);
+                // Debug: log to verify grades are being retrieved
+                // if (sortOption.startsWith('grade-')) {
+                //     console.log(`Topic: ${catName}, Grade Points: ${gradeValue}`);
+                // }
+                return gradeValue;
+            } catch (e) {
+                // During initial render, rawIndividualStats might not be accessible
+                return 0;
+            }
+        };
+        
+        if (sortOption === 'alphabetical') {
+            sortedDataCategories.sort((a, b) => a.localeCompare(b));
+        } else if (sortOption === 'ascending') {
+            sortedDataCategories.sort((a, b) => getValue(a) - getValue(b));
+        } else if (sortOption === 'descending') {
+            sortedDataCategories.sort((a, b) => getValue(b) - getValue(a));
+        } else if (sortOption === 'grade-high-low') {
+            sortedDataCategories.sort((a, b) => getGrade(b) - getGrade(a));
+        } else if (sortOption === 'grade-low-high') {
+            sortedDataCategories.sort((a, b) => getGrade(a) - getGrade(b));
+        }
+        return {
+            ...dataAfterFiltering,
+            categories: sortedDataCategories
+        };
+    };
+    const processedChartData = getSortedChartData();
 
+    const finalChartData = getSortedChartData();
     // Function to transform and filter chart data based on selected topic
     const transformAndSetChartData = (individualStats, groupStats, filterTopicName) => {
                 // Transform interactions over time data
@@ -329,6 +354,8 @@ export default function DashboardPage() {
                     avgAnswerAccuracyGPA: Number(groupStats.overall_average_accuracy) || null
                 });
     };
+
+    
     
     // Re-filter data when topic filter changes
     useEffect(() => {
@@ -386,6 +413,7 @@ export default function DashboardPage() {
                         id: q.question_id,
                         question: q.content || 'No content',
                         grade: q.grade || 'N/A',
+                        conversation_id: q.conversation_id,  // Add conversation_id
                         timestamp: q.timestamp
                             ? new Date(q.timestamp).toLocaleString('en-US', {
                                 year: 'numeric', month: '2-digit', day: '2-digit',
@@ -842,8 +870,10 @@ export default function DashboardPage() {
                                     fontSize: "14px"
                                 }}> 
                                     <option value="">No sort</option>
-                                    <option value="ascending">Ascending</option>
-                                    <option value="descending">Descending</option>
+                                    <option value="ascending">Questions: Low to High</option>
+                                    <option value="descending">Questions: High to Low</option>
+                                    <option value="grade-high-low">Grade: High to Low</option>
+                                    <option value="grade-low-high">Grade: Low to High</option>
                                     <option value="alphabetical">Alphabetical</option>
                                 </select>
                                 <p style={{ 
@@ -872,7 +902,7 @@ export default function DashboardPage() {
                             ) : (
                                 <ResponsiveReflectiveBarChart 
                                     data={{
-                                        ...filteredTopicalPerformanceData,
+                                        ...finalChartData,
                                         title: "", // Remove title
                                         leftLabel: "", // Remove left label
                                         rightLabel: "" // Remove right label
@@ -992,17 +1022,20 @@ export default function DashboardPage() {
                                         }}>
                                             Grade: <strong style={{ color: "#10b981" }}>A-</strong>
                                         </div>
-                                        <Button 
-                                            variant="contained" 
-                                            size="small"
-                                            style={{
-                                                fontSize: "0.8rem",
-                                                fontWeight: "bold",
-                                                padding: "0.4rem 1rem"
-                                            }}
-                                        >
-                                            Test Me
-                                        </Button>
+                                        {topicGraphResetFn && (
+                                            <Button 
+                                                variant="outlined" 
+                                                size="small"
+                                                onClick={topicGraphResetFn}
+                                                style={{
+                                                    fontSize: "0.8rem",
+                                                    fontWeight: "bold",
+                                                    padding: "0.4rem 1rem"
+                                                }}
+                                            >
+                                                Reset Zoom
+                                            </Button>
+                                        )}
                                     </div>
                                 )}
                             </div>
@@ -1022,6 +1055,7 @@ export default function DashboardPage() {
                                             width={700}
                                             height={280}
                                             graphData = {topicDependencies}
+                                            onResetReady={(resetFn) => setTopicGraphResetFn(() => resetFn)}
                                         />
                                         
                                     </>
@@ -1154,6 +1188,10 @@ export default function DashboardPage() {
                                                 variant="outlined" 
                                                 size="small"
                                                 style={{ fontSize: "0.7rem", padding: "0.25rem 0.5rem" }}
+                                                component="a"
+                                                href={`/chatbot/${USER_ID}/${chat.conversation_id}`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
                                             >
                                                 Visit
                                             </Button>

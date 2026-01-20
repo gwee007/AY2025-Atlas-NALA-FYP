@@ -23,6 +23,7 @@ export const API_ENDPOINTS = {
     individualStatistics: `${DASHBOARD_API_URL}/api/individual-statistics`,
     groupStatistics: `${DASHBOARD_API_URL}/api/group-statistics`,
     topicDependencies: `${DASHBOARD_API_URL}/api/topic-dependencies`,
+    invalidateCache: (userId) => `${DASHBOARD_API_URL}/api/cache/invalidate/${userId}`,
 };
 
 export { CHATBOT_API_URL };
