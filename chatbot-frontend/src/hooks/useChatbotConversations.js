@@ -1,7 +1,7 @@
 // frontend/src/hooks/useChatbotConversations.js
 import { useState, useEffect } from "react";
 import { DEFAULT_FIRST_MESSAGE } from "../data/defaultMessages";
-import { API_ENDPOINTS } from "../config/api"; 
+import { API_ENDPOINTS } from "../config/api";
 
 export default function useChatbotConversations() {
     const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -10,7 +10,7 @@ export default function useChatbotConversations() {
     const [messages, setMessages] = useState([]);
     const [input, setInput] = useState("");
     const [isTyping, setIsTyping] = useState(false);
-    const [userId] = useState(1);
+    const userId = 1; // default user id for testing.
     const [_localMessageIds, setLocalMessageIds] = useState(new Set()); // Track optimistically added messages
 
     // Fetch conversations from backend on mount
@@ -21,6 +21,7 @@ export default function useChatbotConversations() {
     const fetchConversations = async () => {
         try {
             const response = await fetch(`${API_ENDPOINTS.chatbotConversations}?user_id=${userId}`);
+            
             if (response.ok) {
                 const data = await response.json();
                 const formattedConversations = data.map(conv => ({
@@ -31,7 +32,7 @@ export default function useChatbotConversations() {
                 }));
                 setConversations(formattedConversations);
                 
-                // If no active conversation and conversations exist, set the first one
+                // if no active conversation and conversations exist, set the first one
                 if (!activeConversationId && formattedConversations.length > 0) {
                     const firstConv = formattedConversations[0];
                     setActiveConversationId(firstConv.id);
@@ -45,11 +46,12 @@ export default function useChatbotConversations() {
 
     const loadConversationMessages = async (conversationId) => {
         try {
-            const response = await fetch(`${API_ENDPOINTS.chatbotConversations}/${conversationId}/messages`);
+            const response = await fetch(`${API_ENDPOINTS.chatbotConversations}/${conversationId}/messages?user_id=${userId}`);
+            
             if (response.ok) {
                 const data = await response.json();
                 const formattedMessages = data.map(msg => ({
-                    id: msg.id, // Include backend message ID
+                    id: msg.id, // include backend message ID
                     from: msg.sender,
                     text: msg.content,
                     timestamp: new Date(msg.timestamp)
@@ -65,7 +67,7 @@ export default function useChatbotConversations() {
                 }
                 
                 setMessages(formattedMessages);
-                setLocalMessageIds(new Set()); // Reset local message tracking
+                setLocalMessageIds(new Set()); // reset local message tracking
             }
         } catch (error) {
             console.error("Error loading messages:", error);
@@ -142,23 +144,22 @@ export default function useChatbotConversations() {
                 await fetchConversations();
             }
 
-            // 4. Process Response
-            const botMsg = { 
-                id: `bot-${data.chatbot_message_id || Date.now()}`,
-                from: "bot", 
-                text: data.response || "Sorry, I encountered an error.",
-                evaluationType: data.evaluation_type,
-                questionId: data.question_id,
-                metadata: data.metadata
-            };
-
-            // Replace local user message with backend version and add bot response
+            // 4. Replace local user message with backend version and add bot response
             setMessages((prev) => {
                 const updated = prev.map(msg => 
                     msg.id === localMessageId 
                         ? { ...msg, id: `user-${data.user_message_id || Date.now()}` }
                         : msg
                 );
+                // Add bot response from backend
+                const botMsg = { 
+                    id: `bot-${data.chatbot_message_id || Date.now()}`,
+                    from: "bot", 
+                    text: data.response || "Sorry, I encountered an error.",
+                    evaluationType: data.evaluation_type,
+                    questionId: data.question_id,
+                    metadata: data.metadata
+                };
                 return [...updated, botMsg];
             });
 

@@ -25,4 +25,5 @@ export const API_ENDPOINTS = {
     topicDependencies: `${DASHBOARD_API_URL}/api/topic-dependencies`,
 };
 
+export { CHATBOT_API_URL };
 export default DASHBOARD_API_URL;
