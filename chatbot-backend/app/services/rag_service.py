@@ -8,13 +8,25 @@ import logging
 logger = logging.getLogger(__name__)
 
 class RAGService:
+    """
+    RAG Service uses shared model_resources singleton to access embedding and reranker models.
+    """
     def __init__(self, db_session: Session) -> None:
-        """Initialize the RAGService with a database session."""
+        """
+        Initialize the RAGService with a database session.
+        Uses pre-loaded models from model_resources singleton.
+        """
         if db_session is None:
             raise ValueError("Database session not found")
         self.db = db_session
+        
+        # Access shared model instances (already loaded during app startup)
+        if not model_resources.is_loaded():
+            raise RuntimeError("Models not loaded. Ensure models are loaded during app initialization.")
+        
         self.embedding_model = model_resources.get_embedding_model()
         self.reranker_model = model_resources.get_reranker_model()
+        logger.debug("[RAGService] Using shared model instances.")
     
     def retrieve_subtopics(self, question: str, top_k: int = 3) -> List[Subtopic]:
         """

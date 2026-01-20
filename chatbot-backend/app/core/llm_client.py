@@ -10,6 +10,9 @@ class NalaGemini(LLM):
     base_url: str = Config.NALA_BASE_URL
     model_name: str = "gemini-3-pro-preview"
     
+    # create a persistent session for connection pooling (i.e. dont need create new connection for each request)
+    _session = requests.Session()
+
     @property
     def _llm_type(self) -> str:
         return "nala_gemini_3_pro_preview"
@@ -41,7 +44,11 @@ class NalaGemini(LLM):
 
         for attempt in range(1, retries + 1):
             try:
-                response = requests.post(f"{self.base_url}/api/llm/", data=xml_body, headers=headers)
+                # use session object to make the request
+                response = self._session.post(f"{self.base_url}/api/llm/",
+                                              data=xml_body,
+                                              headers=headers
+                                            )
                 response.raise_for_status()
                 return response.json()["message"]
             except Exception as e:

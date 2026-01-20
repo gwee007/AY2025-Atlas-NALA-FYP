@@ -1,7 +1,6 @@
 from langchain_core.output_parsers import PydanticOutputParser
 from pydantic import BaseModel, Field
 from typing import Any, Literal, List, Dict
-from sqlalchemy.orm import Session
 from app.core.llm_client import NalaGemini
 from app.services.rag_service import RAGService
 from app.database.models import Subtopic
@@ -21,9 +20,12 @@ class QuestionAssessment(BaseModel):
 
 # ---------- question evaluation service -----------
 class QuestionEvaluationService:
-    def __init__(self, db_session: Session):
-        self.llm = NalaGemini()
-        self.rag = RAGService(db_session)
+    def __init__(self, llm_client: NalaGemini, rag_service: RAGService):
+        """
+        Initialize QuestionEvaluationService with shared dependencies.
+        """
+        self.llm = llm_client
+        self.rag = rag_service
         
         self.topics_list = """
         - Introduction to Process Control
@@ -50,8 +52,7 @@ class QuestionEvaluationService:
             }
 
         # step 2: retrieve context from relevant subtopic summaries (high-level)
-        relevant_subtopics = await asyncio.to_thread(
-            self.rag.retrieve_subtopics, 
+        relevant_subtopics = self.rag.retrieve_subtopics(
             user_question, 
             top_k=3
         )
@@ -88,13 +89,17 @@ class QuestionEvaluationService:
 
         user_prompt = f"Question: {question}"
         
-        # Run LLM call in thread pool to avoid blocking event loop
-        output = await asyncio.to_thread(
-            self.llm.invoke,
-            user_prompt,
-            system_instruction=system_prompt
-        )
-        return parser.parse(output)
+        try:
+            # Run LLM call in thread pool to avoid blocking event loop
+            output = await asyncio.to_thread(
+                self.llm.invoke,
+                user_prompt,
+                system_instruction=system_prompt
+            )
+            return parser.parse(output)
+        except Exception as e:
+            # Return irrelevant if parsing fails to prevent duplicate responses
+            return RelevanceAssessment(is_technical=False)
 
     async def _grade_solo_taxonomy(self, question: str, relevant_subtopics: List[Subtopic]) -> QuestionAssessment:
         parser = PydanticOutputParser(pydantic_object=QuestionAssessment)
@@ -116,7 +121,7 @@ class QuestionEvaluationService:
             - Unistructural: Asks about a fact or definition. Grade: C
             - Multistructural: Asks about listing or describing multiple concepts of the same topic. Grade: B
             - Relational: Asks about causes, compares, analyzes, or integrates concepts from different topics. Grade: A
-            - Extended Abstract: Extrapolates concepts to address specific, explicitly named real-world scenarios or industrial use cases beyond the theoretical context. Grade: A+
+            - Extended Abstract: Generalizes or hypothesizes topic concepts to real-world industrial chemical engineering applications. Grade: A+
 
             OUTPUT REQUIREMENTS:
             - SOLO Level.
@@ -134,10 +139,23 @@ class QuestionEvaluationService:
             Question: {question}
         """
 
-        # Run LLM call in thread pool to avoid blocking event loop
-        output = await asyncio.to_thread(
-            self.llm.invoke,
-            user_prompt,
-            system_instruction=system_prompt
-        )
-        return parser.parse(output)
+        try:
+            # Run LLM call in thread pool to avoid blocking event loop
+            output = await asyncio.to_thread(
+                self.llm.invoke,
+                user_prompt,
+                system_instruction=system_prompt
+            )
+            return parser.parse(output)
+        except Exception as e:
+            # Return default assessment if parsing fails
+            topic_ids = list(set([s.topic_id for s in relevant_subtopics]))
+            subtopic_ids = [s.id for s in relevant_subtopics]
+            return QuestionAssessment(
+                solo_level="Unistructural",
+                grade="C",
+                reasoning="Unable to classify question due to processing error.",
+                reference_material="Please refer to the course materials.",
+                relevant_subtopic_ids=subtopic_ids,
+                relevant_topic_ids=topic_ids
+            )

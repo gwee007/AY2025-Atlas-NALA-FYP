@@ -1,6 +1,7 @@
+import traceback
 from flask import Blueprint, request, jsonify
 from sqlalchemy.orm import Session
-from app.database.session import SessionLocal
+from app.database.session import get_db_session, SessionLocal
 from app.core.orchestrator import Orchestrator
 from app.database.models import Conversation, Message, User
 import logging
@@ -10,6 +11,10 @@ logger = logging.getLogger(__name__)
 
 main_bp = Blueprint('main', __name__)
 
+# handle db session cleanup
+@main_bp.teardown_request
+def shutdown_session(exception=None):
+    SessionLocal.remove()
 
 @main_bp.route('/api/health', methods=['GET'])
 def health_check():
@@ -19,25 +24,8 @@ def health_check():
 
 @main_bp.route('/api/chat', methods=['POST'])
 def chat():
-    """
-    Main chat endpoint that processes user questions and answers.
-    
-    Expected JSON body:
-    {
-        "question": "user's question text",
-        "conversation_id": "conversation_id" (optional, will create new if not provided),
-        "user_id": 1 (optional, defaults to 1)
-    }
-    
-    Returns:
-    {
-        "response": "formatted chatbot response",
-        "conversation_id": "conversation_id",
-        "question_id": question_id (if question was graded),
-        "evaluation_type": "QUESTION_GRADED" or "IRRELEVANT"
-    }
-    """
-    db: Session = SessionLocal()
+    """Handle chat interactions: new questions and answers to pending questions."""
+    db: Session = get_db_session()
     
     try:
         data = request.get_json()
@@ -47,7 +35,7 @@ def chat():
         
         user_question = data.get('question')
         conversation_id = data.get('conversation_id')
-        user_id = data.get('user_id', 1)  # Default to user 1
+        user_id = data.get('user_id', 1)  # Default to user_id=1 if not provided
         
         # Ensure user exists
         user = db.query(User).filter(User.id == user_id).first()
@@ -66,8 +54,13 @@ def chat():
             conversation_id = conversation.id
             logger.info(f"Created new conversation {conversation_id} for user {user_id}")
         else:
-            # Verify conversation exists
-            conversation = db.query(Conversation).filter(Conversation.id == conversation_id).first()
+            # check conversation exists and belongs to the user
+            conversation = db.query(Conversation).filter(
+                Conversation.id == conversation_id,
+                Conversation.user_id == user_id 
+            ).first()
+
+            # if no conversation found, return error
             if not conversation:
                 return jsonify({"error": f"Conversation with id {conversation_id} not found"}), 404
         
@@ -75,42 +68,43 @@ def chat():
         orchestrator = Orchestrator(db)
         pending_question = orchestrator.get_pending_question(conversation_id)
         
+        # if there is a pending question, treat user input as answer
         if pending_question:
-            # User is providing an answer to the pending question
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            result = loop.run_until_complete(
+            result = asyncio.run(
                 orchestrator.process_answer(
                     conversation_id=conversation_id,
                     question_id=pending_question.id,
                     user_answer=user_question
                 )
             )
-            loop.close()
             
-            return jsonify({
+            response_data = {
                 "response": result["chatbot_response"],
                 "conversation_id": str(conversation_id),
+                "user_message_id": result["user_message_id"],
+                "chatbot_message_id": result["chatbot_message_id"],
                 "answer_id": result["answer_id"],
                 "accuracy_score": result["accuracy_score"],
                 "evaluation_type": "ANSWER_EVALUATED"
-            }), 200
+            }
+            
+            return jsonify(response_data), 200
         
+        # if no pending question, treat user input as a question
         else:
             # User is asking a new question
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            result = loop.run_until_complete(
+            result = asyncio.run(
                 orchestrator.process_question(
                     conversation_id=conversation_id,
                     user_question=user_question
                 )
             )
-            loop.close()
-            
+                        
             response_data = {
                 "response": result["chatbot_response"],
                 "conversation_id": str(conversation_id),
+                "user_message_id": result["user_message_id"],
+                "chatbot_message_id": result["chatbot_message_id"],
                 "evaluation_type": result["evaluation_type"]
             }
             
@@ -120,16 +114,9 @@ def chat():
             
             return jsonify(response_data), 200
     
-    except ValueError as ve:
-        logger.error(f"Validation error: {ve}")
-        return jsonify({"error": str(ve)}), 400
-    
-    except RuntimeError as re:
-        logger.error(f"Runtime error in chat endpoint: {re}")
-        return jsonify({"error": "Failed to process request"}), 500
-    
     except Exception as e:
-        logger.error(f"Unexpected error in chat endpoint: {e}")
+        logger.error(f"Error in chat endpoint: {e}")
+        traceback.print_exc()
         return jsonify({"error": "Internal server error"}), 500
     
     finally:
@@ -138,19 +125,17 @@ def chat():
 
 @main_bp.route('/api/conversations', methods=['GET'])
 def get_conversations():
-    """Get all conversations for a user."""
-    db: Session = SessionLocal()
+    """Get all conversations for a specific user."""
+    db: Session = get_db_session()
     
     try:
-        user_id = request.args.get('user_id', 1, type=int)
-        logger.info(f"Fetching conversations for user_id={user_id}")
+        user_id = request.args.get('user_id', default=1, type=int)
         
+        # Only fetch conversations for the specified user
         conversations = db.query(Conversation).filter(
             Conversation.user_id == user_id
         ).order_by(Conversation.last_accessed.desc()).all()
-        
-        logger.info(f"Successfully retrieved {len(conversations)} conversations for user {user_id}")
-        
+                
         return jsonify([
             {
                 "id": conv.id,
@@ -162,10 +147,8 @@ def get_conversations():
         ]), 200
     
     except Exception as e:
-        logger.error(f"Error fetching conversations for user {user_id}: {type(e).__name__}: {str(e)}")
-        import traceback
-        logger.error(f"Traceback: {traceback.format_exc()}")
-        return jsonify({"error": "Failed to fetch conversations. Check server logs for details."}), 500
+        logger.error(f"Error fetching conversations: {e}")
+        return jsonify({"error": "Failed to fetch conversations"}), 500
     
     finally:
         db.close()
@@ -175,14 +158,20 @@ def get_conversations():
 def get_conversation_messages(conversation_id: int):
     """
     Get all messages for a specific conversation.
-    
     Returns list of messages in chronological order.
+    SECURITY: Validates that the conversation belongs to the requesting user.
     """
-    db: Session = SessionLocal()
+    db: Session = get_db_session()
     
     try:
-        # Verify conversation exists
-        conversation = db.query(Conversation).filter(Conversation.id == conversation_id).first()
+        user_id = request.args.get('user_id', default=1, type=int)
+        
+        # Check conversation exists and belongs to the user
+        conversation = db.query(Conversation).filter(
+            Conversation.id == conversation_id,
+            Conversation.user_id == user_id
+        ).first()
+
         if not conversation:
             return jsonify({"error": "Conversation not found"}), 404
         

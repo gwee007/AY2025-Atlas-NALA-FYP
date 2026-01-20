@@ -1,7 +1,6 @@
 from langchain_core.output_parsers import PydanticOutputParser
 from pydantic import BaseModel, Field
 from typing import List, Dict, Any
-from sqlalchemy.orm import Session
 from app.core.llm_client import NalaGemini
 from app.services.rag_service import RAGService
 from app.database.models import DocumentChunk
@@ -16,9 +15,16 @@ class AnswerGrading(BaseModel):
     higher_order_questions: List[str] = Field(description="A list of higher-order, thought-provoking application questions related to the subtopics discussed to extend learning")
 
 class AnswerEvaluationService:
-    def __init__(self, db_session: Session):
-        self.llm = NalaGemini()
-        self.rag = RAGService(db_session)
+    def __init__(self, llm_client: NalaGemini, rag_service: RAGService):
+        """
+        Initialize AnswerEvaluationService with shared dependencies.
+        
+        Args:
+            llm_client: Shared LLM client instance
+            rag_service: Shared RAG service instance
+        """
+        self.llm = llm_client
+        self.rag = rag_service
 
     async def evaluate_answer(self, question: str, solo_taxonomy_level: str, student_answer: str, relevant_subtopic_ids: List[int]) -> Dict[str, Any]:
         """
@@ -27,8 +33,7 @@ class AnswerEvaluationService:
         """
         try:
             # retrieve relevant document chunks for context
-            relevant_chunks = await asyncio.to_thread(
-                self.rag.retrieve_document_chunks,
+            relevant_chunks = self.rag.retrieve_document_chunks(
                 question=question,
                 relevant_subtopic_ids=relevant_subtopic_ids,
                 top_k=5,
@@ -38,7 +43,7 @@ class AnswerEvaluationService:
             # Stage 1: Generate model answer from reference material
             model_answer = await self._generate_model_answer(question, relevant_chunks)
             
-            # Stage 2: Grade student's answer using model answer and grading rubric
+            # Stage 2: Grade student's answer using LLM model answer and grading rubric
             answer_grading = await self._grade_answer(
                 solo_taxonomy_level=solo_taxonomy_level,
                 student_answer=student_answer,
@@ -86,12 +91,18 @@ class AnswerEvaluationService:
         STUDENT'S QUESTION: {question}
         """
         
-        output = await asyncio.to_thread(
-            self.llm.invoke,
-            user_prompt,
-            system_instruction=system_prompt
-        )
-        return parser.parse(output)
+        try:
+            output = await asyncio.to_thread(
+                self.llm.invoke,
+                user_prompt,
+                system_instruction=system_prompt
+            )
+            return parser.parse(output)
+        except Exception as e:
+            # Return default model answer if parsing fails
+            return ModelAnswer(
+                suggested_answer="I apologize, but I encountered an error while generating the model answer. Please refer to your course materials for guidance."
+            )
 
     async def _grade_answer(self, solo_taxonomy_level: str, student_answer: str, model_answer: str) -> AnswerGrading:
         """
@@ -126,9 +137,17 @@ class AnswerEvaluationService:
         {student_answer}
         """
         
-        output = await asyncio.to_thread(
-            self.llm.invoke,
-            user_prompt,
-            system_instruction=system_prompt
-        )
-        return parser.parse(output)
+        try:
+            output = await asyncio.to_thread(
+                self.llm.invoke,
+                user_prompt,
+                system_instruction=system_prompt
+            )
+            return parser.parse(output)
+        except Exception as e:
+            # Return default grading if parsing fails
+            return AnswerGrading(
+                accuracy_score=50,
+                feedback="I encountered an error while evaluating your answer. Please consult with your instructor for detailed feedback.",
+                higher_order_questions=["Please review the relevant course materials and try again."]
+            )
