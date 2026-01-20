@@ -3,13 +3,12 @@ import decimal
 import json
 import datetime
 from sqlalchemy import select, func, case, desc, cast, Date, distinct, and_, Index, BigInteger
-from sqlalchemy.orm import sessionmaker
 from dotenv import load_dotenv
 
 # --- IMPORTS ---
-from db.models import Base, User, Conversation, Message, Question, Subtopic, Answer, Topic, question_topics, question_subtopics
+from app.database.models import Base, User, Conversation, Message, Question, Subtopic, Answer, Topic, question_topics, question_subtopics
+from app.database.session import get_db_session
 from .grading_calculation import point_to_grade
-from .initialize_database import get_engine
 from .redis_client import get_redis_client
 
 load_dotenv()
@@ -21,8 +20,6 @@ def safe_float(val):
         return float(val)
     return float(val)
 
-engine = get_engine()
-SessionLocal = sessionmaker(bind=engine)
 red_client = get_redis_client()
 
 # --- REUSABLE EXPRESSIONS ---
@@ -61,7 +58,7 @@ def group_statistics():
 
     print("=== No Cache Found. Calculating Group Statistics (Sequential) ===")
     
-    session = SessionLocal()
+    session = get_db_session()
     try:
         # 1. Global Scalar Stats
         global_scalars_query = select(
@@ -282,7 +279,7 @@ def individual_statistics(user_id):
 
     print(f"=== Calculating Individual Stats for {user_id} (Sequential) ===")
     
-    session = SessionLocal()
+    session = get_db_session()
     try:
         # 1. Overall Stats
         overall_query = (
@@ -590,7 +587,7 @@ if __name__ == "__main__":
     print(f"\nIndex creation: {(index_time - start_time)*1000:.2f}ms")
 
     # Get unique users via ORM
-    session = SessionLocal()
+    session = get_db_session()
     try:
         users_stmt = select(distinct(Conversation.user_id))
         users = session.execute(users_stmt).fetchall()
@@ -620,7 +617,7 @@ if __name__ == "__main__":
     
     # Verification Query (ORM)
     print(f"\nUser {target_user_id} Questions by Solo Category:")
-    session = SessionLocal()
+    session = get_db_session()
     try:
         q_verify_stmt = (
             select(

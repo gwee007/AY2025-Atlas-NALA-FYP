@@ -1,9 +1,9 @@
 from flask import Flask, jsonify, request
 from flask_cors import CORS
-from sqlalchemy.orm import sessionmaker
 from sqlalchemy import func, case, desc
-# UPDATED: Import from db.models.py instead of models_simple
-from db.models import Base, User, Conversation, Message, Question, Answer, Topic, TopicDependency, Subtopic, question_topics
+# UPDATED: Import from app.database.models.py instead of models_simple
+from app.database.models import Base, User, Conversation, Message, Question, Answer, Topic, TopicDependency, Subtopic, question_topics
+from app.database.session import get_db_session
 from dotenv import load_dotenv
 import os
 import traceback
@@ -12,16 +12,11 @@ import traceback
 from .summary_generation import generate_summary_data
 from .grading_calculation import point_to_grade
 from .averageCalculation import individual_statistics, group_statistics
-from .initialize_database import get_engine
 from .redis_client import get_redis_client, invalidate_user_cache
 red_client = get_redis_client()
 load_dotenv()
 app = Flask(__name__)
 CORS(app)  # Enable CORS for React frontend
-
-# Database connection
-engine = get_engine()
-SessionLocal = sessionmaker(bind=engine)
 
 @app.route("/api/health", methods=["GET"])
 def health_check():
@@ -30,7 +25,7 @@ def health_check():
 @app.route("/api/test-db", methods=["GET"])
 def test_db():
     try:
-        session = SessionLocal()
+        session = get_db_session()
         user_count = session.query(User).count()
         session.close()
         return jsonify({"status": "Database OK", "user_count": user_count}), 200
@@ -80,7 +75,7 @@ def group_statistics_end():
 
 @app.route('/api/topic-dependencies', methods=['GET'])
 def get_topic_dependencies():
-    session = SessionLocal()
+    session = get_db_session()
     
     # CRITICAL: We need the user_id to know WHICH grades to fetch.
     # We grab it from the query parameters (e.g., ?user_id=101)
@@ -185,7 +180,7 @@ def get_dashboard_stats():
         print("Returning cached dashboard stats.")
         return jsonify(eval(cached_stats))
     print("No cached stats found, querying database...")
-    session = SessionLocal()
+    session = get_db_session()
     try:
         user_count = session.query(User).count()
         conversation_count = session.query(Conversation).count()
@@ -213,7 +208,7 @@ def get_dashboard_stats():
 
 @app.route('/api/users', methods=['GET'])
 def get_users():
-    session = SessionLocal()
+    session = get_db_session()
     try:
         users = session.query(User).all()
         # Ensure your User model has a to_dict method, or construct manually
@@ -233,7 +228,7 @@ def get_users():
 
 @app.route('/api/conversations', methods=['GET'])
 def get_conversations():
-    session = SessionLocal()
+    session = get_db_session()
     try:
         topic_id = request.args.get('topic_id', type=int)
         page = request.args.get('page', 1, type=int)
@@ -314,7 +309,7 @@ def get_conversations():
 
 @app.route('/api/topics', methods=['GET'])
 def get_topics():
-    session = SessionLocal()
+    session = get_db_session()
     try:
         topics = session.query(Topic).all()
         topics_data = [{"id": t.id, "topic_name": t.topic_name, "summary": t.topic_summary} for t in topics]
@@ -326,7 +321,7 @@ def get_topics():
 
 @app.route('/api/questions', methods=['GET'])
 def get_questions():
-    session = SessionLocal()
+    session = get_db_session()
     try:
         topic_id = request.args.get('topic_id', type=int) 
          
@@ -382,7 +377,7 @@ def get_questions():
 
 @app.route('/api/recent-activities', methods=['GET'])
 def get_recent_activities():
-    session = SessionLocal()
+    session = get_db_session()
     try:
         # Use last_accessed for sorting since created_at is gone
         recent_convs = session.query(Conversation).order_by(Conversation.last_accessed.desc()).limit(5).all()

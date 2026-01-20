@@ -6,7 +6,7 @@ import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, scoped_session
 from dotenv import load_dotenv
-from db.models import Base
+from app.database.models import Base
 
 # Load environment variables
 load_dotenv()

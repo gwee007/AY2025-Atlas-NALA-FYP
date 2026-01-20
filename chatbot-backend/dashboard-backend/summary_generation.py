@@ -6,7 +6,6 @@ from dotenv import load_dotenv
 from sqlalchemy import select 
 
 # --- UPDATED IMPORTS ---
-from .initialize_database import get_engine
 from .averageCalculation import individual_statistics, group_statistics
 from .grading_calculation import point_to_grade
 from .redis_client import get_redis_client
