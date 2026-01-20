@@ -38,7 +38,7 @@ const TopicGraph = ({ selectedTopic, onTopicSelect, graphData, width = 800, heig
         subtopicToParent.set(sourceId, targetId); 
       }
     });
-    console.log("graph data:", graphData);
+    
     const labelToIdMap = new Map(graphData.nodes?.map(n => [n.label, n.id]) || []);
     const selectedTopicId = selectedTopic ? labelToIdMap.get(selectedTopic) : null;
 
@@ -181,8 +181,12 @@ const TopicGraph = ({ selectedTopic, onTopicSelect, graphData, width = 800, heig
     node.append('circle')
       .attr('r', d => d.radius)
       .attr('fill', d => getGradeColor(d.grade))
-      .attr('stroke', d => d.group === 'root' ? '#1e293b' : '#fff') 
-      .attr('stroke-width', d => d.group === 'root' ? 5 : 2)
+      .attr('stroke', d => {
+        if (d.group === 'root') return '#1e293b';  // Selected topic: dark outline
+        if (d.type === 'topic') return '#3b82f6';  // Unselected topics: blue outline
+        return '#fff';  // Subtopics: white outline
+      })
+      .attr('stroke-width', d => d.group === 'root' ? 8 : 5)
       .attr('opacity', d => d.group === 'root' ? 1 : 0.9)
       .style('filter', 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))')
       .on('mouseover', function(event, d) {
@@ -245,7 +249,7 @@ const TopicGraph = ({ selectedTopic, onTopicSelect, graphData, width = 800, heig
     node.append('text')
     .attr('class', 'node-label')
       .text(d => d.label)
-      .attr('dx', d => d.radius + 8)
+      .attr('dx', d =>d.group === 'root' ? d.radius + 14: d.radius +11)
       .attr('dy', '0.35em')
       .style('font-size', '14px')
       .style('font-weight', '600')

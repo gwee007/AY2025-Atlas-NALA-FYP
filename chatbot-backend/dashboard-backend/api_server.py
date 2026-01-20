@@ -77,14 +77,21 @@ def get_topic_dependencies():
                 # Fetch the full stats object
                 user_stats = individual_statistics(int(user_id))
                 
-                # Extract the combined list (check both keys just in case)
-                grades_list = user_stats.get('grades_by_topic', []) or user_stats.get('node_data', [])
+                # ✅ FIX: Use node_data directly (contains BOTH topics AND subtopics)
+                # grades_by_topic only has topics, so subtopics would be missing!
+                grades_list = user_stats.get('node_data', [])
+                
+                # 🔍 Diagnostic: Log the grades_list structure
+                print(f"[DEBUG] grades_list for user {user_id} (first 3): {grades_list[:3]}")  # Show first 3
+                print(f"[DEBUG] Total nodes with grades: {len(grades_list)}")
                 
                 # Build a fast lookup map: "type_id" -> "Grade Letter"
                 # Example: "topic_1" -> "A"
                 for item in grades_list:
                     key = f"{item['type']}_{item['topic_id']}"
                     grade_lookup[key] = item.get('avg_grade_letter', 'N/A')
+                    
+                print(f"[DEBUG] grade_lookup built: {list(grade_lookup.items())[:5]}")  # Show first 5
                     
             except Exception as e:
                 print(f"[WARN] Could not fetch stats for user {user_id}: {e}")

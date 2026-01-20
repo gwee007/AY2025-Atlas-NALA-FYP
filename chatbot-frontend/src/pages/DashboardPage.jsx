@@ -362,7 +362,6 @@ export default function DashboardPage() {
                     });
 
                     const url = `${API_ENDPOINTS.questions}?${queryParams.toString()}`;
-                    console.log('[Debug] Request URL:', url);
                     
                     const response = await fetch(url, {
                         method: 'GET',
@@ -372,7 +371,6 @@ export default function DashboardPage() {
                     if (!response.ok) throw new Error('Failed to fetch question data');
                     
                     const responseData = await response.json();
-                    console.log('[Debug] Fetched question data:', responseData);
                     
                     // REFACTOR 2: Handle the { data, pagination } structure
                     // If .data exists, use it. Otherwise check if it's a direct array.
@@ -471,9 +469,7 @@ export default function DashboardPage() {
             {/* 1. Header & Navigation */}
             <div style={{ marginBottom: "2rem" }}>
               
-                <p sx={{textAlign: "center", color: 'text.secondary', fontSize: '8rem'}}>
-                    <h1 style={{textAlign: "center", paddingTop:30}}>NALA-Assess Dashboard</h1>
-                </p>
+                <h1 style={{textAlign: "center", paddingTop: 30, marginBottom: 0}}>NALA-Assess Dashboard</h1>
                 
                 {/* Global Topic Indicator (Always visible so users know what context they are in) */}
                 <div style={{ textAlign: "center", margin: "1rem 0.3rem", paddingTop:10}}>
@@ -496,11 +492,9 @@ export default function DashboardPage() {
                         aria-label="dashboard tabs"
                         sx={{
                             '& .MuiTab-root': { 
-                                // IF theme is dark -> White, ELSE -> Black/Grey
-                                color: (theme) => theme.palette.mode === 'dark' ? '#ffffff' : 'text.secondary' 
+                                color: 'text.secondary'
                             },
                             '& .Mui-selected': { 
-                                // Keep the active tab distinct (usually Primary Blue)
                                 color: 'primary.main' 
                             }
                         }}
@@ -587,10 +581,10 @@ export default function DashboardPage() {
                                 Overall Estimated Answer Accuracy
                             </div>
                             <div style={{ fontSize: "3.5rem", fontWeight: "bold", color: isAboveAvg ? "#10b981" : "#ef4444", textAlign: "center" }}>
-                                {Math.round(overallGrades.answerAccuracy)}
+                                {overallGrades.answerAccuracy != null ? Math.round(overallGrades.answerAccuracy) : 'N/A'}
                             </div>
                             <div style={{ color: "#666", fontWeight:"bold", fontSize: "1rem", textAlign: "right" }}>
-                                Average: <span style={{ color: "#888" }}>{Math.round(overallGrades.avgAnswerAccuracy)}</span>
+                                Average: <span style={{ color: "#888" }}>{overallGrades.avgAnswerAccuracy != null ? Math.round(overallGrades.avgAnswerAccuracy) : 'N/A'}</span>
                             </div>
                         </div>
                     );

@@ -116,7 +116,7 @@ class QuestionEvaluationService:
             - Unistructural: Asks about a fact or definition. Grade: C
             - Multistructural: Asks about listing or describing multiple concepts of the same topic. Grade: B
             - Relational: Asks about causes, compares, analyzes, or integrates concepts from different topics. Grade: A
-            - Extended Abstract: Generalizes or hypothesizes topic concepts to real-life industrial applications. Grade: A+
+            - Extended Abstract: Extrapolates concepts to address specific, explicitly named real-world scenarios or industrial use cases beyond the theoretical context. Grade: A+
 
             OUTPUT REQUIREMENTS:
             - SOLO Level.

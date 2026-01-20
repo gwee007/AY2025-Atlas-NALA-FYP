@@ -36,11 +36,6 @@ const ReflectiveBarChart = ({ data, width = 600, height = 500, onCategoryClick, 
   useEffect(() => {
     const svg = d3.select(svgRef.current);
 
-        console.log('Chart data:', {
-      categories: data.categories,
-      leftData: data.leftData,
-      rightData: data.rightData
-    });
     svg.selectAll("*").remove(); // Clear previous content
 
     // Set up dimensions and margins

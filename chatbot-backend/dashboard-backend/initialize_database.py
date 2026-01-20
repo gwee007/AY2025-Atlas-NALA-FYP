@@ -16,16 +16,36 @@ def get_database_url():
 
     return f"postgresql+psycopg2://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
 
+# ✅ FIX: Create a SINGLE global engine instance
+_engine = None
+
+def get_engine():
+    """
+    Returns a singleton database engine with optimized connection pooling.
+    Prevents connection pool exhaustion by reusing the same engine.
+    """
+    global _engine
+    if _engine is None:
+        database_url = get_database_url()
+        print(f"🔧 Creating database engine with connection pooling...")
+        _engine = create_engine(
+            database_url,
+            pool_size=5,           # Maximum number of permanent connections
+            max_overflow=10,       # Maximum overflow connections beyond pool_size
+            pool_pre_ping=True,    # Test connections before using
+            pool_recycle=3600,     # Recycle connections after 1 hour
+            echo=False
+        )
+        print(f"✅ Engine created with pool_size=5, max_overflow=10")
+    return _engine
+
 def initialize():
-    database_url = get_database_url()
-    print(f"Connecting to database at {database_url}")
+    """Initialize database tables and indexes."""
+    engine = get_engine()  # Use the singleton engine
+    print(f"Connecting to database...")
+    
     # Supabase uses connection pooling (Port 6543 for transaction mode, 5432 for session)
     # For initial table creation, session mode (5432) is generally preferred.
-    engine = create_engine(database_url, 
-        pool_pre_ping=True,  # Test connections before using
-        pool_recycle=3600,   # Recycle connections every hour
-        max_overflow=10,     # Max overflow connections
-        echo=False )
 
     # 1. Enable pgvector (Supabase supports this by default!)
     # with engine.connect() as conn:
@@ -50,9 +70,6 @@ def initialize():
 
     print("Database initialization complete.")
     return engine
-
-def get_engine():
-    return create_engine(get_database_url())
 
 if __name__ == "__main__":
     initialize()
