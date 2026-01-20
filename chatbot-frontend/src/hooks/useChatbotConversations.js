@@ -149,7 +149,6 @@ export default function useChatbotConversations(urlUserId = null, urlConversatio
         }
     }, [conversations.length, activeConversationId]);
 
-    // --- UPDATED SEND LOGIC ---
     const handleSend = async () => {
         if (!input.trim()) return;
 
@@ -164,6 +163,9 @@ export default function useChatbotConversations(urlUserId = null, urlConversatio
         setMessages((prev) => [...prev, userMsg]);
         setInput("");
         setIsTyping(true);
+        
+        // Mark that new questions were asked for cache invalidation
+        sessionStorage.setItem(`chatbot_new_questions_${userId}`, 'true');
 
         try {
             const response = await fetch(API_ENDPOINTS.chat, {
@@ -189,22 +191,32 @@ export default function useChatbotConversations(urlUserId = null, urlConversatio
                 await fetchConversations();
             }
 
+            const botMessageId = `bot-${data.chatbot_message_id}`;
+            const userMessageId = `user-${data.user_message_id || Date.now()}`;
+
             // Replace local user message with backend version and add bot response
             setMessages((prev) => {
-                // Filter out any duplicate bot messages by checking if a message with the same bot message ID exists
-                const withoutDuplicates = prev.filter(msg => 
-                    msg.id !== `bot-${data.chatbot_message_id}`
-                );
+                // Check if bot message already exists
+                const botExists = prev.some(msg => msg.id === botMessageId);
                 
-                const updated = withoutDuplicates.map(msg => 
+                // If bot message already exists, don't add it again
+                if (botExists) {
+                    return prev.map(msg => 
+                        msg.id === localMessageId 
+                            ? { ...msg, id: userMessageId }
+                            : msg
+                    );
+                }
+                
+                // Update user message ID and add bot response
+                const updated = prev.map(msg => 
                     msg.id === localMessageId 
-                        ? { ...msg, id: `user-${data.user_message_id || Date.now()}` }
+                        ? { ...msg, id: userMessageId }
                         : msg
                 );
                 
-                // Add bot response from backend (only once)
                 const botMsg = { 
-                    id: `bot-${data.chatbot_message_id || Date.now()}`,
+                    id: botMessageId,
                     from: "bot", 
                     text: data.response || "Sorry, I encountered an error.",
                     evaluationType: data.evaluation_type,
