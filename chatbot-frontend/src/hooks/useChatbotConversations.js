@@ -105,41 +105,44 @@ export default function useChatbotConversations(urlUserId = null, urlConversatio
                     timestamp: new Date(msg.timestamp)
                 }));
                 
-                // If no messages, add welcome message
-                if (formattedMessages.length === 0) {
-                    formattedMessages.push({ 
-                        id: `welcome-${Date.now()}`, 
+                // Always prepend the welcome message at the start
+                const messagesWithWelcome = [
+                    { 
+                        id: `welcome-${conversationId}`, 
                         from: "bot", 
-                        text: DEFAULT_FIRST_MESSAGE 
-                    });
-                }
+                        text: DEFAULT_FIRST_MESSAGE,
+                        isDefault: true // Mark as default message
+                    },
+                    ...formattedMessages
+                ];
                 
-                setMessages(formattedMessages);
-                setLocalMessageIds(new Set()); // reset local message tracking
+                setMessages(messagesWithWelcome);
+                setLocalMessageIds(new Set());
             }
         } catch (error) {
             console.error("Error loading messages:", error);
             setMessages([{ 
                 id: `welcome-${Date.now()}`, 
                 from: "bot", 
-                text: DEFAULT_FIRST_MESSAGE 
+                text: DEFAULT_FIRST_MESSAGE,
+                isDefault: true
             }]);
         }
     };
 
-    // Create new conversation
+    // Create new conversation (just reset UI state)
     const handleAddConversation = () => {
-        // Start with no active conversation - it will be created on first message
         setActiveConversationId(null);
         setMessages([{ 
-            id: `welcome-${Date.now()}`, 
+            id: `welcome-new`, 
             from: "bot", 
-            text: DEFAULT_FIRST_MESSAGE 
+            text: DEFAULT_FIRST_MESSAGE,
+            isDefault: true
         }]);
         setLocalMessageIds(new Set());
     };
 
-    // Initial Setup - create first conversation if none exist
+   // Initial Setup - create first conversation if none exist
     useEffect(() => {
         if (conversations.length === 0 && !activeConversationId) {
             handleAddConversation();
@@ -150,7 +153,6 @@ export default function useChatbotConversations(urlUserId = null, urlConversatio
     const handleSend = async () => {
         if (!input.trim()) return;
 
-        // 1. Create unique local ID for optimistic update
         const localMessageId = `local-user-${Date.now()}`;
         const userMsg = { 
             id: localMessageId, 
@@ -158,15 +160,12 @@ export default function useChatbotConversations(urlUserId = null, urlConversatio
             text: input 
         };
         
-        // Track this as a local message
         setLocalMessageIds(prev => new Set(prev).add(localMessageId));
-        
         setMessages((prev) => [...prev, userMsg]);
         setInput("");
         setIsTyping(true);
 
         try {
-            // 2. Call the Backend
             const response = await fetch(API_ENDPOINTS.chat, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -183,28 +182,27 @@ export default function useChatbotConversations(urlUserId = null, urlConversatio
 
             const data = await response.json();
 
-            // 3. Update conversation ID if it was created by backend
+            // Update conversation ID if it was created by backend
             if (data.conversation_id && data.conversation_id !== activeConversationId) {
                 const newConvId = parseInt(data.conversation_id);
                 setActiveConversationId(newConvId);
-                
-                // Refetch conversations to get the new one from backend
                 await fetchConversations();
             }
-            
-            // 4. Mark that a new question was asked (for cache invalidation)
-            if (data.evaluation_type === 'QUESTION_GRADED' || data.question_id) {
-                sessionStorage.setItem(`chatbot_new_questions_${userId}`, 'true');
-            }
 
-            // 5. Replace local user message with backend version and add bot response
+            // Replace local user message with backend version and add bot response
             setMessages((prev) => {
-                const updated = prev.map(msg => 
+                // Filter out any duplicate bot messages by checking if a message with the same bot message ID exists
+                const withoutDuplicates = prev.filter(msg => 
+                    msg.id !== `bot-${data.chatbot_message_id}`
+                );
+                
+                const updated = withoutDuplicates.map(msg => 
                     msg.id === localMessageId 
                         ? { ...msg, id: `user-${data.user_message_id || Date.now()}` }
                         : msg
                 );
-                // Add bot response from backend
+                
+                // Add bot response from backend (only once)
                 const botMsg = { 
                     id: `bot-${data.chatbot_message_id || Date.now()}`,
                     from: "bot", 
@@ -213,10 +211,10 @@ export default function useChatbotConversations(urlUserId = null, urlConversatio
                     questionId: data.question_id,
                     metadata: data.metadata
                 };
+                
                 return [...updated, botMsg];
             });
 
-            // Clear local message tracking
             setLocalMessageIds(prev => {
                 const newSet = new Set(prev);
                 newSet.delete(localMessageId);
@@ -248,8 +246,6 @@ export default function useChatbotConversations(urlUserId = null, urlConversatio
         const conv = conversations.find((c) => c.id === id);
         if (!conv) return;
         setActiveConversationId(id);
-        
-        // Load messages from backend
         await loadConversationMessages(id);
     };
 
