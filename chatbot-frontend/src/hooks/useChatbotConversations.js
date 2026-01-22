@@ -18,14 +18,14 @@ export default function useChatbotConversations(urlUserId = null, urlConversatio
         // Mark that user entered chatbot area
         sessionStorage.setItem(`chatbot_active_${userId}`, 'true');
         
-        // Cleanup: Invalidate cache if new questions were asked
+        // Cleanup: Invalidate cache (including group cache) if new questions were asked
         return () => {
             const hasNewQuestions = sessionStorage.getItem(`chatbot_new_questions_${userId}`) === 'true';
             const wasActive = sessionStorage.getItem(`chatbot_active_${userId}`) === 'true';
             
             if (wasActive && hasNewQuestions) {
-                // Invalidate cache asynchronously
-                fetch(API_ENDPOINTS.invalidateCache(userId), {
+                // Invalidate both user and group cache asynchronously when leaving chatbot
+                fetch(`${API_ENDPOINTS.invalidateCache(userId)}?group=true`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' }
                 }).catch(err => console.warn('Cache invalidation failed:', err));

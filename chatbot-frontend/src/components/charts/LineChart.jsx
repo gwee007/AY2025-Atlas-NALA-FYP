@@ -1,52 +1,84 @@
-import React, { useEffect, useRef, useCallback } from 'react';
+import React, { useEffect, useRef, useCallback, useState } from 'react';
 import * as d3 from 'd3';
 
-const LineChart = ({ data, width = 1000, height = 1000, onResetReady, yAxisLabel = 'Number of Interactions', xAxisLabel = 'Date' }) => {
+const LineChart = ({ data, width = 1400, height = 1000, yAxisLabel = 'Number of Interactions', xAxisLabel = 'Date' }) => {
   const svgRef = useRef();
-  const zoomRef = useRef();
+  const [viewMode, setViewMode] = useState('global');
+  const [weekOffset, setWeekOffset] = useState(0);
 
-  const handleReset = useCallback(() => {
-    if (zoomRef.current) {
-      const { svg, zoom } = zoomRef.current;
-      svg.transition()
-        .duration(750)
-        .call(zoom.transform, d3.zoomIdentity);
-    }
+  // Monday as the first day of the week
+  const getStartOfWeek = useCallback((date) => {
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    const day = d.getDay();
+    const diff = day === 0 ? -6 : 1 - day; // Shift Sunday back six days, others back to Monday
+    d.setDate(d.getDate() + diff);
+    return d;
   }, []);
 
-  // Expose reset function to parent
-  useEffect(() => {
-    if (onResetReady && handleReset) {
-      onResetReady(handleReset);
-    }
-  }, [onResetReady, handleReset]);
+  const getSelectedWeekRange = useCallback(() => {
+    const baseWeekStart = getStartOfWeek(new Date());
+    const start = d3.timeDay.offset(baseWeekStart, weekOffset * 7);
+    const end = d3.timeDay.offset(start, 7);
+    return { start, end };
+  }, [getStartOfWeek, weekOffset]);
+
+  // Helper function to calculate 5-day moving average
+  const calculateMovingAverage = (data, windowSize = 5) => {
+    return data.map((d, i) => {
+      const start = Math.max(0, i - Math.floor(windowSize / 2));
+      const end = Math.min(data.length, i + Math.ceil(windowSize / 2));
+      const window = data.slice(start, end);
+      const average = window.reduce((sum, item) => sum + item.interactions, 0) / window.length;
+      return { date: d.date, interactions: average };
+    });
+  };
 
   useEffect(() => {
     const svg = d3.select(svgRef.current);
-    svg.selectAll("*").remove(); // Clear previous content
-
-    // Set up dimensions and margins
-    const margin = { top: 20, right: 60, bottom: 40, left: 50 };
+    svg.selectAll("*").remove(); // Clear previous content    
+    // Prevent text selection during drag
+    svg.style('user-select', 'none')
+       .style('-webkit-user-select', 'none')
+       .style('-moz-user-select', 'none')
+       .style('-ms-user-select', 'none');
+    // Set up dimensions and margins (leave space for button at top, legend on right)
+    const margin = { top: 50, right: 130, bottom: 80, left: 50 };
     const innerWidth = width - margin.left - margin.right;
     const innerHeight = height - margin.top - margin.bottom;
 
-    // Create scales (store original domains for reset)
+    // Determine date range based on view mode
+    const allDates = data.individual.map(d => d.date);
+    const [minDate, maxDate] = d3.extent(allDates);
+    const { start: weekStart, end: weekEnd } = getSelectedWeekRange();
+    const xDomain = viewMode === 'weekly'
+      ? [weekStart, weekEnd]
+      : [minDate, maxDate];
+
+    // Create scales
     const xScale = d3.scaleTime()
-      .domain(d3.extent(data.individual, d => d.date))
+      .domain(xDomain)
       .range([0, innerWidth]);
 
+    // Filter data to visible range
+    const visibleIndividual = data.individual.filter(d => d.date >= xDomain[0] && d.date <= xDomain[1]);
+    const visibleAverage = data.average.filter(d => d.date >= xDomain[0] && d.date <= xDomain[1]);
+
+    // Calculate Y-axis domain based on visible data
+    const allVisibleValues = [
+      ...visibleIndividual.map(d => d.interactions),
+      ...visibleAverage.map(d => d.interactions)
+    ];
+    
+    const yMin = allVisibleValues.length > 0 ? Math.min(...allVisibleValues) : 0;
+    const yMax = allVisibleValues.length > 0 ? Math.max(...allVisibleValues) : 1;
+    const yPadding = (yMax - yMin) * 0.1;
+
     const yScale = d3.scaleLinear()
-      .domain([0, d3.max([
-        ...data.individual.map(d => d.interactions),
-        ...data.average.map(d => d.interactions)
-      ])])
+      .domain([Math.max(0, yMin - yPadding), yMax + yPadding])
       .range([innerHeight, 0]);
 
-    // Store original domains for reset
-    const xDomain = xScale.domain();
-    const yDomain = yScale.domain();
-
-    // Create line generators
+    // Create line generators with smoothing
     const individualLine = d3.line()
       .x(d => xScale(d.date))
       .y(d => yScale(d.interactions))
@@ -69,13 +101,28 @@ const LineChart = ({ data, width = 1000, height = 1000, onResetReady, yAxisLabel
       .attr('width', innerWidth)
       .attr('height', innerHeight);
 
-    // Add axes
+    // Add axes with per-mode tick logic
+    const weeklyTickValues = d3.timeDays(xDomain[0], xDomain[1]);
+    const xAxisGenerator = viewMode === 'weekly'
+      ? d3.axisBottom(xScale)
+          .tickValues(weeklyTickValues)
+          .tickFormat(d3.timeFormat('%a %d %b'))
+      : d3.axisBottom(xScale)
+          .ticks(7) // cap at 7 ticks globally
+          .tickFormat(d3.timeFormat('%m/%d'));
+
     const xAxis = g.append('g')
       .attr('class', 'x-axis')
       .attr('transform', `translate(0,${innerHeight})`)
-      .call(d3.axisBottom(xScale)
-        .tickFormat(d3.timeFormat('%m/%d')))
+      .call(xAxisGenerator)
       .style('color', '#666');
+    
+    // Rotate x-axis labels for better readability
+    xAxis.selectAll('text')
+      .style('text-anchor', 'end')
+      .attr('dx', '-.8em')
+      .attr('dy', '.15em')
+      .attr('transform', 'rotate(-45)');
 
     const yAxis = g.append('g')
       .attr('class', 'y-axis')
@@ -85,7 +132,7 @@ const LineChart = ({ data, width = 1000, height = 1000, onResetReady, yAxisLabel
     // Add axis labels
     g.append('text')
       .attr('x', innerWidth / 2)
-      .attr('y', innerHeight + 40)
+      .attr('y', innerHeight + 60)
       .style('text-anchor', 'middle')
       .text(xAxisLabel);
 
@@ -96,191 +143,179 @@ const LineChart = ({ data, width = 1000, height = 1000, onResetReady, yAxisLabel
       .style('text-anchor', 'middle')
       .text(yAxisLabel);
 
-    // Create a group for zoomable content
-    const zoomGroup = g.append('g')
+    // Create a group for content
+    const contentGroup = g.append('g')
       .attr('clip-path', `url(#${clipId})`);
 
-    // Add individual line
-    const individualPath = zoomGroup.append('path')
-      .datum(data.individual)
+    // Calculate moving averages
+    const individualMovingAvg = calculateMovingAverage(visibleIndividual, 3);
+    const averageMovingAvg = calculateMovingAverage(visibleAverage, 3);
+
+    // Add individual line (use visible data) - thinner for daily data
+    const individualPath = contentGroup.append('path')
+      .datum(visibleIndividual)
       .attr('class', 'individual-line')
       .attr('fill', 'none')
       .attr('stroke', '#2563eb')
-      .attr('stroke-width', 3)
+      .attr('stroke-width', 2)
+      .attr('opacity', 0.2)
       .attr('d', individualLine);
 
-    // Add average line
-    const averagePath = zoomGroup.append('path')
-      .datum(data.average)
+    // Add individual moving average line - thicker for trend
+    const individualMAPath = contentGroup.append('path')
+      .datum(individualMovingAvg)
+      .attr('class', 'individual-ma-line')
+      .attr('fill', 'none')
+      .attr('stroke', '#2563eb')
+      .attr('stroke-width', 4)
+      .attr('d', individualLine);
+
+    // Add average line (use visible data) - thinner for daily data
+    const averagePath = contentGroup.append('path')
+      .datum(visibleAverage)
       .attr('class', 'average-line')
       .attr('fill', 'none')
       .attr('stroke', '#dc2626')
-      .attr('stroke-width', 3)
+      .attr('stroke-width', 2)
+      .attr('opacity', 0.2)
       .attr('stroke-dasharray', '5,5')
       .attr('d', averageLine);
 
-    // Add dots for individual data points
-    const individualDots = zoomGroup.selectAll('.individual-dot')
-      .data(data.individual)
-      .enter().append('circle')
-      .attr('class', 'individual-dot')
-      .attr('cx', d => xScale(d.date))
-      .attr('cy', d => yScale(d.interactions))
-      .attr('r', 4)
-      .attr('fill', '#2563eb');
+    // Add average moving average line - thicker for trend
+    const averageMAPath = contentGroup.append('path')
+      .datum(averageMovingAvg)
+      .attr('class', 'average-ma-line')
+      .attr('fill', 'none')
+      .attr('stroke', '#dc2626')
+      .attr('stroke-width', 4)
+      .attr('stroke-dasharray', '5,5')
+      .attr('d', averageLine);
 
-    // Add dots for average data points
-    const averageDots = zoomGroup.selectAll('.average-dot')
-      .data(data.average)
-      .enter().append('circle')
-      .attr('class', 'average-dot')
-      .attr('cx', d => xScale(d.date))
-      .attr('cy', d => yScale(d.interactions))
-      .attr('r', 4)
-      .attr('fill', '#dc2626');
+    // Add legend outside chart (positioned relative to SVG, not the translated group)
+    const legend = svg.append('g')
+      .attr('transform', `translate(${width - 120}, ${margin.top + 20})`);
 
-    // Add legend
-    const legend = g.append('g')
-      .attr('transform', `translate(${innerWidth - 20}, 0)`);
-
+    // Individual line legend
     legend.append('line')
       .attr('x1', 0)
       .attr('x2', 20)
       .attr('y1', 0)
       .attr('y2', 0)
       .attr('stroke', '#2563eb')
-      .attr('stroke-width', 3);
+      .attr('stroke-width', 4);
 
     legend.append('text')
       .attr('x', 25)
       .attr('y', 5)
-      .text('Individual')
+      .text('Individual Trend')
       .style('font-size', '12px');
 
     legend.append('line')
       .attr('x1', 0)
       .attr('x2', 20)
-      .attr('y1', 20)
-      .attr('y2', 20)
+      .attr('y1', 18)
+      .attr('y2', 18)
+      .attr('stroke', '#2563eb')
+      .attr('stroke-width', 2)
+      .attr('opacity', 0.2);
+
+    legend.append('text')
+      .attr('x', 25)
+      .attr('y', 23)
+      .text('Individual Data')
+      .style('font-size', '12px');
+
+    // Average line legend
+    legend.append('line')
+      .attr('x1', 0)
+      .attr('x2', 20)
+      .attr('y1', 36)
+      .attr('y2', 36)
       .attr('stroke', '#dc2626')
-      .attr('stroke-width', 3)
+      .attr('stroke-width', 4)
       .attr('stroke-dasharray', '5,5');
 
     legend.append('text')
       .attr('x', 25)
-      .attr('y', 25)
-      .text('Average')
+      .attr('y', 41)
+      .text('Average Trend')
       .style('font-size', '12px');
 
-    // Zoom function - only affects X-axis, Y-axis auto-normalizes
-    const updateChart = (event) => {
-      const newXScale = event.transform.rescaleX(xScale);
+    legend.append('line')
+      .attr('x1', 0)
+      .attr('x2', 20)
+      .attr('y1', 54)
+      .attr('y2', 54)
+      .attr('stroke', '#dc2626')
+      .attr('stroke-width', 2)
+      .attr('opacity', 0.2)
+      .attr('stroke-dasharray', '5,5');
 
-      // Get visible date range
-      const [minDate, maxDate] = newXScale.domain();
+    legend.append('text')
+      .attr('x', 25)
+      .attr('y', 59)
+      .text('Average Data')
+      .style('font-size', '12px');
 
-      // Number of days available
-      const dateRange = (maxDate-minDate)/ (1000*60*60*24);
-      let tickCount;
-      if (dateRange > 180){
-        tickCount = 6;
-      } else if (dateRange > 90) {
-        tickCount = 8;
-      } else if (dateRange > 30) {
-        tickCount = 10;
-      } else if (dateRange > 14) {
-        tickCount = 10;
-      } else {
-        tickCount = Math.min(Math.floor(dateRange), 10); 
-      }
+    // No panning/zoom; view controlled via buttons
 
-      // Filter data to visible range
-      const visibleIndividual = data.individual.filter(d => d.date >= minDate && d.date <= maxDate);
-      const visibleAverage = data.average.filter(d => d.date >= minDate && d.date <= maxDate);
+  }, [data, width, height, viewMode, weekOffset, getSelectedWeekRange]);
 
-      // Calculate Y-axis domain based on visible data
-      const allVisibleValues = [
-        ...visibleIndividual.map(d => d.interactions),
-        ...visibleAverage.map(d => d.interactions)
-      ];
-      
-      const yMin = allVisibleValues.length > 0 ? Math.min(...allVisibleValues) : 0;
-      const yMax = allVisibleValues.length > 0 ? Math.max(...allVisibleValues) : 1;
-      
-      // Add 10% padding to Y-axis
-      const yPadding = (yMax - yMin) * 0.1;
-      const newYScale = d3.scaleLinear()
-        .domain([Math.max(0, yMin - yPadding), yMax + yPadding])
-        .range([innerHeight, 0]);
-      const tickValues = newXScale.ticks(tickCount);
-      const tickArray = tickValues.length > 10 
-        ? tickValues.filter((_, i) => i % Math.ceil(tickValues.length / 10) === 0).slice(0, 10)
-        : tickValues;
-      // Update axes
-      xAxis.call(
-        d3.axisBottom(newXScale)
-        .tickValues(tickArray)
-        .tickFormat(d3.timeFormat('%m/%d')));
-      yAxis.transition().duration(200).call(d3.axisLeft(newYScale));
+  const { start: controlWeekStart } = getSelectedWeekRange();
+  const controlWeekEnd = d3.timeDay.offset(controlWeekStart, 6);
+  const weekLabel = `${d3.timeFormat('%b %d')(controlWeekStart)} - ${d3.timeFormat('%b %d')(controlWeekEnd)}`;
 
-      // Update line generators with new scales
-      const newIndividualLine = d3.line()
-        .x(d => newXScale(d.date))
-        .y(d => newYScale(d.interactions))
-        .curve(d3.curveMonotoneX);
+  const primaryButtonStyle = (isActive) => ({
+    padding: '6px 12px',
+    cursor: isActive ? 'default' : 'pointer',
+    borderRadius: '6px',
+    border: '1px solid #2563eb',
+    backgroundColor: '#e0ebff',
+    color: '#0f172a',
+    fontWeight: isActive ? 700 : 500,
+    opacity: isActive ? 1 : 0.55,
+    boxShadow: isActive ? '0 0 0 2px rgba(37, 99, 235, 0.25)' : 'none',
+    transition: 'opacity 120ms ease, box-shadow 120ms ease',
+  });
 
-      const newAverageLine = d3.line()
-        .x(d => newXScale(d.date))
-        .y(d => newYScale(d.interactions))
-        .curve(d3.curveMonotoneX);
+  const arrowButtonStyle = {
+    padding: '6px 10px',
+    borderRadius: '6px',
+    border: '1px solid #cbd5e1',
+    backgroundColor: '#f8fafc',
+    cursor: 'pointer',
+  };
 
-      // Update paths
-      individualPath.transition().duration(200).attr('d', newIndividualLine);
-      averagePath.transition().duration(200).attr('d', newAverageLine);
-
-      // Update dots
-      individualDots.transition().duration(200)
-        .attr('cx', d => newXScale(d.date))
-        .attr('cy', d => newYScale(d.interactions));
-
-      averageDots.transition().duration(200)
-        .attr('cx', d => newXScale(d.date))
-        .attr('cy', d => newYScale(d.interactions));
-    };
-
-    // Create zoom behavior - only affects X-axis (horizontal pan/zoom)
-    const zoom = d3.zoom()
-      .scaleExtent([1, 10]) // Min and max zoom levels
-      .translateExtent([[-innerWidth * 5, 0], [innerWidth * 5, innerHeight]]) // Only horizontal pan
-      .extent([[0, 0], [innerWidth, innerHeight]])
-      .filter(function(event) {
-        // Only allow horizontal pan and zoom
-        return !event.ctrlKey && !event.button;
-      })
-      .on('zoom', updateChart);
-
-    // Store zoom behavior in ref for external reset
-    zoomRef.current = { svg, zoom };
-
-    // Add zoom rectangle (invisible overlay for capturing zoom/pan events)
-    const zoomRect = g.append('rect')
-      .attr('width', innerWidth)
-      .attr('height', innerHeight)
-      .style('fill', 'none')
-      .style('pointer-events', 'all')
-      .style('cursor', 'ew-resize')
-      .style('touch-action', 'none') // Prevent browser handling of touch gestures to fix violation warning
-      .call(zoom)
-      .on('mousedown', function() {
-        d3.select(this).style('cursor', 'grabbing');
-      })
-      .on('mouseup', function() {
-        d3.select(this).style('cursor', 'ew-resize');
-      });
-
-  }, [data, width, height]);
-
-  return <svg ref={svgRef} width={width} height={height}></svg>;
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button
+            onClick={() => { setViewMode('global'); }}
+            disabled={viewMode === 'global'}
+            style={primaryButtonStyle(viewMode === 'global')}
+          >
+            All Time
+          </button>
+          <button
+            onClick={() => { setWeekOffset(0); setViewMode('weekly'); }}
+            disabled={viewMode === 'weekly'}
+            style={primaryButtonStyle(viewMode === 'weekly')}
+          >
+            Weekly
+          </button>
+        </div>
+        {viewMode === 'weekly' && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <button onClick={() => setWeekOffset(prev => prev - 1)} style={arrowButtonStyle}>← Prev week</button>
+            <span style={{ fontSize: '14px', color: '#444' }}>{weekLabel}</span>
+            <button onClick={() => setWeekOffset(prev => prev + 1)} style={arrowButtonStyle}>Next week →</button>
+          </div>
+        )}
+      </div>
+      <svg ref={svgRef} width={width} height={height}></svg>
+    </div>
+  );
 };
 
 export default LineChart;
@@ -321,10 +356,9 @@ STYLING:
 - Both lines have circular dots at data points
 - Responsive to width/height props
 
-ZOOM CONTROLS:
-- Scroll wheel: Zoom in/out on X-axis only
-- Click and drag: Pan horizontally along X-axis
+VIEW MODES:
+- Toggle buttons switch between:
+  * Global view: Shows all data with a maximum of 7 x-axis ticks.
+  * Weekly view: Shows the selected week (Monday-Sunday). Use the arrows to move across weeks; defaults to the current week and aligns ticks to each day starting on Monday.
 - Y-axis automatically normalizes to show visible data range
-- External reset button: Pass onReset prop to get reset function
-- Zoom range: 1x to 10x
 */

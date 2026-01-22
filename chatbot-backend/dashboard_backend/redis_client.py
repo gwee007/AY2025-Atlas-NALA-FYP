@@ -32,3 +32,28 @@ def invalidate_user_cache(user_id: int):
     except Exception as e:
         print(f"[ERROR] Failed to invalidate cache for user {user_id}: {e}")
         return 0
+
+def invalidate_group_cache():
+    """Invalidate the group statistics cache."""
+    try:
+        group_key = "dashboard:group_statistics"
+        if redis_client.exists(group_key):
+            redis_client.delete(group_key)
+            print(f"[INFO] Invalidated group cache: {group_key}")
+            return 1
+        return 0
+    except Exception as e:
+        print(f"[ERROR] Failed to invalidate group cache: {e}")
+        return 0
+
+def invalidate_all_caches(user_id: int):
+    """Invalidate both user-specific and group caches when a question is asked."""
+    try:
+        user_deleted = invalidate_user_cache(user_id)
+        group_deleted = invalidate_group_cache()
+        total_deleted = user_deleted + group_deleted
+        print(f"[INFO] Cache invalidation: {user_deleted} user keys + {group_deleted} group keys = {total_deleted} total")
+        return total_deleted
+    except Exception as e:
+        print(f"[ERROR] Failed to invalidate all caches: {e}")
+        return 0

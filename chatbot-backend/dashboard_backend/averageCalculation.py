@@ -2,7 +2,7 @@ import time
 import decimal
 import json
 import datetime
-from sqlalchemy import select, func, case, desc, cast, Date, distinct, and_, Index, BigInteger
+from sqlalchemy import select, func, case, desc, cast, Date, distinct, and_, Index, BigInteger, Float
 from dotenv import load_dotenv
 
 # --- IMPORTS ---
@@ -19,6 +19,15 @@ def safe_float(val):
     if isinstance(val, decimal.Decimal):
         return float(val)
     return float(val)
+
+def timedelta_to_minutes(td):
+    """Convert timedelta to minutes as float."""
+    if td is None:
+        return None
+    if isinstance(td, datetime.timedelta):
+        return td.total_seconds() / 60.0
+    # If it's already a number, return as-is
+    return float(td)
 
 red_client = get_redis_client()
 
@@ -68,10 +77,11 @@ def group_statistics():
         
         global_res = session.execute(global_scalars_query).fetchone()
 
-        # 2. Avg Duration
+        # 2. Avg Duration (Fixed: Group by Conversation.id for proper duration)
         duration_subq = (
             select((func.max(Message.timestamp) - func.min(Message.timestamp)).label('duration'))
-            .group_by(Message.conversation_id)
+            .join(Conversation, Message.conversation_id == Conversation.id)
+            .group_by(Conversation.id)
             .subquery()
         )
         avg_duration_query = select(func.avg(duration_subq.c.duration))
@@ -83,8 +93,11 @@ def group_statistics():
             .group_by(Conversation.user_id)
         )
         user_counts_res = session.execute(user_conv_counts_query).fetchall()
+        
+        # Get total number of users for average calculation
+        total_users = len(user_counts_res) if user_counts_res else 1
 
-        # 4. Topic Stats (Merged)
+        # 4. Topic Stats (Merged) - Calculate average conversations per user
         topic_stats_query = (
             select(
                 Topic.id.label("topic_id"),
@@ -93,7 +106,8 @@ def group_statistics():
                 func.avg(grade_points_expr).label("avg_grade_points"),
                 func.count(Answer.id).label("answer_count"),
                 func.avg(Answer.accuracy_score).label("avg_accuracy"),
-                func.count(distinct(Conversation.id)).label("conversation_count")
+                func.count(distinct(Conversation.id)).label("total_conversations"),
+                (func.count(distinct(Conversation.id)).cast(Float) / total_users).label("avg_conversations_per_user")
             )
             .select_from(Topic)
             .join(question_topics, Topic.id == question_topics.c.topic_id)
@@ -125,6 +139,18 @@ def group_statistics():
         )
         solo_stats_res = session.execute(solo_topic_stats_query).fetchall()
 
+        # 5b. Solo Taxonomy Stats (without topic breakdown)
+        solo_category_stats_query = (
+            select(
+                Question.solo_taxonomy_level,
+                func.count(distinct(Question.id)).label("question_count")
+            )
+            .select_from(Question)
+            .where(Question.solo_taxonomy_level.is_not(None))
+            .group_by(Question.solo_taxonomy_level)
+        )
+        solo_category_res = session.execute(solo_category_stats_query).fetchall()
+
         # 6. Interactions Time Series
         daily_interactions_subq = (
             select(
@@ -154,20 +180,33 @@ def group_statistics():
         )
         ts_interaction_res = session.execute(ts_interactions_query).fetchall()
 
-        # 7. Duration Time Series
+        # 7. Duration Time Series (Fixed: Use message timestamps per conversation)
+        conversation_duration_subq = (
+            select(
+                Conversation.id.label("conversation_id"),
+                cast(func.min(Message.timestamp), Date).label("date"),
+                (func.max(Message.timestamp) - func.min(Message.timestamp)).label("duration")
+            )
+            .join(Message, Conversation.id == Message.conversation_id)
+            .group_by(Conversation.id)
+            .subquery()
+        )
+        
         ts_duration_query = (
             select(
-                cast(Question.created_at, Date).label("date"),
+                conversation_duration_subq.c.date,
                 Topic.id.label("topic_id"),
                 Topic.topic_name,
-                func.avg(Question.updated_at - Question.created_at).label("avg_duration")
+                func.avg(conversation_duration_subq.c.duration).label("avg_duration")
             )
-            .select_from(Conversation)
+            .select_from(conversation_duration_subq)
+            .join(Conversation, conversation_duration_subq.c.conversation_id == Conversation.id)
             .join(Message, Conversation.id == Message.conversation_id)
             .join(Question, Message.id == Question.message_id)
             .join(question_topics, Question.id == question_topics.c.question_id)
             .join(Topic, question_topics.c.topic_id == Topic.id)
-            .group_by(cast(Question.created_at, Date), Topic.id, Topic.topic_name)
+            .group_by(conversation_duration_subq.c.date, Topic.id, Topic.topic_name)
+            .order_by(conversation_duration_subq.c.date, Topic.topic_name)
         )
         ts_duration_res = session.execute(ts_duration_query).fetchall()
 
@@ -207,9 +246,30 @@ def group_statistics():
         stats['conversations_by_topic'] = sorted([
             {
                 'topic_name': row.topic_name,
-                'conversation_count': row.conversation_count
+                'total_conversations': row.total_conversations,
+                'avg_conversations_per_user': safe_float(row.avg_conversations_per_user)
             } for row in topic_stats_res
-        ], key=lambda x: x['conversation_count'], reverse=True)
+        ], key=lambda x: x['total_conversations'], reverse=True)
+        
+        # Answered questions per topic for reflective bar chart
+        stats['answered_questions_by_topic'] = sorted([
+            {
+                'topic_name': row.topic_name,
+                'total_answered_questions': row.answer_count,
+                'avg_answered_per_user': safe_float(row.answer_count / total_users) if total_users > 0 else 0
+            } for row in topic_stats_res if row.answer_count > 0
+        ], key=lambda x: x['total_answered_questions'], reverse=True)
+
+        # Questions per solo category for Number of Questions per Category chart
+        stats['avg_questions_by_solo_category'] = sorted([
+            {
+                'solo_category': row.solo_taxonomy_level,
+                'total_question_count': row.question_count,
+                'avg_questions_per_user': safe_float(row.question_count / total_users) if total_users > 0 else 0
+            } for row in solo_category_res
+        ], key=lambda x: x['total_question_count'], reverse=True)
+
+       
 
         stats['avg_questions_by_solo_and_topic'] = [
             {
@@ -217,6 +277,7 @@ def group_statistics():
                 'topic_id': row.topic_id,
                 'topic_name': row.topic_name,
                 'question_count': row.question_count,
+                'avg_questions_per_user': safe_float(row.question_count / total_users) if total_users > 0 else 0,
                 'avg_grade_points': safe_float(row.avg_grade_points),
                 # CRITICAL FIX: Explicit check for None
                 'avg_grade_letter': point_to_grade(row.avg_grade_points) if row.avg_grade_points is not None else 'N/A'
@@ -247,7 +308,7 @@ def group_statistics():
                 'date': row.date.isoformat() if row.date else None,
                 'topic_id': row.topic_id,
                 'topic_name': row.topic_name,
-                'avg_duration': str(row.avg_duration) if row.avg_duration else None
+                'avg_duration': timedelta_to_minutes(row.avg_duration)
             } for row in ts_duration_res
         ]
 
@@ -418,21 +479,34 @@ def individual_statistics(user_id):
         )
         ts_interaction_res = session.execute(ts_interactions_query).fetchall()
 
-        # 7. Duration Time Series
+        # 7. Duration Time Series 
+        conversation_duration_subq = (
+            select(
+                Conversation.id.label("conversation_id"),
+                cast(func.min(Message.timestamp), Date).label("date"),
+                (func.max(Message.timestamp) - func.min(Message.timestamp)).label("duration")
+            )
+            .join(Message, Conversation.id == Message.conversation_id)
+            .where(Conversation.user_id == user_id)
+            .group_by(Conversation.id)
+            .subquery()
+        )
+        
         ts_duration_query = (
             select(
-                cast(Question.created_at, Date).label("date"),
+                conversation_duration_subq.c.date,
                 Topic.id.label("topic_id"),
                 Topic.topic_name,
-                func.avg(Question.updated_at - Question.created_at).label("avg_duration")
+                func.avg(conversation_duration_subq.c.duration).label("avg_duration")
             )
-            .select_from(Conversation)
+            .select_from(conversation_duration_subq)
+            .join(Conversation, conversation_duration_subq.c.conversation_id == Conversation.id)
             .join(Message, Conversation.id == Message.conversation_id)
             .join(Question, Message.id == Question.message_id)
             .join(question_topics, Question.id == question_topics.c.question_id)
             .join(Topic, question_topics.c.topic_id == Topic.id)
-            .where(Conversation.user_id == user_id)
-            .group_by(cast(Question.created_at, Date), Topic.id, Topic.topic_name)
+            .group_by(conversation_duration_subq.c.date, Topic.id, Topic.topic_name)
+            .order_by(conversation_duration_subq.c.date, Topic.topic_name)
         )
         ts_duration_res = session.execute(ts_duration_query).fetchall()
 
@@ -487,7 +561,24 @@ def individual_statistics(user_id):
             } for row in topic_res if row.answer_count > 0 
         ], key=lambda x: x['avg_accuracy'] or 0, reverse=True)
         
-        stats['questions_by_solo_category'] = [
+        # Answered questions per topic for reflective bar chart comparison
+        stats['answered_questions_by_topic'] = sorted([
+            {
+                'topic_id': row.topic_id,
+                'topic_name': row.topic_name,
+                'answered_question_count': row.answer_count
+            } for row in topic_res if row.answer_count > 0
+        ], key=lambda x: x['answered_question_count'], reverse=True)
+        
+        # Questions per solo category for Number of Questions per Category chart
+        stats['questions_by_solo_category'] = sorted([
+            {
+                'solo_category': row.solo_taxonomy_level,
+                'question_count': row.question_count
+            } for row in solo_res
+        ], key=lambda x: x['question_count'], reverse=True)
+        
+        stats['questions_by_solo_category_old'] = [
             {
                 'category': row.solo_taxonomy_level,
                 'question_count': row.question_count,
@@ -538,7 +629,7 @@ def individual_statistics(user_id):
                 'date': row.date.isoformat() if row.date else None,
                 'topic_id': row.topic_id,
                 'topic_name': row.topic_name,
-                'avg_duration': str(row.avg_duration) if row.avg_duration else None
+                'avg_duration': timedelta_to_minutes(row.avg_duration)
             } for row in ts_duration_res
         ]
 

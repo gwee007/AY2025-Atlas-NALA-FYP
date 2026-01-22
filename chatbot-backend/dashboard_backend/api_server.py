@@ -1,5 +1,4 @@
-from flask import Flask, jsonify, request
-from flask_cors import CORS
+from flask import Blueprint, jsonify, request
 from sqlalchemy import func, case, desc
 # UPDATED: Import from app.database.models.py instead of models_simple
 from app.database.models import Base, User, Conversation, Message, Question, Answer, Topic, TopicDependency, Subtopic, question_topics
@@ -12,17 +11,18 @@ import traceback
 from .summary_generation import generate_summary_data
 from .grading_calculation import point_to_grade
 from .averageCalculation import individual_statistics, group_statistics
-from .redis_client import get_redis_client, invalidate_user_cache
+from .redis_client import get_redis_client, invalidate_user_cache, invalidate_group_cache, invalidate_all_caches
 red_client = get_redis_client()
 load_dotenv()
-app = Flask(__name__)
-CORS(app)  # Enable CORS for React frontend
 
-@app.route("/api/health", methods=["GET"])
+# Create Blueprint instead of Flask app
+dashboard_bp = Blueprint('dashboard', __name__)
+
+@dashboard_bp.route("/api/health", methods=["GET"])
 def health_check():
     return jsonify({"status": "API is running"}), 200
 
-@app.route("/api/test-db", methods=["GET"])
+@dashboard_bp.route("/api/test-db", methods=["GET"])
 def test_db():
     try:
         session = get_db_session()
@@ -32,24 +32,36 @@ def test_db():
     except Exception as e:
         return jsonify({"error": str(e), "type": str(type(e).__name__)}), 500
 
-@app.route("/api/cache/invalidate/<int:user_id>", methods=["POST"])
+@dashboard_bp.route("/api/cache/invalidate/<int:user_id>", methods=["POST"])
 def invalidate_cache(user_id):
-    """Invalidate cache for a specific user."""
+    """Invalidate cache for a specific user and optionally group cache."""
     try:
-        deleted_count = invalidate_user_cache(user_id)
-        return jsonify({
-            "status": "success",
-            "user_id": user_id,
-            "keys_deleted": deleted_count,
-            "message": f"Cache invalidated for user {user_id}"
-        }), 200
+        # Check if we should also invalidate group cache
+        invalidate_group = request.args.get('group', 'false').lower() == 'true'
+        
+        if invalidate_group:
+            deleted_count = invalidate_all_caches(user_id)
+            return jsonify({
+                "status": "success",
+                "user_id": user_id,
+                "keys_deleted": deleted_count,
+                "message": f"User and group cache invalidated for user {user_id}"
+            }), 200
+        else:
+            deleted_count = invalidate_user_cache(user_id)
+            return jsonify({
+                "status": "success",
+                "user_id": user_id,
+                "keys_deleted": deleted_count,
+                "message": f"Cache invalidated for user {user_id}"
+            }), 200
     except Exception as e:
         return jsonify({
             "status": "error",
             "error": str(e)
         }), 500
 
-@app.route("/api/individual-statistics", methods=["POST"])
+@dashboard_bp.route("/api/individual-statistics", methods=["POST"])
 def individual_statistics_end():
     try:
         data = request.get_json()
@@ -65,7 +77,7 @@ def individual_statistics_end():
         print(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
 
-@app.route("/api/group-statistics", methods=["GET"])
+@dashboard_bp.route("/api/group-statistics", methods=["GET"])
 def group_statistics_end():
     try:
         stats = group_statistics()
@@ -73,7 +85,7 @@ def group_statistics_end():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/topic-dependencies', methods=['GET'])
+@dashboard_bp.route('/api/topic-dependencies', methods=['GET'])
 def get_topic_dependencies():
     session = get_db_session()
     
@@ -171,7 +183,7 @@ def get_topic_dependencies():
     finally:
         session.close()
 
-@app.route("/api/dashboard-stats", methods=["GET"])
+@dashboard_bp.route("/api/dashboard-stats", methods=["GET"])
 def get_dashboard_stats():
     print("Fetching dashboard stats...")
     CASH_KEY = "dashboard_stats"
@@ -206,7 +218,7 @@ def get_dashboard_stats():
     finally:
         session.close()
 
-@app.route('/api/users', methods=['GET'])
+@dashboard_bp.route('/api/users', methods=['GET'])
 def get_users():
     session = get_db_session()
     try:
@@ -226,7 +238,7 @@ def get_users():
     finally:
         session.close()
 
-@app.route('/api/conversations', methods=['GET'])
+@dashboard_bp.route('/api/conversations', methods=['GET'])
 def get_conversations():
     session = get_db_session()
     try:
@@ -307,7 +319,7 @@ def get_conversations():
     finally:
         session.close()
 
-@app.route('/api/topics', methods=['GET'])
+@dashboard_bp.route('/api/topics', methods=['GET'])
 def get_topics():
     session = get_db_session()
     try:
@@ -319,7 +331,7 @@ def get_topics():
     finally:
         session.close()
 
-@app.route('/api/questions', methods=['GET'])
+@dashboard_bp.route('/api/questions', methods=['GET'])
 def get_questions():
     session = get_db_session()
     try:
@@ -375,7 +387,7 @@ def get_questions():
     finally:
         session.close()
 
-@app.route('/api/recent-activities', methods=['GET'])
+@dashboard_bp.route('/api/recent-activities', methods=['GET'])
 def get_recent_activities():
     session = get_db_session()
     try:
@@ -393,7 +405,7 @@ def get_recent_activities():
     finally:
         session.close()
 
-@app.route('/api/generate-summary', methods=['POST'])
+@dashboard_bp.route('/api/generate-summary', methods=['POST'])
 def generate_summary_endpoint():
     try:
         data = request.get_json()
@@ -420,6 +432,3 @@ def generate_summary_endpoint():
         print(f"[ERROR] generate_summary failed: {str(e)}")
         print(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
-
-if __name__ == '__main__':
-    app.run(debug=True, port=5000)

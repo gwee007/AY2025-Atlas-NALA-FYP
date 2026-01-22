@@ -33,11 +33,14 @@ def create_app(config_class=Config):
         logger.error(f"Service initialization failed: {e}")
         raise
 
-    # Import and register blueprint
+    # Import and register blueprints
     try:
         print("[Flask Startup] Registering routes...")
         from app.routes import main_bp
+        from dashboard_backend.api_server import dashboard_bp
+        
         app.register_blueprint(main_bp)
+        app.register_blueprint(dashboard_bp)
         print(f"[Flask Startup] Routes registered successfully")
         
         # Debug: Print all registered routes
