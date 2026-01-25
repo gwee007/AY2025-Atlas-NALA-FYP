@@ -268,7 +268,7 @@ const ReflectiveBarChart = ({ data, width = 600, height = 500, onCategoryClick, 
       .style('font-size', '14px')
       .style('font-weight', 'bold')
       .style('fill', '#3b82f6')
-      .text(data.rightLabel || 'Your Conversations');
+      .text(data.rightLabel || 'Your Interactions');
 
     // Add title
     g.append('text')

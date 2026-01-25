@@ -13,7 +13,7 @@ redis_client = redis.Redis(connection_pool=redis_pool)
 def get_redis_client():
     return redis_client
 
-def invalidate_user_cache(user_id: int):
+def invalidate_user_cache(user_id: str):
     """Invalidate all cache keys related to a specific user."""
     try:
         # Pattern to match all user-specific cache keys
@@ -46,7 +46,7 @@ def invalidate_group_cache():
         print(f"[ERROR] Failed to invalidate group cache: {e}")
         return 0
 
-def invalidate_all_caches(user_id: int):
+def invalidate_all_caches(user_id: str):
     """Invalidate both user-specific and group caches when a question is asked."""
     try:
         user_deleted = invalidate_user_cache(user_id)

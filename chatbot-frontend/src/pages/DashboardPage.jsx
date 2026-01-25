@@ -64,7 +64,7 @@ export default function DashboardPage() {
     
     const [page,setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
-    const USER_ID = 202; // We're centralising it here
+    const USER_ID = '2'; // We're centralising it here
     
     // State for all chart data
     const [interactionChartData, setInteractionChartData] = useState({ individual: [], average: [] });
@@ -408,10 +408,10 @@ export default function DashboardPage() {
                 
                 setTopicalPerformanceData({
                     categories: topicCategories,
-                    leftData: topicIndividual,
-                    rightData: topicAverage,
-                    leftLabel: 'Your Answered Questions',
-                    rightLabel: 'Class Average',
+                    leftData: topicAverage,
+                    rightData: topicIndividual,
+                    leftLabel: 'Class Average',
+                    rightLabel: 'Your Answered Questions',
                     title: 'Answered Questions per Topic'
                 });
                 

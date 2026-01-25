@@ -25,7 +25,7 @@ def cleanup_mock_data():
         
         # Find all test users
         test_users = session.query(User).filter(
-            User.name.like('test_user_%')
+            User.id.like('test_user_%')
         ).all()
         
         if not test_users:
@@ -35,7 +35,7 @@ def cleanup_mock_data():
         
         print(f"Found {len(test_users)} test users to delete:")
         for user in test_users:
-            print(f"  - {user.name} ({user.email})")
+            print(f"  - {user.id}")
         
         deleted_counts = {
             'users': 0,

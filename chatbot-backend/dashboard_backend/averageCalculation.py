@@ -94,8 +94,16 @@ def group_statistics():
         )
         user_counts_res = session.execute(user_conv_counts_query).fetchall()
         
-        # Get total number of users for average calculation
-        total_users = len(user_counts_res) if user_counts_res else 1
+        # Get total number of ACTIVE users for average calculation (only users who have asked questions)
+        active_users_query = (
+            select(func.count(distinct(User.id)))
+            .select_from(User)
+            .join(Conversation, Conversation.user_id == User.id)
+            .join(Message, Message.conversation_id == Conversation.id)
+            .join(Question, Question.message_id == Message.id)
+            .join(Answer, Answer.question_id == Question.id)
+        )
+        total_users = session.execute(active_users_query).scalar() or 1
 
         # 4. Topic Stats (Merged) - Calculate average conversations per user
         topic_stats_query = (
@@ -118,6 +126,22 @@ def group_statistics():
             .group_by(Topic.id, Topic.topic_name)
         )
         topic_stats_res = session.execute(topic_stats_query).fetchall()
+
+        # 4b. Answered Questions per Topic for Reflective Bar Chart
+        # Count total answered questions per topic and divide by active users
+        answered_questions_by_topic_query = (
+            select(
+                Topic.id.label("topic_id"),
+                Topic.topic_name,
+                func.count(distinct(Question.id)).label("total_answered_questions")
+            )
+            .select_from(Topic)
+            .join(question_topics, Topic.id == question_topics.c.topic_id)
+            .join(Question, question_topics.c.question_id == Question.id)
+            .join(Answer, Answer.question_id == Question.id)  # Inner join to only count answered questions
+            .group_by(Topic.id, Topic.topic_name)
+        )
+        answered_questions_by_topic_res = session.execute(answered_questions_by_topic_query).fetchall()
 
         # 5. Solo + Topic Stats
         solo_topic_stats_query = (
@@ -252,12 +276,13 @@ def group_statistics():
         ], key=lambda x: x['total_conversations'], reverse=True)
         
         # Answered questions per topic for reflective bar chart
+        # UPDATED: Use the new query that counts only answered questions with topic assignments
         stats['answered_questions_by_topic'] = sorted([
             {
                 'topic_name': row.topic_name,
-                'total_answered_questions': row.answer_count,
-                'avg_answered_per_user': safe_float(row.answer_count / total_users) if total_users > 0 else 0
-            } for row in topic_stats_res if row.answer_count > 0
+                'total_answered_questions': row.total_answered_questions,
+                'avg_answered_per_user': round(row.total_answered_questions / total_users) if total_users > 0 else 0
+            } for row in answered_questions_by_topic_res
         ], key=lambda x: x['total_answered_questions'], reverse=True)
 
         # Questions per solo category for Number of Questions per Category chart
@@ -265,7 +290,7 @@ def group_statistics():
             {
                 'solo_category': row.solo_taxonomy_level,
                 'total_question_count': row.question_count,
-                'avg_questions_per_user': safe_float(row.question_count / total_users) if total_users > 0 else 0
+                'avg_questions_per_user': round(row.question_count / total_users) if total_users > 0 else 0
             } for row in solo_category_res
         ], key=lambda x: x['total_question_count'], reverse=True)
 
@@ -277,7 +302,7 @@ def group_statistics():
                 'topic_id': row.topic_id,
                 'topic_name': row.topic_name,
                 'question_count': row.question_count,
-                'avg_questions_per_user': safe_float(row.question_count / total_users) if total_users > 0 else 0,
+                'avg_questions_per_user': round(row.question_count / total_users) if total_users > 0 else 0,
                 'avg_grade_points': safe_float(row.avg_grade_points),
                 # CRITICAL FIX: Explicit check for None
                 'avg_grade_letter': point_to_grade(row.avg_grade_points) if row.avg_grade_points is not None else 'N/A'
@@ -299,7 +324,7 @@ def group_statistics():
                 'date': row.date.isoformat() if row.date else None,
                 'topic_id': row.topic_id,
                 'topic_name': row.topic_name,
-                'avg_interaction_count': safe_float(row.avg_interaction_count)
+                'avg_interaction_count': round(row.avg_interaction_count) if row.avg_interaction_count else 0
             } for row in ts_interaction_res
         ]
 

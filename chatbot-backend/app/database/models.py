@@ -19,17 +19,13 @@ question_subtopics = Table(
 
 class User(Base):
     __tablename__ = "users"
-    id = Column(BigInteger, primary_key=True, autoincrement=True, nullable=False)
-    name = Column(String, nullable=False)  # user's display name
-    email = Column(String, unique=True, nullable=False)  # unique email for login
-    hashed_password = Column(Text, nullable=False)  # implement bcrypt
-    created_at = Column(TIMESTAMP(timezone=True), server_default=func.now(), nullable=False)
+    id = Column(String, primary_key=True, nullable=False)
     conversations = relationship("Conversation", back_populates="user") # one user can have many conversations
 
 class Conversation(Base):
     __tablename__ = "conversations"
     id = Column(BigInteger, primary_key=True, autoincrement=True, nullable=False)
-    user_id = Column(BigInteger, ForeignKey("users.id"), nullable=False)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
     title = Column(Text, nullable=False)
     last_accessed = Column(TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
     user = relationship("User", back_populates="conversations") # many conversations belong to one user
@@ -77,7 +73,6 @@ class Topic(Base):
     __tablename__ = "topics"
     id = Column(BigInteger, primary_key=True, autoincrement=True, nullable=False)
     topic_name = Column(Text, unique=True, nullable=False)
-    topic_summary = Column(Text, nullable=False)
     questions = relationship("Question", secondary=question_topics, back_populates="topics")
     subtopics = relationship("Subtopic", back_populates="topic")
 

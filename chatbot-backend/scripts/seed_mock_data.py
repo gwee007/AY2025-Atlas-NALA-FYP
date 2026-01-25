@@ -26,7 +26,7 @@ def seed_mock_data():
     try:
         # Check if mock data already exists
         existing_test_user = session.query(User).filter(
-            User.name.like('test_user_%')
+            User.id.like('test_user_%')
         ).first()
         
         if existing_test_user:
@@ -60,11 +60,11 @@ def seed_mock_data():
         # Create 5 test users
         test_users = []
         user_configs = [
-            {'name': 'test_user_1', 'email': 'test1@example.com', 'conversations_per_day': 1},
-            {'name': 'test_user_2', 'email': 'test2@example.com', 'conversations_per_day': 1},
-            {'name': 'test_user_3', 'email': 'test3@example.com', 'conversations_per_day': 1},
-            {'name': 'test_user_4', 'email': 'test4@example.com', 'conversations_per_day': 1},
-            {'name': 'test_user_5', 'email': 'test5@example.com', 'conversations_per_day': 1},
+            {'id': 'test_user_1', 'conversations_per_day': 1},
+            {'id': 'test_user_2', 'conversations_per_day': 1},
+            {'id': 'test_user_3', 'conversations_per_day': 1},
+            {'id': 'test_user_4', 'conversations_per_day': 1},
+            {'id': 'test_user_5', 'conversations_per_day': 1},
         ]
         
         # Time range: 9 days (8 days ago to today)
@@ -74,16 +74,12 @@ def seed_mock_data():
         
         for user_config in user_configs:
             user = User(
-                id = 200 + len(test_users),
-                name=user_config['name'],
-                email=user_config['email'],
-                hashed_password='hashed_password_placeholder',
-                created_at=start_date
+                id=user_config['id']
             )
             session.add(user)
             session.flush()
             test_users.append(user)
-            print(f"✅ Created user: {user.name}")
+            print(f"✅ Created user: {user.id}")
         
         session.commit()
         
@@ -120,7 +116,7 @@ def seed_mock_data():
                     # Create 3-6 message pairs (user question + assistant answer)
                     num_pairs = random.randint(3, 6)
                     
-                    print(f"   Creating conversation for {user.name} on day {day_offset + 1} with {num_pairs} message pairs")
+                    print(f"   Creating conversation for user {user.id} on day {day_offset + 1} with {num_pairs} message pairs")
                     
                     if num_pairs == 0:
                         print(f"   ⚠️ WARNING: Conversation has 0 message pairs! Skipping...")
@@ -234,7 +230,7 @@ def seed_mock_data():
                         print(f"   ✓ Conversation {conversation.id} validated: {message_count} messages, {duration_seconds/60:.2f} min duration")
                 
                 session.commit()
-                print(f"✅ Created conversation for {user.name} on day {day_offset + 1}")
+                print(f"✅ Created conversation for user {user.id} on day {day_offset + 1}")
         
         print("\n🎉 Mock data population complete!")
         print(f"📊 Summary:")

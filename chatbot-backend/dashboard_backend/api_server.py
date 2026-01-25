@@ -32,7 +32,7 @@ def test_db():
     except Exception as e:
         return jsonify({"error": str(e), "type": str(type(e).__name__)}), 500
 
-@dashboard_bp.route("/api/cache/invalidate/<int:user_id>", methods=["POST"])
+@dashboard_bp.route("/api/cache/invalidate/<user_id>", methods=["POST"])
 def invalidate_cache(user_id):
     """Invalidate cache for a specific user and optionally group cache."""
     try:
@@ -99,7 +99,7 @@ def get_topic_dependencies():
         if user_id:
             try:
                 # Fetch the full stats object
-                user_stats = individual_statistics(int(user_id))
+                user_stats = individual_statistics(user_id)
                 
                 # ✅ FIX: Use node_data directly (contains BOTH topics AND subtopics)
                 # grades_by_topic only has topics, so subtopics would be missing!
@@ -227,10 +227,7 @@ def get_users():
         users_data = []
         for user in users:
             users_data.append({
-                "id": user.id,
-                "name": user.name,
-                "email": user.email,
-                "created_at": user.created_at.isoformat() if user.created_at else None
+                "id": user.id
             })
         return jsonify(users_data)
     except Exception as e:
@@ -324,7 +321,7 @@ def get_topics():
     session = get_db_session()
     try:
         topics = session.query(Topic).all()
-        topics_data = [{"id": t.id, "topic_name": t.topic_name, "summary": t.topic_summary} for t in topics]
+        topics_data = [{"id": t.id, "topic_name": t.topic_name} for t in topics]
         return jsonify(topics_data)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -337,7 +334,7 @@ def get_questions():
     try:
         topic_id = request.args.get('topic_id', type=int) 
          
-        user_id = request.args.get('user_id', type=int)
+        user_id = request.args.get('user_id', type=str)
         # pagination parameters 
 
         page = request.args.get('page', 1, type=int)

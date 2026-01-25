@@ -27,11 +27,12 @@ print("All existing topic dependencies have been deleted.")
 
 # insert topic dependencies
 topic_dependencies = [
-    {"topic_id": 4, "related_topic_id": 2, "relation_type": "prerequisite"},
-    {"topic_id": 4, "related_topic_id": 3, "relation_type": "prerequisite"},
-    {"topic_id": 5, "related_topic_id": 4, "relation_type": "prerequisite"},
-    {"topic_id": 6, "related_topic_id": 4, "relation_type": "prerequisite"},
-    {"topic_id": 6, "related_topic_id": 5, "relation_type": "prerequisite"}
+    {"topic_id": 1, "related_topic_id": 2, "relation_type": "prerequisite"},
+    {"topic_id": 2, "related_topic_id": 4, "relation_type": "prerequisite"},
+    {"topic_id": 3, "related_topic_id": 4, "relation_type": "prerequisite"},
+    {"topic_id": 4, "related_topic_id": 6, "relation_type": "prerequisite"},
+    {"topic_id": 5, "related_topic_id": 6, "relation_type": "prerequisite"},
+    {"topic_id": 4, "related_topic_id": 5, "relation_type": "prerequisite"}
 ]
 
 for dependency in topic_dependencies:

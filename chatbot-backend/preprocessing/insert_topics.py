@@ -31,12 +31,10 @@ with open("../../data/topic_summary.json", "r", encoding="utf-8") as f:
 
 for topic in topic_data:
     topic_name = topic["topic_name"]
-    topic_summary = topic["topic_summary"]
     print(f"Processing topic: {topic_name}")
     
     new_topic = Topic(
-        topic_name=topic_name,
-        topic_summary=topic_summary
+        topic_name=topic_name
     )
 
     # insert topic into database

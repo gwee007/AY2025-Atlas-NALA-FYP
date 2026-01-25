@@ -10,7 +10,7 @@ export default function useChatbotConversations(urlUserId = null, urlConversatio
     const [messages, setMessages] = useState([]);
     const [input, setInput] = useState("");
     const [isTyping, setIsTyping] = useState(false);
-    const userId = urlUserId ? parseInt(urlUserId) : 1; // Use URL userId or default to 1
+    const userId = urlUserId || '1'; // Use URL userId or default to '1'
     const [_localMessageIds, setLocalMessageIds] = useState(new Set()); // Track optimistically added messages
     
     // Track if user is in chatbot and if they've asked new questions
