@@ -1,5 +1,12 @@
 
-python -m dashboard-backend.
+cd chatbot-backend
+python -m dashboard-backend.api_server
+
+cd chatbot-backend
+python run.py
+
+cd chatbot-frontend
+npm run dev
 averageCalculation
 summary_generation
 manual_cache_invalidation
@@ -10,3 +17,6 @@ cd chatbot-backend
 cd chatbot-frontend
 npm run dev
 python run.py
+
+python scripts/seed_mock_data.py
+python scripts/cleanup_mock_data.py

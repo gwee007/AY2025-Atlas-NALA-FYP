@@ -118,7 +118,7 @@ const ReflectiveBarChart = ({ data, width = 600, height = 500, onCategoryClick, 
       .attr('y', d => yScale(d.category))
       .attr('width', d => xScale(0) - xScale(-Math.abs(d.value)))
       .attr('height', yScale.bandwidth())
-      .attr('fill', d => d.category === selectedCategory ? '#1d4ed8' : '#3b82f6')
+        .attr('fill', d => d.category === selectedCategory ? '#b91c1c' : '#ef4444')
       .attr('opacity', d => d.category === selectedCategory ? 1 : 0.8)
       .attr('rx', 4)
       .style('cursor', onCategoryClick ? 'pointer' : 'default')
@@ -131,14 +131,14 @@ const ReflectiveBarChart = ({ data, width = 600, height = 500, onCategoryClick, 
         if (onCategoryClick) {
           d3.select(this)
             .attr('opacity', 1)
-            .attr('fill', d.category === selectedCategory ? '#1d4ed8' : '#2563eb');
+              .attr('fill', d.category === selectedCategory ? '#b91c1c' : '#dc2626');
         }
       })
       .on('mouseout', function(event, d) {
         if (onCategoryClick) {
           d3.select(this)
             .attr('opacity', d.category === selectedCategory ? 1 : 0.8)
-            .attr('fill', d.category === selectedCategory ? '#1d4ed8' : '#3b82f6');
+              .attr('fill', d.category === selectedCategory ? '#b91c1c' : '#ef4444');
         }
       });
 
@@ -151,7 +151,7 @@ const ReflectiveBarChart = ({ data, width = 600, height = 500, onCategoryClick, 
       .attr('y', d => yScale(d.category))
       .attr('width', d => xScale(d.value) - xScale(0))
       .attr('height', yScale.bandwidth())
-      .attr('fill', d => d.category === selectedCategory ? '#b91c1c' : '#ef4444')
+        .attr('fill', d => d.category === selectedCategory ? '#1d4ed8' : '#3b82f6')
       .attr('opacity', d => d.category === selectedCategory ? 1 : 0.8)
       .attr('rx', 4)
       .style('cursor', onCategoryClick ? 'pointer' : 'default')
@@ -164,14 +164,14 @@ const ReflectiveBarChart = ({ data, width = 600, height = 500, onCategoryClick, 
         if (onCategoryClick) {
           d3.select(this)
             .attr('opacity', 1)
-            .attr('fill', d.category === selectedCategory ? '#b91c1c' : '#dc2626');
+              .attr('fill', d.category === selectedCategory ? '#1d4ed8' : '#2563eb');
         }
       })
       .on('mouseout', function(event, d) {
         if (onCategoryClick) {
           d3.select(this)
             .attr('opacity', d.category === selectedCategory ? 1 : 0.8)
-            .attr('fill', d.category === selectedCategory ? '#b91c1c' : '#ef4444');
+              .attr('fill', d.category === selectedCategory ? '#1d4ed8' : '#3b82f6');
         }
       });
 
@@ -185,7 +185,7 @@ const ReflectiveBarChart = ({ data, width = 600, height = 500, onCategoryClick, 
       .attr('text-anchor', 'end')
       .attr('dominant-baseline', 'middle')
       .style('font-size', '12px')
-      .style('fill', '#3b82f6')
+        .style('fill', '#ef4444')
       .style('font-weight', 'bold')
       .text(d => Math.abs(d.value));
 
@@ -199,7 +199,7 @@ const ReflectiveBarChart = ({ data, width = 600, height = 500, onCategoryClick, 
       .attr('text-anchor', 'start')
       .attr('dominant-baseline', 'middle')
       .style('font-size', '12px')
-      .style('fill', '#ef4444')
+        .style('fill', '#3b82f6')
       .style('font-weight', 'bold')
       .text(d => d.value);
 
@@ -258,7 +258,7 @@ const ReflectiveBarChart = ({ data, width = 600, height = 500, onCategoryClick, 
       .attr('text-anchor', 'middle')
       .style('font-size', '14px')
       .style('font-weight', 'bold')
-      .style('fill', '#3b82f6')
+      .style('fill', '#ef4444')
       .text(data.leftLabel || 'Class Average');
 
     g.append('text')
@@ -267,8 +267,8 @@ const ReflectiveBarChart = ({ data, width = 600, height = 500, onCategoryClick, 
       .attr('text-anchor', 'middle')
       .style('font-size', '14px')
       .style('font-weight', 'bold')
-      .style('fill', '#ef4444')
-      .text(data.rightLabel || 'Your Conversations');
+      .style('fill', '#3b82f6')
+      .text(data.rightLabel || 'Your Interactions');
 
     // Add title
     g.append('text')
@@ -279,7 +279,7 @@ const ReflectiveBarChart = ({ data, width = 600, height = 500, onCategoryClick, 
       .style('font-size', '16px')
       .style('font-weight', 'bold')
       .style('fill', '#333')
-      .text(data.title || 'Number of Conversations Overall Per Topic');
+      .text(data.title || 'Number of Interactions Overall by Topic');
 
     // Add legend
     const legend = g.append('g')
@@ -288,7 +288,7 @@ const ReflectiveBarChart = ({ data, width = 600, height = 500, onCategoryClick, 
     legend.append('rect')
       .attr('width', 15)
       .attr('height', 15)
-      .attr('fill', '#3b82f6')
+      .attr('fill', '#ef4444')
       .attr('opacity', 0.8)
       .attr('rx', 2);
 
@@ -303,7 +303,7 @@ const ReflectiveBarChart = ({ data, width = 600, height = 500, onCategoryClick, 
       .attr('y', 25)
       .attr('width', 15)
       .attr('height', 15)
-      .attr('fill', '#ef4444')
+      .attr('fill', '#3b82f6')
       .attr('opacity', 0.8)
       .attr('rx', 2);
 

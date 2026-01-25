@@ -198,43 +198,84 @@ const TopicGraph = ({ selectedTopic, onTopicSelect, graphData, width = 800, heig
         if (d.type === 'topic') return '#3b82f6';  // Unselected topics: blue outline
         return '#fff';  // Subtopics: white outline
       })
-      .attr('stroke-width', d => d.group === 'root' ? 8 : 5)
+      .attr('stroke-width', d => d.group === 'root' ? 5 : 3)
       .attr('opacity', d => d.group === 'root' ? 1 : 0.9)
       .style('filter', 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))')
       .on('mouseover', function(event, d) {
          const connectedNodeIds = new Set();
          connectedNodeIds.add(d.id);
+         const inboundNodeIds = new Set();
 
-         link.each(function(l) {
-             const isSource = l.source.id === d.id;
-             const isTarget = l.target.id === d.id;
-             
-             if (isSource || isTarget) {
-                 const neighborNode = isSource ? l.target : l.source;
-                 const isHoveringMainTopic = (d.type === 'topic' || d.group === 'root');
-                 const isNeighborSubtopic = (neighborNode.type === 'subtopic' || neighborNode.group === 'subtopic');
+         // Different logic based on node type
+         const isTopicNode = d.type === 'topic' || d.group === 'root';
+         const isSubtopicNode = d.type === 'subtopic' || d.group === 'subtopic';
 
-                 if (isHoveringMainTopic && isNeighborSubtopic) return;
-                 connectedNodeIds.add(neighborNode.id);
-             }
-         });
+         if (isTopicNode) {
+             // If hovering over a TOPIC: highlight only topic nodes pointing TO it
+             link.each(function(l) {
+                 const isTarget = l.target.id === d.id;
+                 const sourceNode = l.source;
+                 const isSourceTopic = sourceNode.type === 'topic' || sourceNode.group === 'root';
+                 
+                 if (isTarget && isSourceTopic) {
+                     connectedNodeIds.add(sourceNode.id);
+               inboundNodeIds.add(sourceNode.id);
+                 }
+             });
+         } else if (isSubtopicNode) {
+             // If hovering over a SUBTOPIC: highlight only the parent topic it points to
+             link.each(function(l) {
+                 const isSource = l.source.id === d.id;
+                 const isSubtopicLink = l.relation_type === 'subtopic_of';
+                 
+                 if (isSource && isSubtopicLink) {
+                     connectedNodeIds.add(l.target.id);
+               inboundNodeIds.add(l.target.id);
+                 }
+             });
+         }
 
          // Highlight Logic
-         node.transition().duration(200).style('opacity', n => connectedNodeIds.has(n.id) ? 1 : 0.1);
+         node.transition().duration(200).style('opacity', n => {
+             if (n.id === d.id) return 1;
+             if (inboundNodeIds.has(n.id)) return 0.5;
+             return 0.1;
+           });
          link.transition().duration(200).style('opacity', l => {
-                 const isConnected = l.source.id === d.id || l.target.id === d.id;
+                 let isRelevantLink = false;
+                 
+                 if (isTopicNode) {
+                     isRelevantLink = l.target.id === d.id && (l.source.type === 'topic' || l.source.group === 'root');
+                 } else if (isSubtopicNode) {
+                     isRelevantLink = l.source.id === d.id && l.relation_type === 'subtopic_of';
+                 }
+                 
                  const isBothVisible = connectedNodeIds.has(l.source.id) && connectedNodeIds.has(l.target.id);
-                 return (isConnected && isBothVisible) ? 1 : 0.05;
+                 return (isRelevantLink && isBothVisible) ? 1 : 0.05;
              })
              .attr('stroke', l => {
-                 const isConnected = l.source.id === d.id || l.target.id === d.id;
+                 let isRelevantLink = false;
+                 
+                 if (isTopicNode) {
+                     isRelevantLink = l.target.id === d.id && (l.source.type === 'topic' || l.source.group === 'root');
+                 } else if (isSubtopicNode) {
+                     isRelevantLink = l.source.id === d.id && l.relation_type === 'subtopic_of';
+                 }
+                 
                  const isBothVisible = connectedNodeIds.has(l.source.id) && connectedNodeIds.has(l.target.id);
-                 return (isConnected && isBothVisible) ? '#3b82f6' : '#64748b';
+                 return (isRelevantLink && isBothVisible) ? '#3b82f6' : '#64748b';
              })
              .attr('stroke-width', l => {
-                 const isConnected = l.source.id === d.id || l.target.id === d.id;
+                 let isRelevantLink = false;
+                 
+                 if (isTopicNode) {
+                     isRelevantLink = l.target.id === d.id && (l.source.type === 'topic' || l.source.group === 'root');
+                 } else if (isSubtopicNode) {
+                     isRelevantLink = l.source.id === d.id && l.relation_type === 'subtopic_of';
+                 }
+                 
                  const isBothVisible = connectedNodeIds.has(l.source.id) && connectedNodeIds.has(l.target.id);
-                 return (isConnected && isBothVisible) ? 3 : 2;
+                 return (isRelevantLink && isBothVisible) ? 3 : 2;
              });
 
          node.select('.node-label').transition().duration(200).style('opacity', n => connectedNodeIds.has(n.id) ? 1 : 0);
@@ -302,8 +343,8 @@ const TopicGraph = ({ selectedTopic, onTopicSelect, graphData, width = 800, heig
   return (
     <div style={{ position: 'relative', touchAction: 'none' }}>
       <svg ref={svgRef}></svg>
-      <div style={{ position: 'absolute', top: 10, left: 10, background: 'rgba(255,255,255,0.8)', padding: 5, borderRadius: 4, fontSize: 12 }}>
-        Click a topic to expand subtopics
+      <div style={{ position: 'absolute', top: 10, left: 10, background: 'rgba(255,255,255,0.9)', padding: '10px 12px', borderRadius: 6, fontSize: 13, maxWidth: '300px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
+        Use the chatbot to improve performance in subtopics with lower grades
       </div>
     </div>
   );

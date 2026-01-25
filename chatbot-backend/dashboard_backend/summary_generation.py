@@ -105,10 +105,22 @@ Once data is available, this section will compare you against your peers to high
     individual_overall_letter = point_to_grade(individual_overall_grade)
     group_overall_letter = group_stats.get('overall_average_grade_letter', 'N/A')
     
-    if group_overall_grade > 0:
-        performance_diff = ((individual_overall_grade - group_overall_grade) / group_overall_grade) * 100
+    # Compare by grade letter first (AT class average if same letter)
+    grade_comparison = 'at'  # default to AT class average
+    if individual_overall_letter != group_overall_letter:
+        # If letters differ, use GPA to determine above/below
+        if group_overall_grade > 0:
+            performance_diff = ((individual_overall_grade - group_overall_grade) / group_overall_grade) * 100
+            grade_comparison = 'above' if performance_diff > 0 else 'below'
+        else:
+            performance_diff = 0
+            grade_comparison = 'at'
     else:
-        performance_diff = 0    
+        # If letters are the same, they're AT class average (use GPA for exact calculation)
+        if group_overall_grade > 0:
+            performance_diff = ((individual_overall_grade - group_overall_grade) / group_overall_grade) * 100
+        else:
+            performance_diff = 0    
     # breakpoint()
     # Build Markdown summary
     summary = []
@@ -150,14 +162,15 @@ Once data is available, this section will compare you against your peers to high
     summary.append(f"**Your overall grade:** {individual_overall_letter} ({individual_overall_grade:.2f})  \n")
     summary.append(f"**Class average:** {group_overall_letter} ({group_overall_grade:.2f})  \n")
     
-    if performance_diff > 0:
+    if grade_comparison == 'above':
         summary.append(f"\nYou're performing **{performance_diff:.1f}% above** the class average - keep up the excellent work! ")
         summary.append(f"Your engagement and dedication are reflected in your results.\n")
-    elif performance_diff < 0:
+    elif grade_comparison == 'below':
         summary.append(f"\nYou're currently **{abs(performance_diff):.1f}% below** the class average. ")
         summary.append(f"Don't be discouraged - this is an opportunity to identify areas for growth and take targeted action to improve.\n")
-    else:
-        summary.append(f"\nYou're performing **at the class average**. With focused effort, you can push yourself above average!\n")
+    else:  # AT class average
+        summary.append(f"\nYou're performing **at the same grade level ({individual_overall_letter}) as the class average**. ")
+        summary.append(f"With focused effort on your weaker areas, you can improve to exceed the class average!\n")
     
     # === NEXT STEPS SECTION ===
     summary.append("\n## Next Steps\n")
@@ -183,7 +196,7 @@ Once data is available, this section will compare you against your peers to high
     except Exception as ex:
         print(f"[WARN] Failed to cache summary data: {ex}")
         
-    return {"summary": output}
+    return {"summary": output, "grade_comparison": grade_comparison}
 def generate_LLM_summary_2(user_id):
     # Get all statistics in one call (efficient - data already sorted)
     individual_stats = individual_statistics(user_id)

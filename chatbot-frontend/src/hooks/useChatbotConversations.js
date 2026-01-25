@@ -10,7 +10,7 @@ export default function useChatbotConversations(urlUserId = null, urlConversatio
     const [messages, setMessages] = useState([]);
     const [input, setInput] = useState("");
     const [isTyping, setIsTyping] = useState(false);
-    const userId = urlUserId ? parseInt(urlUserId) : 1; // Use URL userId or default to 1
+    const userId = urlUserId || '1'; // Use URL userId or default to '1'
     const [_localMessageIds, setLocalMessageIds] = useState(new Set()); // Track optimistically added messages
     
     // Track if user is in chatbot and if they've asked new questions
@@ -18,14 +18,14 @@ export default function useChatbotConversations(urlUserId = null, urlConversatio
         // Mark that user entered chatbot area
         sessionStorage.setItem(`chatbot_active_${userId}`, 'true');
         
-        // Cleanup: Invalidate cache if new questions were asked
+        // Cleanup: Invalidate cache (including group cache) if new questions were asked
         return () => {
             const hasNewQuestions = sessionStorage.getItem(`chatbot_new_questions_${userId}`) === 'true';
             const wasActive = sessionStorage.getItem(`chatbot_active_${userId}`) === 'true';
             
             if (wasActive && hasNewQuestions) {
-                // Invalidate cache asynchronously
-                fetch(API_ENDPOINTS.invalidateCache(userId), {
+                // Invalidate both user and group cache asynchronously when leaving chatbot
+                fetch(`${API_ENDPOINTS.invalidateCache(userId)}?group=true`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' }
                 }).catch(err => console.warn('Cache invalidation failed:', err));

@@ -64,7 +64,7 @@ export default function DashboardPage() {
     
     const [page,setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
-    const USER_ID = 1; // We're centralising it here
+    const USER_ID = '2'; // We're centralising it here
     
     // State for all chart data
     const [interactionChartData, setInteractionChartData] = useState({ individual: [], average: [] });
@@ -80,7 +80,8 @@ export default function DashboardPage() {
         questionQualityGPA: null,
         answerAccuracyGPA: null,
         avgQuestionQualityGPA: null,
-        avgAnswerAccuracyGPA: null
+        avgAnswerAccuracyGPA: null,
+        gradeComparison: null  // 'above', 'below', or 'at'
     });
 
     // For implementing sorting inside the reflective bar chart
@@ -134,6 +135,14 @@ export default function DashboardPage() {
                 
                 const data = await response.json();
                 setLlmSummary(data.summary);
+                
+                // Update overall grades with grade comparison status
+                if (data.grade_comparison) {
+                    setOverallGrades(prev => ({
+                        ...prev,
+                        gradeComparison: data.grade_comparison
+                    }));
+                }
             } catch (error) {
                 console.error('Error fetching summary:', error);
                 setLlmSummary('Failed to load summary. Please try again later.');
@@ -240,37 +249,83 @@ export default function DashboardPage() {
     // Function to transform and filter chart data based on selected topic
     const transformAndSetChartData = (individualStats, groupStats, filterTopicName) => {
                 // Transform interactions over time data
-                const interactionIndividual = (individualStats.interactions_over_time_by_topic || [])
+                let interactionIndividual = (individualStats.interactions_over_time_by_topic || [])
                     .filter(item => item.date && item.interaction_count != null)
                     .filter(item => !filterTopicName || item.topic_name === filterTopicName)
                     .map(item => ({
                         date: new Date(item.date),
-                        interactions: Number(item.interaction_count) || 0
+                        interactions: Number(item.interaction_count) || 0,
+                        topic: item.topic_name
                     }));
-                const interactionAverage = (groupStats.avg_interactions_over_time_by_topic || [])
+                
+                let interactionAverage = (groupStats.avg_interactions_over_time_by_topic || [])
                     .filter(item => item.date && item.avg_interaction_count != null)
                     .filter(item => !filterTopicName || item.topic_name === filterTopicName)
                     .map(item => ({
                         date: new Date(item.date),
-                        interactions: Number(item.avg_interaction_count) || 0
+                        interactions: Number(item.avg_interaction_count) || 0,
+                        topic: item.topic_name
                     }));
+                
+                // If no topic filter, aggregate by date (sum all topics per day)
+                if (!filterTopicName) {
+                    const aggregateByDate = (data) => {
+                        const dateMap = new Map();
+                        data.forEach(item => {
+                            const dateKey = item.date.toISOString().split('T')[0];
+                            if (!dateMap.has(dateKey)) {
+                                dateMap.set(dateKey, { date: item.date, interactions: 0 });
+                            }
+                            dateMap.get(dateKey).interactions += item.interactions;
+                        });
+                        return Array.from(dateMap.values()).sort((a, b) => a.date - b.date);
+                    };
+                    interactionIndividual = aggregateByDate(interactionIndividual);
+                    interactionAverage = aggregateByDate(interactionAverage);
+                }
+                
                 setInteractionChartData({ individual: interactionIndividual, average: interactionAverage });
                 
                 // Transform duration over time data
-                const durationIndividual = (individualStats.duration_over_time_by_topic || [])
+                let durationIndividual = (individualStats.duration_over_time_by_topic || [])
                     .filter(item => item.date && item.avg_duration != null)
                     .filter(item => !filterTopicName || item.topic_name === filterTopicName)
                     .map(item => ({
                         date: new Date(item.date),
-                        interactions: Number(item.avg_duration) || 0
+                        interactions: Number(item.avg_duration) || 0,
+                        topic: item.topic_name
                     }));
-                const durationAverage = (groupStats.avg_duration_over_time_by_topic || [])
+                
+                let durationAverage = (groupStats.avg_duration_over_time_by_topic || [])
                     .filter(item => item.date && item.avg_duration != null)
                     .filter(item => !filterTopicName || item.topic_name === filterTopicName)
                     .map(item => ({
                         date: new Date(item.date),
-                        interactions: Number(item.avg_duration) || 0
+                        interactions: Number(item.avg_duration) || 0,
+                        topic: item.topic_name
                     }));
+                
+                // If no topic filter, aggregate by date (average all topics per day)
+                if (!filterTopicName) {
+                    const aggregateByDate = (data) => {
+                        const dateMap = new Map();
+                        data.forEach(item => {
+                            const dateKey = item.date.toISOString().split('T')[0];
+                            if (!dateMap.has(dateKey)) {
+                                dateMap.set(dateKey, { date: item.date, interactions: 0, count: 0 });
+                            }
+                            const entry = dateMap.get(dateKey);
+                            entry.interactions += item.interactions;
+                            entry.count += 1;
+                        });
+                        return Array.from(dateMap.values())
+                            .map(item => ({ date: item.date, interactions: item.interactions / item.count }))
+                            .sort((a, b) => a.date - b.date);
+                    };
+                    durationIndividual = aggregateByDate(durationIndividual);
+                    durationAverage = aggregateByDate(durationAverage);
+                }
+                
                 setDurationChartData({ individual: durationIndividual, average: durationAverage });
                 
                 // Transform accuracy by SOLO data
@@ -296,21 +351,36 @@ export default function DashboardPage() {
                     title: 'Answer Accuracy per Question Category'
                 });
                 
-                // Transform question count by SOLO data
-                const questionIndividual = soloCategories.map(cat => {
-                    const items = filterTopicName 
-                        ? (individualStats.questions_by_solo_and_topic || []).filter(item => item.topic_name === filterTopicName)
-                        : (individualStats.questions_by_solo_category || []);
-                    const found = items.find(item => (item.category || item.solo_category) === cat);
-                    return { category: cat, value: found ? (Number(found.question_count) || 0) : 0 };
-                });
-                const questionAverage = soloCategories.map(cat => {
-                    const items = filterTopicName 
-                        ? (groupStats.avg_questions_by_solo_and_topic || []).filter(item => item.topic_name === filterTopicName)
-                        : (groupStats.avg_questions_by_solo_and_topic || []);
-                    const found = items.find(item => item.solo_category === cat);
-                    return { category: cat, value: found ? (Number(found.question_count) || 0) : 0 };
-                });
+                // Transform question count by SOLO data - Handle topic filtering
+                let questionIndividual, questionAverage;
+                
+                if (filterTopicName) {
+                    // Filter by topic using solo_and_topic breakdown
+                    const individualByTopic = (individualStats.questions_by_solo_and_topic || [])
+                        .filter(item => item.topic_name === filterTopicName);
+                    const averageByTopic = (groupStats.avg_questions_by_solo_and_topic || [])
+                        .filter(item => item.topic_name === filterTopicName);
+                    
+                    questionIndividual = soloCategories.map(cat => {
+                        const found = individualByTopic.find(item => item.solo_category === cat);
+                        return { category: cat, value: found ? Number(found.question_count) || 0 : 0 };
+                    });
+                    questionAverage = soloCategories.map(cat => {
+                        const found = averageByTopic.find(item => item.solo_category === cat);
+                        return { category: cat, value: found ? Number(found.avg_questions_per_user) || 0 : 0 };
+                    });
+                } else {
+                    // Use aggregated category data when no topic filter
+                    questionIndividual = soloCategories.map(cat => {
+                        const found = (individualStats.questions_by_solo_category || []).find(item => item.solo_category === cat);
+                        return { category: cat, value: found ? Number(found.question_count) || 0 : 0 };
+                    });
+                    questionAverage = soloCategories.map(cat => {
+                        const found = (groupStats.avg_questions_by_solo_category || []).find(item => item.solo_category === cat);
+                        return { category: cat, value: found ? Number(found.avg_questions_per_user) || 0 : 0 };
+                    });
+                }
+                
                 setQuestionCountData({
                     categories: soloCategories,
                     individualData: questionIndividual,
@@ -318,29 +388,31 @@ export default function DashboardPage() {
                     title: 'Number of Questions per Question Category'
                 });
                 
-                const topicCategories = (individualStats.grades_by_topic || [])
+                // Transform answered questions by topic for reflective bar chart
+                const topicCategories = (individualStats.answered_questions_by_topic || [])
                     .filter(t => t.topic_name)
                     .map(t => t.topic_name);
-                const topicIndividual = (individualStats.grades_by_topic || [])
+                
+                const topicIndividual = (individualStats.answered_questions_by_topic || [])
                     .filter(t => t.topic_name)
                     .map(t => ({
                         category: t.topic_name,
-                        value: Number(t.question_count) || 0  // Show number of questions asked
+                        value: Number(t.answered_question_count) || 0  // User's answered questions per topic
                     }));
                 
-                const numUsers = (groupStats.conversations_per_user || []).length || 1;
                 const topicAverage = topicCategories.map(topicName => {
-                    const found = (groupStats.conversations_by_topic || []).find(t => t.topic_name === topicName);
-                    const totalConversations = found ? (Number(found.conversation_count) || 0) : 0;
-                    return { category: topicName, value: Math.round(totalConversations / numUsers) }; // Show average conversations per user
+                    const found = (groupStats.answered_questions_by_topic || []).find(t => t.topic_name === topicName);
+                    const avgAnswered = found ? (Number(found.avg_answered_per_user) || 0) : 0;
+                    return { category: topicName, value: avgAnswered }; // Average answered questions per user
                 });
+                
                 setTopicalPerformanceData({
                     categories: topicCategories,
-                    leftData: topicIndividual,
-                    rightData: topicAverage,
-                    leftLabel: 'Your Questions',
-                    rightLabel: 'Class Conversations',
-                    title: 'Topic Activity Comparison'
+                    leftData: topicAverage,
+                    rightData: topicIndividual,
+                    leftLabel: 'Class Average',
+                    rightLabel: 'Your Answered Questions',
+                    title: 'Answered Questions per Topic'
                 });
                 
                 setOverallGrades({
@@ -559,27 +631,43 @@ export default function DashboardPage() {
             >
                
                 {(() => {
-                    // Use actual GPA values for comparison
-                    const studentGPA = overallGrades.questionQualityGPA;
-                    const avgGPA = overallGrades.avgQuestionQualityGPA;
-                    const isAboveAvg = (studentGPA != null && avgGPA != null) ? studentGPA > avgGPA : false;
+                    // Use gradeComparison status: 'above', 'below', or 'at'
+                    const comparison = overallGrades.gradeComparison;
+                    let bgColor, borderColor, textColor, shadowColor;
+                    
+                    if (comparison === 'above') {
+                        bgColor = "#f0fdf4";
+                        borderColor = "#10b981";
+                        textColor = "#10b981";
+                        shadowColor = "rgba(16, 185, 129, 0.3)";
+                    } else if (comparison === 'below') {
+                        bgColor = "#fef2f2";
+                        borderColor = "#ef4444";
+                        textColor = "#ef4444";
+                        shadowColor = "rgba(239, 68, 68, 0.3)";
+                    } else {  // 'at' class average
+                        bgColor = "#fef3c7";
+                        borderColor = "#f59e0b";
+                        textColor = "#f59e0b";
+                        shadowColor = "rgba(245, 158, 11, 0.3)";
+                    }
                     
                     return (
                         <div
                             style={{
-                                background: isAboveAvg ? "#f0fdf4" : "#fef2f2",
+                                background: bgColor,
                                 gap: "1rem",
                                 padding: "1rem",
                                 borderRadius: "20px",
                                 minWidth: "160px",
-                                boxShadow: isAboveAvg ? "0 2px 12px rgba(16, 185, 129, 0.3)" : "0 2px 12px rgba(239, 68, 68, 0.3)",
-                                border: `2px solid ${isAboveAvg ? "#10b981" : "#ef4444"}`
+                                boxShadow: `0 2px 12px ${shadowColor}`,
+                                border: `2px solid ${borderColor}`
                             }}
                         >   
                             <div style={{ color: "#666", fontWeight:"bold", fontSize: "0.85rem", textAlign: "left" }}>
                                 Overall Estimated Question Quality
                             </div>
-                            <div style={{ fontSize: "3.5rem", fontWeight: "bold", color: isAboveAvg ? "#10b981" : "#ef4444", textAlign: "center" }}>
+                            <div style={{ fontSize: "3.5rem", fontWeight: "bold", color: textColor, textAlign: "center" }}>
                                 {overallGrades.questionQuality}
                             </div>
                             <div style={{ color: "#666", fontWeight:"bold", fontSize: "1rem", textAlign: "right" }}>
@@ -741,28 +829,41 @@ export default function DashboardPage() {
 
                                     {/* Peer Comparison */}
                                     {(() => {
-                                        // Detect if student is above or below average
-                                        const isAboveAverage = peerComparison.toLowerCase().includes('above') || 
-                                                             peerComparison.toLowerCase().includes('exceed') ||
-                                                             !peerComparison.toLowerCase().includes('below');
+                                        // Use gradeComparison status from backend
+                                        const comparison = overallGrades.gradeComparison;
+                                        let bgColor, borderColor, textColor;
+                                        
+                                        if (comparison === 'above') {
+                                            bgColor = "#f0fdf4";
+                                            borderColor = "#10b981";
+                                            textColor = "#059669";
+                                        } else if (comparison === 'below') {
+                                            bgColor = "#fef2f2";
+                                            borderColor = "#ef4444";
+                                            textColor = "#dc2626";
+                                        } else {  // 'at' class average
+                                            bgColor = "#fef3c7";
+                                            borderColor = "#f59e0b";
+                                            textColor = "#d97706";
+                                        }
                                         
                                         return (
                                             <div style={{
                                                 flex: "1",
                                                 minWidth: "280px",
                                                 maxWidth: "400px",
-                                                backgroundColor: isAboveAverage ? "#f0fdf4" : "#fef2f2",
+                                                backgroundColor: bgColor,
                                                 padding: "1.5rem",
                                                 borderRadius: "12px",
                                                 boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-                                                borderLeft: `4px solid ${isAboveAverage ? "#10b981" : "#ef4444"}`
+                                                borderLeft: `4px solid ${borderColor}`
                                             }}>
                                                 <ReactMarkdown components={{
                                                     ...markdownComponents,
                                                     h2: ({node, ...props}) => <h3 style={{
                                                         fontSize: "1.3rem",
                                                         fontWeight: "bold",
-                                                        color: isAboveAverage ? "#059669" : "#dc2626",
+                                                        color: textColor,
                                                         marginTop: 0,
                                                         marginBottom: "0.75rem",
                                                         textTransform: "uppercase",
@@ -770,7 +871,7 @@ export default function DashboardPage() {
                                                     }} {...props} />,
                                                     strong: ({node, ...props}) => <strong style={{
                                                         fontWeight: "bold",
-                                                        color: isAboveAverage ? "#059669" : "#dc2626",
+                                                        color: textColor,
                                                         fontSize: "1.05rem"
                                                     }} {...props} />
                                                 }}>
@@ -819,7 +920,7 @@ export default function DashboardPage() {
                             marginBottom: "0.2rem",
                             color: "#555"
                         }}>
-                            Overall Interactions by Topic
+                            Number of Interactions by Topic
                         </h2>
                         <div style={{ 
                             display: "flex", 
@@ -954,9 +1055,7 @@ export default function DashboardPage() {
                                     </button>
                                 </div>
                             )}
-                            <p style={{ margin: "0.5rem 0", fontSize: "0.75rem", fontStyle: "italic" }}>
-                                💡 Click on any topic bar to filter all charts
-                            </p>
+                            
                         </div>
                     </div>
                             <div style={{ flex: "1", minWidth: "450px" }}>
@@ -966,7 +1065,7 @@ export default function DashboardPage() {
                         display: "flex",
                         flexDirection: "column",
                         gap: "1rem",
-                        maxHeight: "820px"
+                        maxHeight: "920px"
                     }}>
                         {/* Topic Graph */}
                         <div style={{
@@ -978,7 +1077,7 @@ export default function DashboardPage() {
                             minHeight: "0",
                             display: "flex",
                             flexDirection: "column",
-                            height:"600px"
+                            height:"1000px"
                         }}>
                             <div style={{
                                 display: "flex",
@@ -1049,6 +1148,43 @@ export default function DashboardPage() {
                             }}>
                                 {selectedTopic ? (
                                     <>
+                                        {/* Instructional Text */}
+                                        <div style={{
+                                            backgroundColor: "#f8fafc",
+                                            padding: "0.75rem 1rem",
+                                            borderRadius: "8px",
+                                            border: "1px solid #e2e8f0",
+                                            fontSize: "0.85rem",
+                                            color: "#64748b",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            gap: "1rem"
+                                        }}>
+                                            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                                                <div style={{
+                                                    width: "20px",
+                                                    height: "20px",
+                                                    borderRadius: "50%",
+                                                    backgroundColor: "#3b82f6",
+                                                    border: "2px solid #2563eb"
+                                                }}></div>
+                                                <span>Large circles = Topics</span>
+                                            </div>
+                                            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                                                <div style={{
+                                                    width: "12px",
+                                                    height: "12px",
+                                                    borderRadius: "50%",
+                                                    backgroundColor: "#3b82f6",
+                                                    border: "2px solid #2563eb"
+                                                }}></div>
+                                                <span>Small circles = Subtopics</span>
+                                            </div>
+                                            <span style={{ marginLeft: "auto", fontStyle: "italic" }}>
+                                                Click a topic to view its subtopic grades
+                                            </span>
+                                        </div>
+                                        
                                         <TopicGraph 
                                             selectedTopic={selectedTopic}
                                             onTopicSelect={handleTopicSelection}
@@ -1268,7 +1404,7 @@ export default function DashboardPage() {
                             Number of Interaction Trends Over Time
                             {selectedTopic && (
                                 <span style={{ display: "block", fontSize: "0.8rem", color: "#059669", marginTop: "0.25rem" }}>
-                                    📊 Filtered by: {selectedTopic}
+                                    Filtered by: {selectedTopic}
                                 </span>
                             )}
                         </h2>
@@ -1404,7 +1540,7 @@ export default function DashboardPage() {
                                 Number of Questions per Question Category
                                 {selectedTopic && (
                                     <span style={{ display: "block", fontSize: "0.75rem", color: "#059669", marginTop: "0.25rem" }}>
-                                        📊 Filtered by: {selectedTopic}
+                                        Filtered by: {selectedTopic}
                                     </span>
                                 )}
                             </h3>
@@ -1446,9 +1582,8 @@ export default function DashboardPage() {
 }
 
 // Responsive wrapper for LineChart so it spans the parent container
-function ResponsiveLineChart({ data, height, showResetButton = false, yAxisLabel, xAxisLabel }) {
+function ResponsiveLineChart({ data, height, yAxisLabel, xAxisLabel }) {
     const [width, setWidth] = useState(800);
-    const [resetFn, setResetFn] = useState(null);
     const containerRef = useRef(null);
 
     useEffect(() => {
@@ -1466,10 +1601,6 @@ function ResponsiveLineChart({ data, height, showResetButton = false, yAxisLabel
         return () => window.removeEventListener('resize', updateWidth);
     }, []);
 
-    const handleResetReady = (resetFunction) => {
-        setResetFn(() => resetFunction);
-    };
-
     return (
         <div style={{ width: '100%' }}>
             <div ref={containerRef} style={{ width: '100%', maxWidth: '100%', overflow: 'hidden' }}>
@@ -1477,23 +1608,10 @@ function ResponsiveLineChart({ data, height, showResetButton = false, yAxisLabel
                     data={data} 
                     width={width} 
                     height={height} 
-                    onResetReady={handleResetReady}
                     yAxisLabel={yAxisLabel}
                     xAxisLabel={xAxisLabel}
                 />
             </div>
-            {showResetButton && resetFn && (
-                <div style={{ display: 'flex', justifyContent: 'center', marginTop: '0.75rem' }}>
-                    <Button 
-                        variant="outlined" 
-                        size="small"
-                        onClick={resetFn}
-                        style={{ fontSize: '0.75rem', padding: '0.3rem 1rem' }}
-                    >
-                        Reset Zoom
-                    </Button>
-                </div>
-            )}
         </div>
     );
 }

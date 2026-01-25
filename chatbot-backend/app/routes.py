@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from app.database.session import get_db_session, SessionLocal
 from app.core.orchestrator import Orchestrator
 from app.database.models import Conversation, Message, User
+from dashboard_backend.redis_client import invalidate_all_caches
 import logging
 import asyncio
 
@@ -35,7 +36,7 @@ def chat():
         
         user_question = data.get('question')
         conversation_id = data.get('conversation_id')
-        user_id = data.get('user_id', 1)  # Default to user_id=1 if not provided
+        user_id = data.get('user_id', '1')  # Default to user_id='1' if not provided
         
         # Ensure user exists
         user = db.query(User).filter(User.id == user_id).first()
@@ -99,6 +100,13 @@ def chat():
                     user_question=user_question
                 )
             )
+            
+            # Invalidate cache immediately after question is processed and graded
+            try:
+                invalidate_all_caches(user_id)
+                logger.info(f"Cache invalidated for user {user_id} after new question")
+            except Exception as cache_error:
+                logger.warning(f"Failed to invalidate cache for user {user_id}: {cache_error}")
                         
             response_data = {
                 "response": result["chatbot_response"],
@@ -129,7 +137,7 @@ def get_conversations():
     db: Session = get_db_session()
     
     try:
-        user_id = request.args.get('user_id', default=1, type=int)
+        user_id = request.args.get('user_id', default='1', type=str)
         
         # Only fetch conversations for the specified user
         conversations = db.query(Conversation).filter(
@@ -164,7 +172,7 @@ def get_conversation_messages(conversation_id: int):
     db: Session = get_db_session()
     
     try:
-        user_id = request.args.get('user_id', default=1, type=int)
+        user_id = request.args.get('user_id', default='1', type=str)
         
         # Check conversation exists and belongs to the user
         conversation = db.query(Conversation).filter(
