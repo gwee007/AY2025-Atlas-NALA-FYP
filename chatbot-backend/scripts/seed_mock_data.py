@@ -60,11 +60,11 @@ def seed_mock_data():
         # Create 5 test users
         test_users = []
         user_configs = [
-            {'id': 'test_user_1', 'conversations_per_day': 1},
-            {'id': 'test_user_2', 'conversations_per_day': 1},
-            {'id': 'test_user_3', 'conversations_per_day': 1},
-            {'id': 'test_user_4', 'conversations_per_day': 1},
-            {'id': 'test_user_5', 'conversations_per_day': 1},
+            {'id': 'test_user_1', 'conversations_per_day': 1, 'skip_days': []},
+            {'id': 'test_user_2', 'conversations_per_day': 1, 'skip_days': [2, 3, 4, 7]},  # Gaps on days 3, 4, 5, 8 (0-indexed: 2,3,4,7)
+            {'id': 'test_user_3', 'conversations_per_day': 1, 'skip_days': []},
+            {'id': 'test_user_4', 'conversations_per_day': 1, 'skip_days': []},
+            {'id': 'test_user_5', 'conversations_per_day': 1, 'skip_days': []},
         ]
         
         # Time range: 9 days (8 days ago to today)
@@ -91,9 +91,15 @@ def seed_mock_data():
         # Create conversations for each day for each user
         for user_idx, user in enumerate(test_users):
             conversations_per_day = user_configs[user_idx]['conversations_per_day']
+            skip_days = user_configs[user_idx].get('skip_days', [])
             
             # Create conversations for each of the 9 days
             for day_offset in range(num_days):
+                # Skip this day if it's in the skip list (creates gap)
+                if day_offset in skip_days:
+                    print(f"   ⏭️  Skipping day {day_offset + 1} for {user.id} (simulating data gap)")
+                    continue
+                    
                 conv_date = start_date + timedelta(days=day_offset)
                 day_end = conv_date.replace(hour=23, minute=59, second=59, microsecond=0)
                 
@@ -241,6 +247,8 @@ def seed_mock_data():
         print(f"   - Total answers: {total_answers}")
         print(f"   - Question-subtopic mappings: {total_subtopic_mappings}")
         print(f"   - Date range: {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}")
+        print(f"\n📅 Special configurations:")
+        print(f"   - test_user_2 has gaps on days 3, 4, 5, 8 (to test gap handling in charts)")
         
     except Exception as e:
         session.rollback()
