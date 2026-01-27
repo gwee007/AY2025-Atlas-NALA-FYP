@@ -28,7 +28,7 @@ export default function ChatbotAssessPage() {
 
 	// Wrapper to update URL when clicking conversations
 	const handleConversationClickWithNav = (id) => {
-		const userIdParam = userId || '1';
+		const userIdParam = userId || '2';
 		navigate(`/chatbot/${userIdParam}/${id}`);
 		handleConversationClick(id);
 	};

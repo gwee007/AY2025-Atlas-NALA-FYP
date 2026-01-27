@@ -373,7 +373,7 @@ headers = {
 if __name__ == "__main__":
     try:
         # NOTE: Ensure this user_id exists in your NEW database
-        test_user_id = 1
+        test_user_id = 2
         result = generate_summary_data(test_user_id)
         print("\n[DEBUG] === Rule-Based Summary Generation Successful ===")
         print(result)

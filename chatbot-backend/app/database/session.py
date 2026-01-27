@@ -1,6 +1,5 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, scoped_session
-from sqlalchemy.pool import QueuePool
 from app.config import Config
 import logging
 
@@ -9,9 +8,8 @@ logger = logging.getLogger(__name__)
 try:
     engine = create_engine(
         Config.DATABASE_URL,
-        poolclass=QueuePool,
-        pool_size=20,           # Increased for 40+ concurrent users
-        max_overflow=30,        # Max overflow connections beyond pool_size (total 50 connections)
+        pool_size=10,           
+        max_overflow=30,        
         pool_pre_ping=True,     # Test connections before using
         pool_recycle=3600,      # Recycle connections every hour to prevent stale connections
         pool_timeout=30,        # Timeout for getting connection from pool (seconds)

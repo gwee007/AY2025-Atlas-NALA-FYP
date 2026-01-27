@@ -1,5 +1,5 @@
 // frontend/src/hooks/useChatbotConversations.js
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { DEFAULT_FIRST_MESSAGE } from "../data/defaultMessages";
 import { API_ENDPOINTS } from "../config/api";
 
@@ -10,8 +10,10 @@ export default function useChatbotConversations(urlUserId = null, urlConversatio
     const [messages, setMessages] = useState([]);
     const [input, setInput] = useState("");
     const [isTyping, setIsTyping] = useState(false);
-    const userId = urlUserId || '1'; // Use URL userId or default to '1'
+    const userId = urlUserId || "2"; // Use URL userId or default to "2" as string
     const [_localMessageIds, setLocalMessageIds] = useState(new Set()); // Track optimistically added messages
+    const isLoadingConversation = useRef(false); // Track if conversation is being loaded
+    const loadedMessageIds = useRef(new Set()); // Track all message IDs to prevent duplicates
     
     // Track if user is in chatbot and if they've asked new questions
     useEffect(() => {
@@ -48,13 +50,13 @@ export default function useChatbotConversations(urlUserId = null, urlConversatio
             const convId = parseInt(urlConversationId);
             const conversationExists = conversations.some(c => c.id === convId);
             
-            // Only load if the conversation exists and is different from current
-            if (conversationExists && convId !== activeConversationId) {
+            // Only load if the conversation exists, is different from current, and not already loading
+            if (conversationExists && convId !== activeConversationId && !isLoadingConversation.current) {
                 setActiveConversationId(convId);
                 loadConversationMessages(convId);
             }
-        }
-    }, [urlConversationId, conversations]);
+        }j
+    }, [urlConversationId, conversations.length]); // Only depend on urlConversationId and conversations.length
 
     const fetchConversations = async () => {
         try {
@@ -93,17 +95,35 @@ export default function useChatbotConversations(urlUserId = null, urlConversatio
     };
 
     const loadConversationMessages = async (conversationId) => {
+        // Prevent duplicate loads
+        if (isLoadingConversation.current) {
+            return;
+        }
+        
+        isLoadingConversation.current = true;
+        
         try {
             const response = await fetch(`${API_ENDPOINTS.chatbotConversations}/${conversationId}/messages?user_id=${userId}`);
             
             if (response.ok) {
                 const data = await response.json();
-                const formattedMessages = data.map(msg => ({
-                    id: msg.id, // include backend message ID
-                    from: msg.sender,
-                    text: msg.content,
-                    timestamp: new Date(msg.timestamp)
-                }));
+                
+                // Deduplicate messages by ID
+                const seenIds = new Set();
+                const formattedMessages = data
+                    .filter(msg => {
+                        if (seenIds.has(msg.id)) {
+                            return false;
+                        }
+                        seenIds.add(msg.id);
+                        return true;
+                    })
+                    .map(msg => ({
+                        id: msg.id, // include backend message ID
+                        from: msg.sender,
+                        text: msg.content,
+                        timestamp: new Date(msg.timestamp)
+                    }));
                 
                 // Always prepend the welcome message at the start
                 const messagesWithWelcome = [
@@ -116,29 +136,38 @@ export default function useChatbotConversations(urlUserId = null, urlConversatio
                     ...formattedMessages
                 ];
                 
+                // Update loaded message IDs
+                loadedMessageIds.current = new Set(messagesWithWelcome.map(m => m.id));
+                
                 setMessages(messagesWithWelcome);
                 setLocalMessageIds(new Set());
             }
         } catch (error) {
             console.error("Error loading messages:", error);
-            setMessages([{ 
+            const welcomeMsg = { 
                 id: `welcome-${Date.now()}`, 
                 from: "bot", 
                 text: DEFAULT_FIRST_MESSAGE,
                 isDefault: true
-            }]);
+            };
+            loadedMessageIds.current = new Set([welcomeMsg.id]);
+            setMessages([welcomeMsg]);
+        } finally {
+            isLoadingConversation.current = false;
         }
     };
 
     // Create new conversation (just reset UI state)
     const handleAddConversation = () => {
         setActiveConversationId(null);
-        setMessages([{ 
-            id: `welcome-new`, 
+        const welcomeMsg = { 
+            id: `welcome-new-${Date.now()}`, 
             from: "bot", 
             text: DEFAULT_FIRST_MESSAGE,
             isDefault: true
-        }]);
+        };
+        loadedMessageIds.current = new Set([welcomeMsg.id]);
+        setMessages([welcomeMsg]);
         setLocalMessageIds(new Set());
     };
 
@@ -196,8 +225,9 @@ export default function useChatbotConversations(urlUserId = null, urlConversatio
 
             // Replace local user message with backend version and add bot response
             setMessages((prev) => {
-                // Check if bot message already exists
-                const botExists = prev.some(msg => msg.id === botMessageId);
+                // Check if bot message already exists in current messages or loaded IDs
+                const botExists = prev.some(msg => msg.id === botMessageId) || 
+                                 loadedMessageIds.current.has(botMessageId);
                 
                 // If bot message already exists, don't add it again
                 if (botExists) {
@@ -223,6 +253,10 @@ export default function useChatbotConversations(urlUserId = null, urlConversatio
                     questionId: data.question_id,
                     metadata: data.metadata
                 };
+                
+                // Track the new message IDs
+                loadedMessageIds.current.add(userMessageId);
+                loadedMessageIds.current.add(botMessageId);
                 
                 return [...updated, botMsg];
             });
@@ -257,6 +291,12 @@ export default function useChatbotConversations(urlUserId = null, urlConversatio
     const handleConversationClick = async (id) => {
         const conv = conversations.find((c) => c.id === id);
         if (!conv) return;
+        
+        // Don't reload if already active and not loading
+        if (id === activeConversationId && !isLoadingConversation.current) {
+            return;
+        }
+        
         setActiveConversationId(id);
         await loadConversationMessages(id);
     };

@@ -8,14 +8,14 @@ from app.config import Config
 class NalaGemini(LLM):
     api_key: str = Config.NALA_API_KEY
     base_url: str = Config.NALA_BASE_URL
-    model_name: str = "gemini-3-pro-preview"
+    model_name: str = "gemini-2.5-flash"
     
     # create a persistent session for connection pooling (i.e. dont need create new connection for each request)
     _session = requests.Session()
 
     @property
     def _llm_type(self) -> str:
-        return "nala_gemini_3_pro_preview"
+        return "gemini-2.5-flash"
 
     def _call(self, prompt: str, stop: Optional[List[str]] = None, **kwargs: Any) -> str:
         system_instruction = kwargs.get("system_instruction", "You are a helpful assistant.")
@@ -30,8 +30,8 @@ class NalaGemini(LLM):
             <model>{self.model_name}</model>
             <system_prompt>{escaped_system_instruction}</system_prompt>
             <hyperparameters>
-                <temperature>0</temperature>
-                <top_p>0.1</top_p>
+                <temperature>0.1</temperature>
+                <top_p>0.2</top_p>
             </hyperparameters>
             <user_prompt>{escaped_prompt}</user_prompt>
         </llm_request>

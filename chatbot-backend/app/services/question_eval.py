@@ -13,7 +13,7 @@ class RelevanceAssessment(BaseModel):
 class QuestionAssessment(BaseModel):
     solo_level: Literal["Unistructural", "Multistructural", "Relational", "Extended Abstract"]
     grade: Literal["C", "B", "A", "A+"]
-    reasoning: str = Field(description="Short reason to explain to the student directly your SOLO Level classification result based on the GRADING RUBRIC.")
+    reasoning: str = Field(description="Short concise reason to explain to the student directly your SOLO Level classification result using ONLY the terminology from the GRADING RUBRIC and mention of relevant topics/subtopics.")
     reference_material: str = Field(description="One sentence explicitly outlining the most relevant subtopic(s) and topic(s) crucial to answering this question.")
     relevant_subtopic_ids: List[int] = Field(description="List of subtopic IDs (as integers) from the provided context that are most relevant to answering this question.")
     relevant_topic_ids: List[int] = Field(description="List of topic IDs (as integers) corresponding to the selected subtopics.")
@@ -52,9 +52,10 @@ class QuestionEvaluationService:
             }
 
         # step 2: retrieve context from relevant subtopic summaries (high-level)
-        relevant_subtopics = self.rag.retrieve_subtopics(
-            user_question, 
-            top_k=3
+        relevant_subtopics = await asyncio.to_thread(
+            self.rag.retrieve_subtopics,
+            user_question,
+            5  # top_k
         )
         
         # step 3: solo taxonomy grading using retrieved subtopics as context
@@ -75,19 +76,24 @@ class QuestionEvaluationService:
 
     async def _check_relevance(self, question: str) -> RelevanceAssessment:
         parser = PydanticOutputParser(pydantic_object=RelevanceAssessment)
-        
-        system_prompt = f"""Classify the student's question based on technical relevance to the specified course topics.
+
+        system_prompt = f"""
+            You are a technical relevance classifier for a student's question.
+            Determine if the question is TECHNICALLY RELEVANT to the Process Control and Dynamics course topics provided below.
+
+            TECHNICALLY RELEVANT Questions:
+            - Questions about technical concepts, principles, models, methods, reasoning, or process control applications strictly within the provided course topics.
             
-            COURSE TOPICS:
+            TECHNICALLY IRRELEVANT Questions:
+            - Exams, grades, deadlines, logistics, administration, greetings, study advice, or any topic beyond the scope of the provided course topics.
+            - Real-world applications that are too general, vague, or unrelated to process control and dynamics scenarios.
+            
+            COURSE TOPICS (authoritative scope):
             {self.topics_list}
 
-            Irrelevant questions are about exams, grades, deadlines, administrative, greetings, logistics, or off-topic matters.
-            Relevant questions are about technical concepts ONLY within the course topics above.
-                    
             {parser.get_format_instructions()}
-        """
-
-        user_prompt = f"Question: {question}"
+            """
+        user_prompt = f"STUDENT'S QUESTION: {question}"
         
         try:
             # Run LLM call in thread pool to avoid blocking event loop
@@ -105,38 +111,36 @@ class QuestionEvaluationService:
         parser = PydanticOutputParser(pydantic_object=QuestionAssessment)
         
         # concatenate relevant subtopics and its summaries into context string
-        context_items = []
-        for s in relevant_subtopics:
-            context_items.append(
-                f"- Subtopic ID: {s.id} | Topic ID: {s.topic_id} | Subtopic: {s.subtopic_name} | Topic: {s.topic.topic_name} | Subtopic Summary: {s.subtopic_summary}"
-            )
-        context_str = "\n".join(context_items)
+        context_str = "\n".join(
+            f"- Subtopic ID: {s.id} | Topic ID: {s.topic_id} | Subtopic: {s.subtopic_name} | Topic: {s.topic.topic_name} | Subtopic Summary: {s.subtopic_summary}"
+            for s in relevant_subtopics
+        )
         
         system_prompt = f"""
             You are a SOLO taxonomy classifier for a student's question.
-            Classify based on the identified course topics and assign the corresponding grade with reasoning.
+            Classify based on the identified course material and assign the corresponding grade with reasoning.
             From the provided context, suggest the most relevant reference material.
 
             GRADING RUBRIC:
             - Unistructural: Asks about a fact or definition. Grade: C
             - Multistructural: Asks about listing or describing multiple concepts of the same topic. Grade: B
             - Relational: Asks about causes, compares, analyzes, or integrates concepts from different topics. Grade: A
-            - Extended Abstract: Attempts to use an appropriate real-world industrial chemical engineering application example to apply topic concepts. Grade: A+
+            - Extended Abstract: Asks about application of topic concepts to appropriate real-world industrial chemical engineering scenarios. Grade: A+
 
             OUTPUT REQUIREMENTS:
             - SOLO Level.
             - Grade.
-            - Short Reason to explain to the student directly your SOLO Level classification result based on the GRADING RUBRIC.
-            - Reference Material: One sentence to state which subtopic(s) and topic(s) materials are crucial to the question.
+            - Short Concise Reason: Explain to the student your SOLO Level classification using ONLY the terminology from the GRADING RUBRIC above and mention of relevant topics/subtopics. DO NOT reveal any actual concepts, definitions, or answer content from the material.
+            - Reference Material: One sentence to explicitly state which topics followed by its subtopic(s) materials are crucial to the question. DO NOT reveal any answer content from the material.
             - Relevant Subtopic IDs: Select the subtopic IDs from the context that are most relevant for answering this question.
             - Relevant Topic IDs: Select the corresponding topic IDs for each selected subtopic.
 
             {parser.get_format_instructions()}
         """
-
+        
         user_prompt = f"""
             CONTEXT: {context_str}
-            Question: {question}
+            STUDENT'S QUESTION: {question}
         """
 
         try:

@@ -36,9 +36,9 @@ def chat():
         
         user_question = data.get('question')
         conversation_id = data.get('conversation_id')
-        user_id = data.get('user_id', '1')  # Default to user_id='1' if not provided
+        user_id = data.get('user_id', "2")  # Default to user_id="2" as string
         
-        # Ensure user exists
+        # Ensure user exists - user_id is now string
         user = db.query(User).filter(User.id == user_id).first()
         if not user:
             return jsonify({"error": f"User with id {user_id} not found"}), 404
@@ -137,11 +137,11 @@ def get_conversations():
     db: Session = get_db_session()
     
     try:
-        user_id = request.args.get('user_id', default='1', type=str)
+        user_id = request.args.get('user_id', default="2", type=str)  # Accept as string
         
         # Only fetch conversations for the specified user
         conversations = db.query(Conversation).filter(
-            Conversation.user_id == user_id
+            Conversation.user_id == user_id  # Direct string comparison
         ).order_by(Conversation.last_accessed.desc()).all()
                 
         return jsonify([
@@ -172,12 +172,12 @@ def get_conversation_messages(conversation_id: int):
     db: Session = get_db_session()
     
     try:
-        user_id = request.args.get('user_id', default='1', type=str)
+        user_id = request.args.get('user_id', default="2", type=str)  # Accept as string
         
         # Check conversation exists and belongs to the user
         conversation = db.query(Conversation).filter(
             Conversation.id == conversation_id,
-            Conversation.user_id == user_id
+            Conversation.user_id == user_id  # Direct string comparison
         ).first()
 
         if not conversation:

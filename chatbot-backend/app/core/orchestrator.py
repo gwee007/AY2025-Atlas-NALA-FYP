@@ -34,7 +34,7 @@ class Orchestrator:
         user_question: str
     ) -> Dict[str, Any]:
         """
-        Process a user's question through the evaluation pipeline.
+        Process a student's question through the evaluation pipeline.
         
         Flow:
         1. Evaluate question using QuestionEvaluationService
@@ -58,7 +58,7 @@ class Orchestrator:
             )
             self.db.add(user_message)
             self.db.flush()  # Get the message ID
-            
+
             # step 3: format response based on evaluation type
             if question_evaluation_result["type"] == "IRRELEVANT":
                 question_eval_response = (
@@ -85,10 +85,11 @@ class Orchestrator:
                     "chatbot_message_id": chatbot_message.id
                 }
             
-            else:  # QUESTION_GRADED
+            else:  # QUESTION_GRADED flow
                 footer_message = (
                     "\n\n---\n\n"
-                    "📝 **Next Steps:** Please attempt to answer the question with the provided materials.")
+                    "📝 **Next Step:** Try answering the question using the reference materials!"
+                )
                 
                 # format chatbot response
                 question_eval_response = (
@@ -174,7 +175,7 @@ class Orchestrator:
         1. Retrieve the associated question from database
         2. Evaluate answer using answer_eval.py
         3. Insert answer into database with evaluation results
-        4. Update question status to "ANSWERED"
+        4. Update question status to "ANSWERED" (even if they submitted a question)
         """
         try:
             # step 1: retrieve question text given question_id
@@ -190,13 +191,10 @@ class Orchestrator:
             
             if not question:
                 raise ValueError(f"Question with ID {question_id} not found")
-            
-            if str(question.status) == "ANSWERED":
-                logger.warning(f"Question {question_id} has already been answered")
-            
+                    
             # get relevant subtopic IDs from the question
             relevant_subtopic_ids = [subtopic.id for subtopic in question.subtopics]
-            
+        
             # step 2: insert user answer message
             user_message = Message(
                 conversation_id=conversation_id,
@@ -205,15 +203,15 @@ class Orchestrator:
             )
             self.db.add(user_message)
             self.db.flush()
-            
-            # step 3: evaluate the answer
+        
+            # step 3: evaluate the answer (LLM will detect if it's a question)
             evaluation_result = await self.answer_eval_service.evaluate_answer(
                 question=question.message.content,
                 solo_taxonomy_level=str(question.solo_taxonomy_level),
                 student_answer=user_answer,
                 relevant_subtopic_ids=relevant_subtopic_ids
             )
-            
+        
             # step 4: create answer record
             answer = Answer(
                 message_id=user_message.id,
@@ -222,21 +220,27 @@ class Orchestrator:
                 feedback=evaluation_result["feedback"]
             )
             self.db.add(answer)
-            
-            # step 5: update question status to ANSWERED
+        
+            # step 5: update question status to ANSWERED (closes the assessment cycle)
             question.status = "ANSWERED"
-            
+        
+            hq_text = "🤔 **Higher-Order Thinking Concepts:**\n\n"
+            for q in evaluation_result['higher_order_concepts']:
+                hq_text += f"• {q}\n\n"
+        
             # format chatbot response
             answer_eval_response = (
-                "Thank you for attempting to answer the question!\n\n"
-                "Here is the evaluation of your answer:\n\n"
+                "Thank you for your submission!\n\n"
+                "Here is the evaluation:\n\n"
                 f"📊 **Accuracy Score:** {evaluation_result['accuracy_score']}/100\n\n"
                 f"💬 **Feedback:**\n{evaluation_result['feedback']}\n\n"
+                "\n"
+                f"🧠 **Steps of Deriving Answer:**\n{evaluation_result['reasoning_trace']}\n\n"
                 f"✨ **Suggested Answer:**\n{evaluation_result['suggested_answer']}\n\n"
-                f"🤔 **Higher-Order Thinking Questions:**\n"
-                + "\n".join([f"   • {q}" for q in evaluation_result['higher_order_questions']]) + "\n\n"
+                "---\n\n"
+                + hq_text + "\n"
             )
-            
+        
             # step 6: insert chatbot response message
             chatbot_message = Message(
                 conversation_id=conversation_id,
@@ -256,7 +260,7 @@ class Orchestrator:
                 "accuracy_score": evaluation_result["accuracy_score"],
                 "feedback": evaluation_result["feedback"],
                 "suggested_answer": evaluation_result["suggested_answer"],
-                "higher_order_questions": evaluation_result["higher_order_questions"]
+                "higher_order_concepts": evaluation_result["higher_order_concepts"]
             }
             
         except Exception as e:
