@@ -3,14 +3,14 @@ import { useState, useEffect, useRef } from "react";
 import { DEFAULT_FIRST_MESSAGE } from "../data/defaultMessages";
 import { API_ENDPOINTS } from "../config/api";
 
-export default function useChatbotConversations(urlUserId = null, urlConversationId = null) {
+export default function useChatbotConversations() {
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [activeConversationId, setActiveConversationId] = useState(null);
     const [conversations, setConversations] = useState([]);
     const [messages, setMessages] = useState([]);
     const [input, setInput] = useState("");
     const [isTyping, setIsTyping] = useState(false);
-    const userId = urlUserId || "2"; // Use URL userId or default to "2" as string
+    const userId = "2"; // Default userId
     const [_localMessageIds, setLocalMessageIds] = useState(new Set()); // Track optimistically added messages
     const isLoadingConversation = useRef(false); // Track if conversation is being loaded
     const loadedMessageIds = useRef(new Set()); // Track all message IDs to prevent duplicates
@@ -43,20 +43,6 @@ export default function useChatbotConversations(urlUserId = null, urlConversatio
     useEffect(() => {
         fetchConversations();
     }, [userId]);
-    
-    // Load specific conversation from URL if provided
-    useEffect(() => {
-        if (urlConversationId && conversations.length > 0) {
-            const convId = parseInt(urlConversationId);
-            const conversationExists = conversations.some(c => c.id === convId);
-            
-            // Only load if the conversation exists, is different from current, and not already loading
-            if (conversationExists && convId !== activeConversationId && !isLoadingConversation.current) {
-                setActiveConversationId(convId);
-                loadConversationMessages(convId);
-            }
-        }
-    }, [urlConversationId, conversations.length]); // Only depend on urlConversationId and conversations.length
 
     const fetchConversations = async () => {
         try {
@@ -72,17 +58,7 @@ export default function useChatbotConversations(urlUserId = null, urlConversatio
                 }));
                 setConversations(formattedConversations);
                 
-                // If URL conversation ID is provided, load that one
-                if (urlConversationId) {
-                    const convId = parseInt(urlConversationId);
-                    if (formattedConversations.some(c => c.id === convId)) {
-                        setActiveConversationId(convId);
-                        await loadConversationMessages(convId);
-                        return; // Skip default logic
-                    }
-                }
-                
-                // Default: if no active conversation and conversations exist, set the first one
+                // If no active conversation and conversations exist, set the first one
                 if (!activeConversationId && formattedConversations.length > 0) {
                     const firstConv = formattedConversations[0];
                     setActiveConversationId(firstConv.id);

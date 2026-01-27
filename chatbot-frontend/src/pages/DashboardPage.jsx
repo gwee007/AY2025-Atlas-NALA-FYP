@@ -1881,27 +1881,18 @@ Reflect on your recent learning patterns and question quality, as well as revisi
                                                         width: "120px",
                                                         fontSize: "0.8rem"
                                                     }}>Date</th>
-                                                    <th style={{ 
-                                                        padding: "0.6rem", 
-                                                        textAlign: "center",
-                                                        borderBottom: "2px solid #e2e8f0",
-                                                        color: "#64748b",
-                                                        fontWeight: "600",
-                                                        width: "80px",
-                                                        fontSize: "0.8rem"
-                                                    }}>Action</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
                                                 {conversationsLoading ? (
                                                 <tr>
-                                                    <td colSpan="4" style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>
+                                                    <td colSpan="3" style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>
                                                         Loading questions...
                                                     </td>
                                                 </tr>
                                             ) : conversations.length === 0 ? (
                                                 <tr>
-                                                    <td colSpan="4" style={{ textAlign: 'center', padding: '2rem', color: '#94a3b8' }}>
+                                                    <td colSpan="3" style={{ textAlign: 'center', padding: '2rem', color: '#94a3b8' }}>
                                                         No questions found
                                                     </td>
                                                 </tr>
@@ -1929,23 +1920,6 @@ Reflect on your recent learning patterns and question quality, as well as revisi
                                                 color: "#64748b",
                                                 fontSize: "0.8rem"
                                             }}>{chat.timestamp}</td>
-                                            <td style={{ 
-                                                padding: "0.6rem",
-                                                textAlign: "center",
-                                                borderBottom: "1px solid #e2e8f0"
-                                            }}>
-                                                <Button 
-                                                    variant="outlined" 
-                                                    size="small"
-                                                    style={{ fontSize: "0.7rem", padding: "0.25rem 0.5rem" }}
-                                                    component="a"
-                                                    href={`/chatbot/${USER_ID}/${chat.conversation_id}`}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                >
-                                                    Visit
-                                                </Button>
-                                                    </td>
                                                 </tr>
                                             ))
                                         )}

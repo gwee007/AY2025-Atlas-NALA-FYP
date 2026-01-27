@@ -64,6 +64,12 @@ def chat():
             # if no conversation found, return error
             if not conversation:
                 return jsonify({"error": f"Conversation with id {conversation_id} not found"}), 404
+            
+            # Update title if it's still "New Chat" and this is the first user message
+            if conversation.title == "New Chat":
+                conversation.title = user_question[:50] + "..." if len(user_question) > 50 else user_question
+                db.commit()
+                logger.info(f"Updated conversation {conversation_id} title to: {conversation.title}")
         
         # Check if there's a pending question that needs an answer
         orchestrator = Orchestrator(db)
@@ -157,6 +163,47 @@ def get_conversations():
     except Exception as e:
         logger.error(f"Error fetching conversations: {e}")
         return jsonify({"error": "Failed to fetch conversations"}), 500
+    
+    finally:
+        db.close()
+
+
+@main_bp.route('/api/conversations', methods=['POST'])
+def create_conversation():
+    """Create a new conversation with default title 'New Chat'."""
+    db: Session = get_db_session()
+    
+    try:
+        data = request.get_json()
+        user_id = data.get('user_id', "2")  # Default to user_id="2" as string
+        
+        # Ensure user exists
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            return jsonify({"error": f"User with id {user_id} not found"}), 404
+        
+        # Create new conversation with default title
+        conversation = Conversation(
+            user_id=user_id,
+            title="New Chat"
+        )
+        db.add(conversation)
+        db.commit()
+        db.refresh(conversation)
+        
+        logger.info(f"Created new conversation {conversation.id} for user {user_id}")
+        
+        return jsonify({
+            "id": conversation.id,
+            "title": conversation.title,
+            "last_accessed": conversation.last_accessed.isoformat(),
+            "updated_at": conversation.last_accessed.isoformat()
+        }), 201
+    
+    except Exception as e:
+        logger.error(f"Error creating conversation: {e}")
+        traceback.print_exc()
+        return jsonify({"error": "Failed to create conversation"}), 500
     
     finally:
         db.close()
