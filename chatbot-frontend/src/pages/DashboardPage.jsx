@@ -4,7 +4,10 @@ import LineChart from '../components/charts/LineChart';
 import ReflectiveBarChart from '../components/charts/ReflectiveBarChart';
 import VerticalBarChart from '../components/charts/VerticalBarChart';
 import TopicGraph from '../components/charts/TopicGraph';
-import { Button, Tabs, Tab, Box } from '@mui/material';
+import CriticalThinkingGuide from '../components/dashboard/CriticalThinkingGuide';
+import MarkdownTooltip from '../components/dashboard/MarkdownTooltip';
+import { Button, Tabs, Tab, Box, IconButton } from '@mui/material';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import API_BASE_URL, { API_ENDPOINTS } from '../config/api';
 import ReactMarkdown from 'react-markdown';
 
@@ -891,7 +894,22 @@ export default function DashboardPage() {
                     <>
                         {/* LLM Summary Section (Lines 335-467 in your file) */}
                         <section style={{ marginBottom: "2rem" }}>
-                            <h2 style={{ textAlign: "center", color: "#858996ff" }}>Learning Progress Summary</h2>
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem" }}>
+                                <h2 style={{ textAlign: "center", color: "#858996ff", margin: 0 }}>Learning Progress Summary</h2>
+                                <MarkdownTooltip title={`### Learning Progress Summary
+
+This AI-generated summary analyzes your learning patterns across all topics.
+
+**What it shows:**
+- Your strongest and weakest areas
+- Learning trends over time
+- Personalized recommendations
+
+**How to use it:**
+Review this regularly to identify areas needing more focus.`}>
+                                    <IconButton size="small"><InfoOutlinedIcon fontSize="small" /></IconButton>
+                                </MarkdownTooltip>
+                            </div>
                             {/* ... Insert your existing LLM Summary JSX here ... */}
                             {summaryLoading ? <div>Loading...</div> : <div><section style={{
                 width: "100%",
@@ -1168,7 +1186,24 @@ export default function DashboardPage() {
 
                         {/* SOLO Taxonomy Rubric Section */}
                         <section style={{ marginBottom: "2rem", marginTop: "2rem" }}>
-                            <h2 style={{ textAlign: "center", color: "#858996ff", marginBottom: "1.5rem" }}>Question Complexity Rubric (SOLO Taxonomy)</h2>
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem", marginBottom: "1.5rem" }}>
+                                <h2 style={{ textAlign: "center", color: "#858996ff", margin: 0 }}>Question Complexity Rubric (SOLO Taxonomy)</h2>
+                                <MarkdownTooltip title={`### SOLO Taxonomy Levels
+
+**D - Pre-structural:** Unrelated or unclear questions
+
+**C - Uni-structural:** Single aspect of a concept
+
+**B - Multi-structural:** Multiple aspects, not connected
+
+**A - Relational:** Connects multiple aspects coherently
+
+**A+ - Extended Abstract:** Applies to new contexts and scenarios
+
+*Hover over each grade to see details*`}>
+                                    <IconButton size="small"><InfoOutlinedIcon fontSize="small" /></IconButton>
+                                </MarkdownTooltip>
+                            </div>
                             <div style={{
                                 display: "flex",
                                 justifyContent: "center",
@@ -1440,13 +1475,18 @@ export default function DashboardPage() {
             <div role="tabpanel" hidden={currentTab !== 1}>
                 {currentTab === 1 && (
                     <section style={{ width: "100%", marginTop: "1rem" }}>
-                        <div style={{ display: "flex", gap: "2rem", flexWrap: "wrap", justifyContent: "center", alignItems: "flex-start" }}>
+                        <div style={{ 
+                            display: "grid",
+                            gridTemplateColumns: "1fr 1fr",
+                            gridTemplateRows: "auto auto",
+                            gap: "2rem",
+                            padding: "0 1rem"
+                        }}>
                             
-                            {/* Left: Scrollable Subject Performance Chart (Lines 576-713) */}
+                            {/* Left: Reflective Bar Chart - Row 1, Col 1 */}
                             <div style={{
-                        flex: "1",
-                        minWidth: "450px",
-                        maxWidth: "600px",
+                        gridRow: "1",
+                        gridColumn: "1",
                         backgroundColor: "#f9f9f9",
                         padding: "1.5rem",
                         borderRadius: "12px",
@@ -1454,13 +1494,29 @@ export default function DashboardPage() {
                         display: "flex",
                         flexDirection: "column"
                     }}>
-                        <h2 style={{ 
-                            textAlign: "center", 
-                            marginBottom: "0.2rem",
-                            color: "#555"
-                        }}>
-                            Number of Interactions by Topic
-                        </h2>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem", marginBottom: "0.2rem" }}>
+                            <h2 style={{ 
+                                textAlign: "center", 
+                                margin: 0,
+                                color: "#555"
+                            }}>
+                                Number of Interactions by Topic
+                            </h2>
+                            <MarkdownTooltip title={`### Topic Interaction Comparison
+
+**Blue bars:** Your conversation count per topic
+
+**Orange bars:** Class average
+
+**How to interpret:**
+- Longer bars = more engagement
+- Compare your bars to class average
+- Click bars to filter detailed analytics
+
+**Tip:** Focus on topics with fewer interactions if they're challenging areas.`}>
+                                <IconButton size="small"><InfoOutlinedIcon fontSize="small" /></IconButton>
+                            </MarkdownTooltip>
+                        </div>
                         <div style={{ 
                             display: "flex", 
                             flexDirection: "column",
@@ -1597,14 +1653,14 @@ export default function DashboardPage() {
                             
                         </div>
                     </div>
-                            <div style={{ flex: "1", minWidth: "450px" }}>
-                               <div style={{
-                        flex: "1",
-                        minWidth: "600px",
+
+                            {/* Right: Topic Graph and Question Table - Row 1, Col 2 */}
+                            <div style={{
+                        gridRow: "1",
+                        gridColumn: "2",
                         display: "flex",
                         flexDirection: "column",
-                        gap: "1rem",
-                        maxHeight: "920px"
+                        gap: "1rem"
                     }}>
                         {/* Topic Graph */}
                         <div style={{
@@ -1612,11 +1668,8 @@ export default function DashboardPage() {
                             padding: "1rem",
                             borderRadius: "12px",
                             boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-                            flex: "1",
-                            minHeight: "0",
                             display: "flex",
-                            flexDirection: "column",
-                            height:"1000px"
+                            flexDirection: "column"
                         }}>
                             <div style={{
                                 display: "flex",
@@ -1625,13 +1678,30 @@ export default function DashboardPage() {
                                 marginBottom: "0.75rem"
                             }}>
                                 <div>
-                                    <h3 style={{ 
-                                        color: "#555",
-                                        margin: 0,
-                                        fontSize: "1.1rem"
-                                    }}>
-                                        Topic Dependencies: {selectedTopic || "Select a topic"}
-                                    </h3>
+                                    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                                        <h3 style={{ 
+                                            color: "#555",
+                                            margin: 0,
+                                            fontSize: "1.1rem"
+                                        }}>
+                                            Topic Dependencies: {selectedTopic || "Select a topic"}
+                                        </h3>
+                                        <MarkdownTooltip title={`### Topic Network
+
+**Node colors (Grade C-A+):**
+- **Green:** Excellent understanding - *challenge yourself with edge cases and real-world applications*
+- **Blue:** Solid grasp - *make connections between this and related concepts*  
+- **Yellow:** Basic knowledge - *ask "why" and "how" to deepen understanding*
+- **Grey:** You haven't explored this topic in your interactions with the chatbot!
+
+**Node size:** Larger = topics, Smaller = subtopics
+
+**Tip for yellow topics:** How do I ask better questions to deepen my understanding?
+
+`}>
+                                            <IconButton size="small"><InfoOutlinedIcon fontSize="small" /></IconButton>
+                                        </MarkdownTooltip>
+                                    </div>
                                     <p style={{
                                         margin: "0.5rem 0 0 0",
                                         fontSize: "0.75rem",
@@ -1728,7 +1798,7 @@ export default function DashboardPage() {
                                             selectedTopic={selectedTopic}
                                             onTopicSelect={handleTopicSelection}
                                             width={700}
-                                            height={280}
+                                            height={580}
                                             graphData = {topicDependencies}
                                             onResetReady={(resetFn) => setTopicGraphResetFn(() => resetFn)}
                                         />
@@ -1747,174 +1817,186 @@ export default function DashboardPage() {
                             </div>
                         </div>
 
-                        {/* Chat History Table */}
-                        {selectedTopic && (
-                            <div style={{
-                                backgroundColor: "white",
-                                padding: "1rem",
-                                borderRadius: "12px",
-                                boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-                                maxHeight: "400px",
-                                flex: "1",
-                                minHeight: "400px",
-                                display: "flex",
-                                flexDirection: "column"
-                            }}>
-                                <h3 style={{ 
-                                    color: "#555",
-                                    marginBottom: "0.75rem",
-                                    fontSize: "1rem"
-                                }}>
-                                    Recent Questions
-                                </h3>
-                                <div style={{ 
-                                    flex: "1",
-                                    minHeight: "0",
-                                    overflowY: "auto",
-                                    overflowX: "auto"
-                                }}>
-                                    <table style={{
-                                        width: "100%",
-                                        borderCollapse: "collapse",
-                                        fontSize: "0.85rem"
-                                    }}>
-                                        <thead style={{ position: "sticky", top: 0, backgroundColor: "white", zIndex: 1 }}>
-                                            <tr style={{ backgroundColor: "#f8fafc" }}>
-                                                <th style={{ 
-                                                    padding: "0.6rem", 
-                                                    textAlign: "left",
-                                                    borderBottom: "2px solid #e2e8f0",
-                                                    color: "#64748b",
-                                                    fontWeight: "600",
-                                                    fontSize: "0.8rem"
-                                                }}>Question</th>
-                                                <th style={{ 
-                                                    padding: "0.6rem", 
-                                                    textAlign: "center",
-                                                    borderBottom: "2px solid #e2e8f0",
-                                                    color: "#64748b",
-                                                    fontWeight: "600",
-                                                    width: "70px",
-                                                    fontSize: "0.8rem"
-                                                }}>Grade</th>
-                                                <th style={{ 
-                                                    padding: "0.6rem", 
-                                                    textAlign: "center",
-                                                    borderBottom: "2px solid #e2e8f0",
-                                                    color: "#64748b",
-                                                    fontWeight: "600",
-                                                    width: "120px",
-                                                    fontSize: "0.8rem"
-                                                }}>Date</th>
-                                                <th style={{ 
-                                                    padding: "0.6rem", 
-                                                    textAlign: "center",
-                                                    borderBottom: "2px solid #e2e8f0",
-                                                    color: "#64748b",
-                                                    fontWeight: "600",
-                                                    width: "80px",
-                                                    fontSize: "0.8rem"
-                                                }}>Action</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {conversationsLoading ? (
-                                            <tr>
-                                                <td colSpan="4" style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>
-                                                    Loading questions...
-                                                </td>
-                                            </tr>
-                                        ) : conversations.length === 0 ? (
-                                            <tr>
-                                                <td colSpan="4" style={{ textAlign: 'center', padding: '2rem', color: '#94a3b8' }}>
-                                                    No questions found
-                                                </td>
-                                            </tr>
-                                        ) : (
-                                            conversations.map((chat, index) => (
-                                                <tr key={chat.id} style={{
-                                                    backgroundColor: index % 2 === 0 ? "white" : "#f8fafc"
-                                                }}>
-                                        <td style={{ 
-                                            padding: "0.6rem",
-                                            borderBottom: "1px solid #e2e8f0",
-                                            color: "#334155"
-                                        }}>{chat.question}</td>
-                                        <td style={{ 
-                                            padding: "0.6rem",
-                                            textAlign: "center",
-                                            borderBottom: "1px solid #e2e8f0",
-                                            fontWeight: "bold",
-                                            color: chat.grade.startsWith('A') ? "#10b981" : "#3b82f6"
-                                        }}>{chat.grade}</td>
-                                        <td style={{ 
-                                            padding: "0.6rem",
-                                            textAlign: "center",
-                                            borderBottom: "1px solid #e2e8f0",
-                                            color: "#64748b",
-                                            fontSize: "0.8rem"
-                                        }}>{chat.timestamp}</td>
-                                        <td style={{ 
-                                            padding: "0.6rem",
-                                            textAlign: "center",
-                                            borderBottom: "1px solid #e2e8f0"
-                                        }}>
-                                            <Button 
-                                                variant="outlined" 
-                                                size="small"
-                                                style={{ fontSize: "0.7rem", padding: "0.25rem 0.5rem" }}
-                                                component="a"
-                                                href={`/chatbot/${USER_ID}/${chat.conversation_id}`}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                            >
-                                                Visit
-                                            </Button>
-                                                </td>
-                                            </tr>
-                                        ))
-                                    )}
-                                        </tbody>
-                                    </table>
-                            <div style={{ 
-                                display: "flex", 
-                                justifyContent: "space-between", 
-                                alignItems: "center",
-                                paddingTop: "1rem",
-                                borderTop: "1px solid #e2e8f0"
-                            }}>
-                                <Button 
-                                    variant="outlined" 
-                                    size="small"
-                                    disabled={page === 1 || conversationsLoading}
-                                    onClick={() => setPage(prev => Math.max(prev - 1, 1))}
-                                >
-                                    Previous
-                                </Button>
-                                
-                                <span style={{ fontSize: "0.85rem", color: "#64748b" }}>
-                                    Page <strong>{page}</strong> of <strong>{totalPages}</strong>
-                                </span>
-                                
-                                <Button 
-                                    variant="outlined" 
-                                    size="small"
-                                    disabled={page >= totalPages || conversationsLoading}
-                                    onClick={() => setPage(prev => prev + 1)}
-                                >
-                                    Next
-                                </Button>
-                            </div>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                            </div>
 
-      
-                            <div style={{ flex: "1", minWidth: "600px" }}>
-                               
-                            </div>
+                    </div>
+
+                            {/* Bottom: Full-width Question Table spanning both columns */}
+                            {selectedTopic && (
+                                <div style={{
+                                    gridRow: "2",
+                                    gridColumn: "1 / -1",
+                                    backgroundColor: "white",
+                                    padding: "1rem",
+                                    borderRadius: "12px",
+                                    boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    maxHeight: "500px"
+                                }}>
+                                    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.75rem" }}>
+                                        <h3 style={{ 
+                                            color: "#555",
+                                            margin: 0,
+                                            fontSize: "1rem"
+                                        }}>
+                                            Recent Questions
+                                        </h3>
+                                        <MarkdownTooltip title={`### Recent Interactions
+
+Shows your latest chatbot conversations.
+
+**Each card displays:**
+- Question text and timestamp
+- AI-evaluated question quality grade
+- AI-evaluated answer accuracy grade
+- Topic category
+
+**Use this to:**
+Reflect on your recent learning patterns and question quality, as well as revisit questions in context.`}>
+                                            <IconButton size="small"><InfoOutlinedIcon fontSize="small" /></IconButton>
+                                        </MarkdownTooltip>
+                                    </div>
+                                    <div style={{ 
+                                        flex: "1",
+                                        minHeight: "0",
+                                        overflowY: "auto",
+                                        overflowX: "auto"
+                                    }}>
+                                        <table style={{
+                                            width: "100%",
+                                            borderCollapse: "collapse",
+                                            fontSize: "0.85rem"
+                                        }}>
+                                            <thead style={{ position: "sticky", top: 0, backgroundColor: "white", zIndex: 1 }}>
+                                                <tr style={{ backgroundColor: "#f8fafc" }}>
+                                                    <th style={{ 
+                                                        padding: "0.6rem", 
+                                                        textAlign: "left",
+                                                        borderBottom: "2px solid #e2e8f0",
+                                                        color: "#64748b",
+                                                        fontWeight: "600",
+                                                        fontSize: "0.8rem"
+                                                    }}>Question</th>
+                                                    <th style={{ 
+                                                        padding: "0.6rem", 
+                                                        textAlign: "center",
+                                                        borderBottom: "2px solid #e2e8f0",
+                                                        color: "#64748b",
+                                                        fontWeight: "600",
+                                                        width: "70px",
+                                                        fontSize: "0.8rem"
+                                                    }}>Grade</th>
+                                                    <th style={{ 
+                                                        padding: "0.6rem", 
+                                                        textAlign: "center",
+                                                        borderBottom: "2px solid #e2e8f0",
+                                                        color: "#64748b",
+                                                        fontWeight: "600",
+                                                        width: "120px",
+                                                        fontSize: "0.8rem"
+                                                    }}>Date</th>
+                                                    <th style={{ 
+                                                        padding: "0.6rem", 
+                                                        textAlign: "center",
+                                                        borderBottom: "2px solid #e2e8f0",
+                                                        color: "#64748b",
+                                                        fontWeight: "600",
+                                                        width: "80px",
+                                                        fontSize: "0.8rem"
+                                                    }}>Action</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {conversationsLoading ? (
+                                                <tr>
+                                                    <td colSpan="4" style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>
+                                                        Loading questions...
+                                                    </td>
+                                                </tr>
+                                            ) : conversations.length === 0 ? (
+                                                <tr>
+                                                    <td colSpan="4" style={{ textAlign: 'center', padding: '2rem', color: '#94a3b8' }}>
+                                                        No questions found
+                                                    </td>
+                                                </tr>
+                                            ) : (
+                                                conversations.map((chat, index) => (
+                                                    <tr key={chat.id} style={{
+                                                        backgroundColor: index % 2 === 0 ? "white" : "#f8fafc"
+                                                    }}>
+                                            <td style={{ 
+                                                padding: "0.6rem",
+                                                borderBottom: "1px solid #e2e8f0",
+                                                color: "#334155"
+                                            }}>{chat.question}</td>
+                                            <td style={{ 
+                                                padding: "0.6rem",
+                                                textAlign: "center",
+                                                borderBottom: "1px solid #e2e8f0",
+                                                fontWeight: "bold",
+                                                color: chat.grade.startsWith('A') ? "#10b981" : "#3b82f6"
+                                            }}>{chat.grade}</td>
+                                            <td style={{ 
+                                                padding: "0.6rem",
+                                                textAlign: "center",
+                                                borderBottom: "1px solid #e2e8f0",
+                                                color: "#64748b",
+                                                fontSize: "0.8rem"
+                                            }}>{chat.timestamp}</td>
+                                            <td style={{ 
+                                                padding: "0.6rem",
+                                                textAlign: "center",
+                                                borderBottom: "1px solid #e2e8f0"
+                                            }}>
+                                                <Button 
+                                                    variant="outlined" 
+                                                    size="small"
+                                                    style={{ fontSize: "0.7rem", padding: "0.25rem 0.5rem" }}
+                                                    component="a"
+                                                    href={`/chatbot/${USER_ID}/${chat.conversation_id}`}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                >
+                                                    Visit
+                                                </Button>
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        )}
+                                            </tbody>
+                                        </table>
+                                <div style={{ 
+                                    display: "flex", 
+                                    justifyContent: "space-between", 
+                                    alignItems: "center",
+                                    paddingTop: "1rem",
+                                    borderTop: "1px solid #e2e8f0"
+                                }}>
+                                    <Button 
+                                        variant="outlined" 
+                                        size="small"
+                                        disabled={page === 1 || conversationsLoading}
+                                        onClick={() => setPage(prev => Math.max(prev - 1, 1))}
+                                    >
+                                        Previous
+                                    </Button>
+                                    
+                                    <span style={{ fontSize: "0.85rem", color: "#64748b" }}>
+                                        Page <strong>{page}</strong> of <strong>{totalPages}</strong>
+                                    </span>
+                                    
+                                    <Button 
+                                        variant="outlined" 
+                                        size="small"
+                                        disabled={page >= totalPages || conversationsLoading}
+                                        onClick={() => setPage(prev => prev + 1)}
+                                    >
+                                        Next
+                                    </Button>
+                                </div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </section>
                 )}
@@ -1980,21 +2062,35 @@ export default function DashboardPage() {
                         boxShadow: "0 2px 8px rgba(0,0,0,0.1)"
                     }}>
                         <div style={{ textAlign: "center", marginBottom: "1rem" }}>
-                            <h3 style={{ 
-                                marginBottom: "0.5rem",
-                                color: "#555"
-                            }}>
-                                Answer Accuracy per Question Category
-                                {selectedTopic && (
-                                    <span style={{ display: "block", fontSize: "0.75rem", color: "#059669", marginTop: "0.25rem" }}>
-                                        Filtered by: {selectedTopic}
-                                    </span>
-                                )}
-                            </h3>
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem" }}>
+                                <h3 style={{ 
+                                    marginBottom: "0.5rem",
+                                    color: "#555",
+                                    margin: 0
+                                }}>
+                                    Answer Accuracy per Question Category
+                                    {selectedTopic && (
+                                        <span style={{ display: "block", fontSize: "0.75rem", color: "#059669", marginTop: "0.25rem" }}>
+                                            Filtered by: {selectedTopic}
+                                        </span>
+                                    )}
+                                </h3>
+                                <MarkdownTooltip title={`### Answer Accuracy by Complexity
+
+Shows how accurately you answer questions at different SOLO levels.
+
+**Blue bars:** Your accuracy
+**Red bars:** Class average
+
+*Are you answering basic questions more accurately compared to more complex ones, as you should?*`}>
+                                    <IconButton size="small"><InfoOutlinedIcon fontSize="small" /></IconButton>
+                                </MarkdownTooltip>
+                            </div>
                             <p style={{ 
                                 fontSize: "0.8rem", 
                                 color: "#666",
-                                marginBottom: "1rem"
+                                marginBottom: "1rem",
+                                marginTop: "0.5rem"
                             }}>
                                 Based on SOLO taxonomy levels
                             </p>
@@ -2031,23 +2127,38 @@ export default function DashboardPage() {
                         boxShadow: "0 2px 8px rgba(0,0,0,0.1)"
                     }}>
                         <div style={{ textAlign: "center", marginBottom: "1rem" }}>
-                            <h3 style={{ 
-                                marginBottom: "0.5rem",
-                                color: "#555"
-                            }}>
-                                Number of Questions per Question Category
-                                {selectedTopic && (
-                                    <span style={{ display: "block", fontSize: "0.75rem", color: "#059669", marginTop: "0.25rem" }}>
-                                        Filtered by: {selectedTopic}
-                                    </span>
-                                )}
-                            </h3>
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem" }}>
+                                <h3 style={{ 
+                                    marginBottom: "0.5rem",
+                                    color: "#555",
+                                    margin: 0
+                                }}>
+                                    Number of Questions per Question Category
+                                    {selectedTopic && (
+                                        <span style={{ display: "block", fontSize: "0.75rem", color: "#059669", marginTop: "0.25rem" }}>
+                                            Filtered by: {selectedTopic}
+                                        </span>
+                                    )}
+                                </h3>
+                                <MarkdownTooltip title={`### Question Distribution
+
+Shows how many questions you ask at each complexity level.
+
+**Reflects your critical thinking depth:**
+- More unistructural/multistructural questions = more basic factual recall
+- More relational and extended abstract questions = analytical and application-based thinking
+
+*Challenge: Ask more higher-level questions*`}>
+                                    <IconButton size="small"><InfoOutlinedIcon fontSize="small" /></IconButton>
+                                </MarkdownTooltip>
+                            </div>
                             <p style={{ 
                                 fontSize: "0.8rem", 
                                 color: "#666",
-                                marginBottom: "1rem"
+                                marginBottom: "1rem",
+                                marginTop: "0.5rem"
                             }}>
-                                 Based on SOLO taxonomy levels
+                                Based on SOLO taxonomy levels
                             </p>
                         </div>
                         {dataLoading ? (
@@ -2084,18 +2195,30 @@ export default function DashboardPage() {
                         borderRadius: "12px",
                         boxShadow: "0 2px 8px rgba(0,0,0,0.1)"
                     }}>
-                        <h2 style={{
-                            textAlign: "center",
-                            marginBottom: "1rem",
-                            color: "#555"
-                        }}>
-                            Question Grades (GPA) Over Time
-                            {selectedTopic && (
-                                <span style={{ display: "block", fontSize: "0.8rem", color: "#059669", marginTop: "0.25rem" }}>
-                                    Filtered by: {selectedTopic}
-                                </span>
-                            )}
-                        </h2>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem", marginBottom: "1rem" }}>
+                            <h2 style={{
+                                textAlign: "center",
+                                color: "#555",
+                                margin: 0
+                            }}>
+                                Question Grades (GPA) Over Time
+                                {selectedTopic && (
+                                    <span style={{ display: "block", fontSize: "0.8rem", color: "#059669", marginTop: "0.25rem" }}>
+                                        Filtered by: {selectedTopic}
+                                    </span>
+                                )}
+                            </h2>
+                            <MarkdownTooltip title={`### Question Quality Trend
+
+Tracks your question complexity over time.
+
+**Blue line:** Your daily average
+**Red dashed:** Class average
+
+*Is your questioning and reasoning becoming more sophisticated over time in your interactions?*`}>
+                                <IconButton size="small"><InfoOutlinedIcon fontSize="small" /></IconButton>
+                            </MarkdownTooltip>
+                        </div>
                         {dataLoading ? (
                             <div style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>Loading chart data...</div>
                         ) : (
@@ -2123,18 +2246,31 @@ export default function DashboardPage() {
                         borderRadius: "12px",
                         boxShadow: "0 2px 8px rgba(0,0,0,0.1)"
                     }}>
-                        <h2 style={{
-                            textAlign: "center",
-                            marginBottom: "1rem",
-                            color: "#555"
-                        }}>
-                            Answer Accuracy Over Time
-                            {selectedTopic && (
-                                <span style={{ display: "block", fontSize: "0.8rem", color: "#059669", marginTop: "0.25rem" }}>
-                                    Filtered by: {selectedTopic}
-                                </span>
-                            )}
-                        </h2>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem", marginBottom: "1rem" }}>
+                            <h2 style={{
+                                textAlign: "center",
+                                color: "#555",
+                                margin: 0
+                            }}>
+                                Answer Accuracy Over Time
+                                {selectedTopic && (
+                                    <span style={{ display: "block", fontSize: "0.8rem", color: "#059669", marginTop: "0.25rem" }}>
+                                        Filtered by: {selectedTopic}
+                                    </span>
+                                )}
+                            </h2>
+                            <MarkdownTooltip title={`### Understanding Accuracy Trend
+
+Shows how accurately you understand concepts over time.
+
+**Look for:**
+- Upward trends = better recall or improving of understanding
+- Drops = indicating you need more review time in your topics
+
+*Pair with question quality - high accuracy + complex questions = mastery*`}>
+                                <IconButton size="small"><InfoOutlinedIcon fontSize="small" /></IconButton>
+                            </MarkdownTooltip>
+                        </div>
                         {dataLoading ? (
                             <div style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>Loading chart data...</div>
                         ) : (
