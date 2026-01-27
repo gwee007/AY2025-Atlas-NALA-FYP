@@ -906,7 +906,7 @@ This AI-generated summary analyzes your learning patterns across all topics.
 - Personalized recommendations
 
 **How to use it:**
-Review this regularly to identify areas needing more focus.`}>
+Review this regularly to identify areas to start jumping in with NALA-Assess!`}>
                                     <IconButton size="small"><InfoOutlinedIcon fontSize="small" /></IconButton>
                                 </MarkdownTooltip>
                             </div>
@@ -1188,21 +1188,7 @@ Review this regularly to identify areas needing more focus.`}>
                         <section style={{ marginBottom: "2rem", marginTop: "2rem" }}>
                             <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem", marginBottom: "1.5rem" }}>
                                 <h2 style={{ textAlign: "center", color: "#858996ff", margin: 0 }}>Question Complexity Rubric (SOLO Taxonomy)</h2>
-                                <MarkdownTooltip title={`### SOLO Taxonomy Levels
-
-**D - Pre-structural:** Unrelated or unclear questions
-
-**C - Uni-structural:** Single aspect of a concept
-
-**B - Multi-structural:** Multiple aspects, not connected
-
-**A - Relational:** Connects multiple aspects coherently
-
-**A+ - Extended Abstract:** Applies to new contexts and scenarios
-
-*Hover over each grade to see details*`}>
-                                    <IconButton size="small"><InfoOutlinedIcon fontSize="small" /></IconButton>
-                                </MarkdownTooltip>
+           
                             </div>
                             <div style={{
                                 display: "flex",
@@ -1849,7 +1835,7 @@ Shows your latest chatbot conversations.
 - Question text and timestamp
 - AI-evaluated question quality grade
 - AI-evaluated answer accuracy grade
-- Topic category
+- A link where you can visit your conversation in context
 
 **Use this to:**
 Reflect on your recent learning patterns and question quality, as well as revisit questions in context.`}>
@@ -2212,10 +2198,12 @@ Shows how many questions you ask at each complexity level.
 
 Tracks your question complexity over time.
 
-**Blue line:** Your daily average
+**Blue line:** Your daily average\n
 **Red dashed:** Class average
 
-*Is your questioning and reasoning becoming more sophisticated over time in your interactions?*`}>
+*Is your questioning and reasoning becoming more sophisticated over time in your interactions?*
+
+Tip: Interact daily to prevent gaps in your line chart!`}>
                                 <IconButton size="small"><InfoOutlinedIcon fontSize="small" /></IconButton>
                             </MarkdownTooltip>
                         </div>
@@ -2267,7 +2255,9 @@ Shows how accurately you understand concepts over time.
 - Upward trends = better recall or improving of understanding
 - Drops = indicating you need more review time in your topics
 
-*Pair with question quality - high accuracy + complex questions = mastery*`}>
+*Pair with question quality - high accuracy + complex questions = mastery*
+
+Tip: Interact daily to prevent gaps in your line chart!`}>
                                 <IconButton size="small"><InfoOutlinedIcon fontSize="small" /></IconButton>
                             </MarkdownTooltip>
                         </div>

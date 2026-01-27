@@ -129,7 +129,7 @@ Once data is available, this section will compare you against your peers to high
     summary.append("## Strong Areas\n")
     
     if topics_above_average:
-        summary.append(f"Great work! You're excelling in **{len(topics_above_average)} topics** where you're performing above the class average:\n")
+        summary.append(f"Great work! You're excelling in **{len(topics_above_average)} topics** where you're performing above the class average. Here are up to 3 notable topics:\n")
         for topic in topics_above_average[:3]:
             summary.append(f"- **{topic['topic_name']}**: You scored **{topic['individual_letter']}** ({topic['individual_grade']:.2f}), which is **{topic['difference']:.2f} points** above the class average\n")
         summary.append("\nKeep up the excellent work in these areas! Your performance here is noteworthy.\n")
