@@ -60,7 +60,7 @@ def test_conversations_endpoint():
     """Test the conversations endpoint"""
     print("\nTesting conversations endpoint...")
     try:
-        response = requests.get(f"{CHATBOT_API_URL}/api/conversations?user_id=1")
+        response = requests.get(f"{CHATBOT_API_URL}/api/conversations?user_id=2")
         
         if response.status_code == 200:
             conversations = response.json()

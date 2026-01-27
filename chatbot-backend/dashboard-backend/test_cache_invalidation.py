@@ -7,9 +7,9 @@ from .redis_client import get_redis_client, invalidate_user_cache
 def test_cache_invalidation():
     """Test the user cache invalidation functionality."""
     redis_client = get_redis_client()
-    test_user_id = 1
+    test_user_id = 2
     
-    # Step 1: Set some test cache keys for user 1
+    # Step 1: Set some test cache keys for user 2
     print(f"Setting up test cache keys for user {test_user_id}...")
     redis_client.setex(f"dashboard:individual_stats:user_{test_user_id}", 300, "test_data_1")
     redis_client.setex(f"dashboard:summary:user_{test_user_id}", 300, "test_data_2")

@@ -7,15 +7,19 @@ from sqlalchemy.exc import IntegrityError
 from db.models import TopicDependency
 from dotenv import load_dotenv
 
+# load_dotenv()
+
+# POSTGRES_USER = os.getenv("POSTGRES_USER")
+# POSTGRES_PASS = os.getenv("POSTGRES_PASS")
+# POSTGRES_HOST = os.getenv("POSTGRES_HOST")
+# POSTGRES_DB = os.getenv("POSTGRES_DB")
+# POSTGRES_PORT = os.getenv("POSTGRES_PORT")
+
+# database_url = f"postgresql://{POSTGRES_USER}:{POSTGRES_PASS}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
 load_dotenv()
-
-POSTGRES_USER = os.getenv("POSTGRES_USER")
-POSTGRES_PASS = os.getenv("POSTGRES_PASS")
-POSTGRES_HOST = os.getenv("POSTGRES_HOST")
-POSTGRES_DB = os.getenv("POSTGRES_DB")
-POSTGRES_PORT = os.getenv("POSTGRES_PORT")
-
-database_url = f"postgresql://{POSTGRES_USER}:{POSTGRES_PASS}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
+database_url = os.getenv("DATABASE_URL")
+if database_url is None:
+    raise ValueError("DATABASE_URL environment variable is not set")
 engine = create_engine(database_url)
 Session = sessionmaker(bind=engine)
 session = Session()

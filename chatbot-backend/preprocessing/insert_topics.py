@@ -8,14 +8,20 @@ from sqlalchemy.exc import IntegrityError
 from db.models import Topic
 from dotenv import load_dotenv
 
-load_dotenv()
-POSTGRES_USER = os.getenv("POSTGRES_USER")
-POSTGRES_PASS = os.getenv("POSTGRES_PASS")
-POSTGRES_HOST = os.getenv("POSTGRES_HOST")
-POSTGRES_DB = os.getenv("POSTGRES_DB")
-POSTGRES_PORT = os.getenv("POSTGRES_PORT")
+# load_dotenv()
+# POSTGRES_USER = os.getenv("POSTGRES_USER")
+# POSTGRES_PASS = os.getenv("POSTGRES_PASS")
+# POSTGRES_HOST = os.getenv("POSTGRES_HOST")
+# POSTGRES_DB = os.getenv("POSTGRES_DB")
+# POSTGRES_PORT = os.getenv("POSTGRES_PORT")
 
-database_url = f"postgresql://{POSTGRES_USER}:{POSTGRES_PASS}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
+# database_url = f"postgresql://{POSTGRES_USER}:{POSTGRES_PASS}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
+# engine = create_engine(database_url)
+load_dotenv()
+database_url = os.getenv("DATABASE_URL")
+if database_url is None:
+    raise ValueError("DATABASE_URL environment variable is not set")
+
 engine = create_engine(database_url)
 Session = sessionmaker(bind=engine)
 session = Session()
@@ -31,12 +37,10 @@ with open("../../data/topic_summary.json", "r", encoding="utf-8") as f:
 
 for topic in topic_data:
     topic_name = topic["topic_name"]
-    topic_summary = topic["topic_summary"]
     print(f"Processing topic: {topic_name}")
     
     new_topic = Topic(
-        topic_name=topic_name,
-        topic_summary=topic_summary
+        topic_name=topic_name
     )
 
     # insert topic into database

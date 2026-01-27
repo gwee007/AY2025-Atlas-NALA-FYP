@@ -13,10 +13,10 @@ url = f"{base_url}/api/llm/"
 
 xml_body = f"""
 <llm_request>
-    <model>gemini-3-pro-preview</model>
-    <system_prompt>You are a precise and technical assistant.</system_prompt>
+    <model>gemini-2.5-flash</model>
+    <system_prompt>You are a precise and technical assistant. Keep the answer below 100 words.</system_prompt>
     <hyperparameters>
-        <temperature>0.3</temperature>
+        <temperature>0.1</temperature>
         <top_p>0.1</top_p>
     </hyperparameters>
     <user_prompt>Explain what is process control and dynamics.</user_prompt>

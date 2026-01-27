@@ -11,10 +11,6 @@ logger = logging.getLogger(__name__)
 
 
 class ServiceManager:
-    """
-    Singleton manager for shared service instances.
-    Ensures that expensive services are instantiated only once and reused across requests.
-    """
     _instance = None
     
     def __new__(cls):
