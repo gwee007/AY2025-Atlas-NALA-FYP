@@ -55,7 +55,7 @@ export default function useChatbotConversations(urlUserId = null, urlConversatio
                 setActiveConversationId(convId);
                 loadConversationMessages(convId);
             }
-        }j
+        }
     }, [urlConversationId, conversations.length]); // Only depend on urlConversationId and conversations.length
 
     const fetchConversations = async () => {

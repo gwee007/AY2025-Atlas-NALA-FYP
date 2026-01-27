@@ -1761,7 +1761,7 @@ if __name__ == "__main__":
     print(f"Overall Average Accuracy: {group_stats['overall_average_accuracy']:.2f}%" if group_stats['overall_average_accuracy'] else "No data")
     
     # Test individual statistics (Mock User 103)
-    target_user_id = 102
+    target_user_id = 2
     print(f"\n=== Testing Individual Statistics (User {target_user_id}) ===")
     individual_start = time.perf_counter()
     individual_stats = individual_statistics(target_user_id)
