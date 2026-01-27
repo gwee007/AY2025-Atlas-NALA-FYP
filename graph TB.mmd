@@ -1,0 +1,53 @@
+graph TB
+    subgraph "Frontend - React Application"
+        A[DashboardPage Component] --> B[useEffect Hook]
+        B --> C{Fetch Statistics}
+        C -->|POST| D[Individual Statistics API]
+        C -->|GET| E[Group Statistics API]
+        D --> F[Process Individual Data]
+        E --> G[Process Group Data]
+        F --> H[transformAndSetChartData Function]
+        G --> H
+        H --> I[State Updates]
+        I --> J[gradesChartData]
+        I --> K[accuracyOverTimeChartData]
+        I --> L[Other Chart Data]
+        J --> M[LineChart Component]
+        K --> M
+        L --> N[Other Chart Components]
+        M --> O[D3.js Visualization]
+        N --> P[Other Visualizations]
+    end
+    
+    subgraph "Backend - Flask API"
+        D --> Q[individual_statistics Function]
+        E --> R[group_statistics Function]
+        Q --> S[Redis Cache Check]
+        R --> T[Redis Cache Check]
+        S -->|Cache Miss| U[Database Queries]
+        T -->|Cache Miss| V[Database Queries]
+        S -->|Cache Hit| W[Return Cached Data]
+        T -->|Cache Hit| X[Return Cached Data]
+        U --> Y[Individual Time Series Queries]
+        V --> Z[Group Time Series Queries]
+    end
+    
+    subgraph "Database - PostgreSQL"
+        Y --> AA[(Questions Table)]
+        Y --> AB[(Answers Table)]
+        Y --> AC[(Messages Table)]
+        Y --> AD[(Conversations Table)]
+        Y --> AE[(Topics Table)]
+        Z --> AA
+        Z --> AB
+        Z --> AC
+        Z --> AD
+        Z --> AE
+    end
+    
+    style A fill:#e1f5ff
+    style M fill:#c8e6c9
+    style Q fill:#fff9c4
+    style R fill:#fff9c4
+    style AA fill:#ffccbc
+    style AB fill:#ffccbc

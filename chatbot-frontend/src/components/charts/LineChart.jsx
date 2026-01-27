@@ -23,12 +23,29 @@ const LineChart = ({ data, width = 1400, height = 1000, yAxisLabel = 'Number of 
     return { start, end };
   }, [getStartOfWeek, weekOffset]);
 
-  // Helper function to calculate 5-day moving average
+  // Helper function to calculate 5-day moving average (handles null values)
   const calculateMovingAverage = (data, windowSize = 5) => {
     return data.map((d, i) => {
+      // Skip calculation if current point is null, undefined, or NaN
+      if (d.interactions === null || d.interactions === undefined || isNaN(d.interactions)) {
+        return { date: d.date, interactions: null };
+      }
+      
       const start = Math.max(0, i - Math.floor(windowSize / 2));
       const end = Math.min(data.length, i + Math.ceil(windowSize / 2));
-      const window = data.slice(start, end);
+      
+      // Filter out null, undefined, and NaN values
+      const window = data.slice(start, end).filter(item => 
+        item.interactions !== null && 
+        item.interactions !== undefined && 
+        !isNaN(item.interactions)
+      );
+      
+      // If not enough valid points, return null
+      if (window.length === 0) {
+        return { date: d.date, interactions: null };
+      }
+      
       const average = window.reduce((sum, item) => sum + item.interactions, 0) / window.length;
       return { date: d.date, interactions: average };
     });
@@ -64,10 +81,10 @@ const LineChart = ({ data, width = 1400, height = 1000, yAxisLabel = 'Number of 
     const visibleIndividual = data.individual.filter(d => d.date >= xDomain[0] && d.date <= xDomain[1]);
     const visibleAverage = data.average.filter(d => d.date >= xDomain[0] && d.date <= xDomain[1]);
 
-    // Calculate Y-axis domain based on visible data
+    // Calculate Y-axis domain based on visible data (excluding null values)
     const allVisibleValues = [
-      ...visibleIndividual.map(d => d.interactions),
-      ...visibleAverage.map(d => d.interactions)
+      ...visibleIndividual.filter(d => d.interactions !== null && !isNaN(d.interactions)).map(d => d.interactions),
+      ...visibleAverage.filter(d => d.interactions !== null && !isNaN(d.interactions)).map(d => d.interactions)
     ];
     
     const yMin = allVisibleValues.length > 0 ? Math.min(...allVisibleValues) : 0;
@@ -78,13 +95,15 @@ const LineChart = ({ data, width = 1400, height = 1000, yAxisLabel = 'Number of 
       .domain([Math.max(0, yMin - yPadding), yMax + yPadding])
       .range([innerHeight, 0]);
 
-    // Create line generators with smoothing
+    // Create line generators with smoothing and gap handling
     const individualLine = d3.line()
+      .defined(d => d.interactions !== null && !isNaN(d.interactions))  // Don't draw line through null/NaN values
       .x(d => xScale(d.date))
       .y(d => yScale(d.interactions))
       .curve(d3.curveMonotoneX);
 
     const averageLine = d3.line()
+      .defined(d => d.interactions !== null && !isNaN(d.interactions))  // Don't draw line through null/NaN values
       .x(d => xScale(d.date))
       .y(d => yScale(d.interactions))
       .curve(d3.curveMonotoneX);

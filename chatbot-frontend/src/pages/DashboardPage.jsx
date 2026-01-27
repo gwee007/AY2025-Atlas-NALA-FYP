@@ -48,6 +48,7 @@ function ResponsiveReflectiveBarChart({ data, height, onCategoryClick, selectedC
 
 export default function DashboardPage() {
     const [selectedTopic, setSelectedTopic] = useState(null);
+    const [hoveredGrade, setHoveredGrade] = useState(null);
     
 
     // State to control which page for earlier is visible because of tabulation requirements
@@ -64,11 +65,13 @@ export default function DashboardPage() {
     
     const [page,setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
-    const USER_ID = '2'; // We're centralising it here
+    const USER_ID = 'test_user_1'; // We're centralising it here
     
     // State for all chart data
     const [interactionChartData, setInteractionChartData] = useState({ individual: [], average: [] });
     const [durationChartData, setDurationChartData] = useState({ individual: [], average: [] });
+    const [gradesChartData, setGradesChartData] = useState({ individual: [], average: [] });
+    const [accuracyOverTimeChartData, setAccuracyOverTimeChartData] = useState({ individual: [], average: [] });
     const [accuracyChartData, setAccuracyChartData] = useState({ categories: [], individualData: [], averageData: [], title: 'Answer Accuracy per Question Category' });
     const [questionCountData, setQuestionCountData] = useState({ categories: [], individualData: [], averageData: [], title: 'Number of Questions per Question Category' });
     const [topicalPerformanceData, setTopicalPerformanceData] = useState({ categories: [], leftData: [], rightData: [], leftLabel: 'Your Conversations', rightLabel: 'Class Average', title: 'Conversations per Topic' });
@@ -103,6 +106,7 @@ export default function DashboardPage() {
     const [conversations, setQuestions] = useState([]);
     const [conversationsLoading, setQuestionsLoading] = useState(true);
     const [topicIdMap, setTopicIdMap] = useState({}); // Map topic names to IDs
+    const [topicNameToIdMap, setTopicNameToIdMap] = useState({}); // Map topic names to IDs for filtering
 
     
    
@@ -115,7 +119,16 @@ export default function DashboardPage() {
     // State for topic dependencies
     const [topicDependencies, setTopicDependencies] = useState([]);
     const [dependenciesLoading, setDependenciesLoading] = useState(false);
+    
+    // State for time filter in Detailed Analytics (past-3-days, past-week, all-time)
+    const [timeFilter, setTimeFilter] = useState('all-time');
     const [topicGraphResetFn, setTopicGraphResetFn] = useState(null);
+    
+    // Raw time-series SOLO data for bar chart time filtering
+    const [rawSoloTimeSeries, setRawSoloTimeSeries] = useState({
+        questions: { individual: [], average: [] },
+        accuracy: { individual: [], average: [] }
+    });
 
     // Fetch summary from API on component mount
     useEffect(() => {
@@ -154,6 +167,46 @@ export default function DashboardPage() {
         fetchSummary();
     }, []);
 
+    // Helper function to fill missing dates in time series data
+    const fillMissingDates = (data) => {
+        if (!data || data.length === 0) return [];
+        
+        // Get min and max dates
+        const dates = data.map(d => d.date);
+        const minDate = new Date(Math.min(...dates));
+        const maxDate = new Date(Math.max(...dates));
+        
+        // Create a map of existing data by date string
+        const dataByDate = new Map();
+        data.forEach(d => {
+            const dateStr = d.date.toISOString().split('T')[0];
+            dataByDate.set(dateStr, d);
+        });
+        
+        // Fill in all dates between min and max
+        const filledData = [];
+        let currentDate = new Date(minDate);
+        
+        while (currentDate <= maxDate) {
+            const dateStr = currentDate.toISOString().split('T')[0];
+            
+            if (dataByDate.has(dateStr)) {
+                filledData.push(dataByDate.get(dateStr));
+            } else {
+                // Add null placeholder for missing date
+                filledData.push({
+                    date: new Date(currentDate),
+                    interactions: null,  // Null value will cause gap in line chart
+                    topic: data[0]?.topic || null
+                });
+            }
+            
+            currentDate.setDate(currentDate.getDate() + 1);
+        }
+        
+        return filledData;
+    };
+
 // Fetch all statistics data from API
     useEffect(() => {
         // 1. Define the async wrapper function
@@ -185,6 +238,17 @@ export default function DashboardPage() {
                 // Store raw stats for filtering
                 setRawIndividualStats(individualStats);
                 setRawGroupStats(groupStats);
+                
+                // Create topic name to ID mapping
+                const topicMap = {};
+                if (individualStats.grades_by_topic) {
+                    individualStats.grades_by_topic.forEach(item => {
+                        if (item.topic_name && item.topic_id) {
+                            topicMap[item.topic_name] = item.topic_id;
+                        }
+                    });
+                }
+                setTopicNameToIdMap(topicMap);
                 
                 // Transform data (will be re-filtered when topic is selected)
                 transformAndSetChartData(individualStats, groupStats, null);
@@ -246,6 +310,40 @@ export default function DashboardPage() {
     const processedChartData = getSortedChartData();
 
     const finalChartData = getSortedChartData();
+    
+    // Get time-filtered chart data for Detailed Analytics (line charts only)
+    const getTimeFilteredChartData = (chartData) => {
+        const filterByTimeRange = (data, timeFilter) => {
+            if (timeFilter === 'all-time') return data;
+            
+            const now = new Date();
+            now.setHours(23, 59, 59, 999);
+            
+            let cutoffDate;
+            if (timeFilter === 'past-3-days') {
+                cutoffDate = new Date(now);
+                cutoffDate.setDate(cutoffDate.getDate() - 3);
+                cutoffDate.setHours(0, 0, 0, 0);
+            } else if (timeFilter === 'past-week') {
+                cutoffDate = new Date(now);
+                cutoffDate.setDate(cutoffDate.getDate() - 7);
+                cutoffDate.setHours(0, 0, 0, 0);
+            } else {
+                return data;
+            }
+            
+            return data.filter(item => {
+                const itemDate = item.date instanceof Date ? item.date : new Date(item.date);
+                return itemDate >= cutoffDate && itemDate <= now;
+            });
+        };
+        
+        return {
+            individual: filterByTimeRange(chartData.individual, timeFilter),
+            average: filterByTimeRange(chartData.average, timeFilter)
+        };
+    };
+
     // Function to transform and filter chart data based on selected topic
     const transformAndSetChartData = (individualStats, groupStats, filterTopicName) => {
                 // Transform interactions over time data
@@ -283,6 +381,10 @@ export default function DashboardPage() {
                     interactionIndividual = aggregateByDate(interactionIndividual);
                     interactionAverage = aggregateByDate(interactionAverage);
                 }
+                
+                // Fill missing dates for continuous timeline
+                interactionIndividual = fillMissingDates(interactionIndividual);
+                interactionAverage = fillMissingDates(interactionAverage);
                 
                 setInteractionChartData({ individual: interactionIndividual, average: interactionAverage });
                 
@@ -326,7 +428,110 @@ export default function DashboardPage() {
                     durationAverage = aggregateByDate(durationAverage);
                 }
                 
+                // Fill missing dates for continuous timeline
+                durationIndividual = fillMissingDates(durationIndividual);
+                durationAverage = fillMissingDates(durationAverage);
+                
                 setDurationChartData({ individual: durationIndividual, average: durationAverage });
+                
+                // Transform grades over time data (NEW)
+                let gradesIndividual = (individualStats.grades_over_time_by_topic || [])
+                    .filter(item => item.date && item.avg_grade_points != null)
+                    .filter(item => !filterTopicName || item.topic_name === filterTopicName)
+                    .map(item => ({
+                        date: new Date(item.date),
+                        interactions: Number(item.avg_grade_points) || 0,
+                        topic: item.topic_name
+                    }));
+                
+                let gradesAverage = (groupStats.avg_grades_over_time_by_topic || [])
+                    .filter(item => item.date && item.avg_grade_points != null)
+                    .filter(item => !filterTopicName || item.topic_name === filterTopicName)
+                    .map(item => ({
+                        date: new Date(item.date),
+                        interactions: Number(item.avg_grade_points) || 0,
+                        topic: item.topic_name
+                    }));
+                
+                // If no topic filter, aggregate by date (average all topics per day)
+                if (!filterTopicName) {
+                    const aggregateByDate = (data) => {
+                        const dateMap = new Map();
+                        data.forEach(item => {
+                            const dateKey = item.date.toISOString().split('T')[0];
+                            if (!dateMap.has(dateKey)) {
+                                dateMap.set(dateKey, { date: item.date, interactions: 0, count: 0 });
+                            }
+                            const entry = dateMap.get(dateKey);
+                            entry.interactions += item.interactions;
+                            entry.count += 1;
+                        });
+                        return Array.from(dateMap.values())
+                            .map(item => ({ date: item.date, interactions: item.interactions / item.count }))
+                            .sort((a, b) => a.date - b.date);
+                    };
+                    gradesIndividual = aggregateByDate(gradesIndividual);
+                    gradesAverage = aggregateByDate(gradesAverage);
+                }
+                
+                // Fill missing dates for continuous timeline
+                gradesIndividual = fillMissingDates(gradesIndividual);
+                gradesAverage = fillMissingDates(gradesAverage);
+                
+                setGradesChartData({ individual: gradesIndividual, average: gradesAverage });
+                
+                // Transform accuracy over time data (NEW)
+                let accuracyOverTimeIndividual = (individualStats.accuracy_over_time_by_topic || [])
+                    .filter(item => item.date && item.avg_accuracy != null)
+                    .filter(item => !filterTopicName || item.topic_name === filterTopicName)
+                    .map(item => ({
+                        date: new Date(item.date),
+                        interactions: Number(item.avg_accuracy) || 0,
+                        topic: item.topic_name
+                    }));
+                
+                let accuracyOverTimeAverage = (groupStats.avg_accuracy_over_time_by_topic || [])
+                    .filter(item => item.date && item.avg_accuracy != null)
+                    .filter(item => !filterTopicName || item.topic_name === filterTopicName)
+                    .map(item => ({
+                        date: new Date(item.date),
+                        interactions: Number(item.avg_accuracy) || 0,
+                        topic: item.topic_name
+                    }));
+                
+                // If no topic filter, aggregate by date (average all topics per day)
+                if (!filterTopicName) {
+                    const aggregateByDate = (data) => {
+                        const dateMap = new Map();
+                        data.forEach(item => {
+                            const dateKey = item.date.toISOString().split('T')[0];
+                            if (!dateMap.has(dateKey)) {
+                                dateMap.set(dateKey, { date: item.date, interactions: 0, count: 0 });
+                            }
+                            const entry = dateMap.get(dateKey);
+                            entry.interactions += item.interactions;
+                            entry.count += 1;
+                        });
+                        return Array.from(dateMap.values())
+                            .map(item => ({ date: item.date, interactions: item.interactions / item.count }))
+                            .sort((a, b) => a.date - b.date);
+                    };
+                    accuracyOverTimeIndividual = aggregateByDate(accuracyOverTimeIndividual);
+                    accuracyOverTimeAverage = aggregateByDate(accuracyOverTimeAverage);
+                }
+                
+                // Fill missing dates for continuous timeline
+                accuracyOverTimeIndividual = fillMissingDates(accuracyOverTimeIndividual);
+                accuracyOverTimeAverage = fillMissingDates(accuracyOverTimeAverage);
+                
+                setAccuracyOverTimeChartData({ individual: accuracyOverTimeIndividual, average: accuracyOverTimeAverage });
+                
+                // Store raw SOLO time-series data for bar chart time filtering
+               // Store raw SOLO time-series data with nested structure
+                setRawSoloTimeSeries({
+                    questions: individualStats.questions_by_solo_over_time || { all_time: [], past_3_days: [], past_week: [] },
+                    accuracy: individualStats.accuracy_by_solo_over_time || { all_time: [], past_3_days: [], past_week: [] }
+                });
                 
                 // Transform accuracy by SOLO data
                 const soloCategories = ['Unistructural', 'Multistructural', 'Relational', 'Extended Abstract'];
@@ -435,6 +640,79 @@ export default function DashboardPage() {
             transformAndSetChartData(rawIndividualStats, rawGroupStats, selectedTopic);
         }
     }, [selectedTopic]);
+    
+    // Update bar chart data when time filter changes - access pre-aggregated data from backend
+    useEffect(() => {
+        if (!rawIndividualStats || !rawGroupStats) return;
+        
+        // Map timeFilter to backend key
+        const timeFilterKey = timeFilter === 'past-3-days' ? 'past_3_days' 
+            : timeFilter === 'past-week' ? 'past_week' 
+            : 'all_time';
+        
+        const soloCategories = ['Unistructural', 'Multistructural', 'Relational', 'Extended Abstract'];
+        
+        // Determine filter: topic_id for selected topic, or null for all topics
+        const topicFilter = selectedTopic 
+            ? (topicNameToIdMap[selectedTopic] || null)
+            : null;
+        
+        // Get pre-aggregated question count data from backend (filtered by topic)
+        const questionsData = rawSoloTimeSeries.questions[timeFilterKey] || [];
+        const questionsFiltered = questionsData.filter(item => 
+            topicFilter === null ? item.topic_id === null : item.topic_id === topicFilter
+        );
+        const questionIndividual = soloCategories.map(cat => {
+            const found = questionsFiltered.find(item => item.solo_category === cat);
+            return { category: cat, value: found ? Number(found.question_count) || 0 : 0 };
+        });
+        
+        // Get pre-aggregated group question data (filtered by topic)
+        const groupQuestionsKey = `questions_by_solo_over_time`;
+        const groupQuestionsData = (rawGroupStats[groupQuestionsKey] && rawGroupStats[groupQuestionsKey][timeFilterKey]) || [];
+        const groupQuestionsFiltered = groupQuestionsData.filter(item => 
+            topicFilter === null ? item.topic_id === null : item.topic_id === topicFilter
+        );
+        const questionAverage = soloCategories.map(cat => {
+            const found = groupQuestionsFiltered.find(item => item.solo_category === cat);
+            return { category: cat, value: found ? Math.round(Number(found.question_count) || 0) : 0 };
+        });
+        
+        setQuestionCountData({
+            categories: soloCategories,
+            individualData: questionIndividual,
+            averageData: questionAverage,
+            title: 'Number of Questions per Question Category'
+        });
+        
+        // Get pre-aggregated accuracy data from backend (filtered by topic)
+        const accuracyData = rawSoloTimeSeries.accuracy[timeFilterKey] || [];
+        const accuracyFiltered = accuracyData.filter(item => 
+            topicFilter === null ? item.topic_id === null : item.topic_id === topicFilter
+        );
+        const accuracyIndividual = soloCategories.map(cat => {
+            const found = accuracyFiltered.find(item => item.solo_category === cat);
+            return { category: cat, value: found ? Math.round(Number(found.avg_accuracy) || 0) : 0 };
+        });
+        
+        // Get pre-aggregated group accuracy data (filtered by topic)
+        const groupAccuracyKey = `accuracy_by_solo_over_time`;
+        const groupAccuracyData = (rawGroupStats[groupAccuracyKey] && rawGroupStats[groupAccuracyKey][timeFilterKey]) || [];
+        const groupAccuracyFiltered = groupAccuracyData.filter(item => 
+            topicFilter === null ? item.topic_id === null : item.topic_id === topicFilter
+        );
+        const accuracyAverage = soloCategories.map(cat => {
+            const found = groupAccuracyFiltered.find(item => item.solo_category === cat);
+            return { category: cat, value: found ? Math.round(Number(found.avg_accuracy) || 0) : 0 };
+        });
+        
+        setAccuracyChartData({
+            categories: soloCategories,
+            individualData: accuracyIndividual,
+            averageData: accuracyAverage,
+            title: 'Answer Accuracy per Question Category'
+        });
+    }, [timeFilter, rawSoloTimeSeries, rawGroupStats, rawIndividualStats, selectedTopic, topicNameToIdMap]);
 
     const handleTopicSelection = React.useCallback((topicName) => {
     // Logic to toggle: if clicking same topic, set to null, else set to new topic
@@ -886,6 +1164,267 @@ export default function DashboardPage() {
                     </div>
                 )}
             </section></div>}
+                        </section>
+
+                        {/* SOLO Taxonomy Rubric Section */}
+                        <section style={{ marginBottom: "2rem", marginTop: "2rem" }}>
+                            <h2 style={{ textAlign: "center", color: "#858996ff", marginBottom: "1.5rem" }}>Question Complexity Rubric (SOLO Taxonomy)</h2>
+                            <div style={{
+                                display: "flex",
+                                justifyContent: "center",
+                                alignItems: "center",
+                                gap: "3rem",
+                                flexWrap: "wrap",
+                                maxWidth: "1200px",
+                                margin: "0 auto"
+                            }}>
+                                {/* Grade Boxes Container */}
+                                <div style={{
+                                    display: "flex",
+                                    gap: "2rem",
+                                    flexWrap: "wrap",
+                                    justifyContent: "center"
+                                }}>
+                                    {/* Unistructural - C */}
+                                    <div 
+                                        onMouseEnter={() => setHoveredGrade('C')}
+                                        onMouseLeave={() => setHoveredGrade(null)}
+                                        style={{
+                                            width: "140px",
+                                            height: "140px",
+                                            borderRadius: "12px",
+                                            backgroundColor: "#fef3c7",
+                                            border: "3px solid #f59e0b",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            cursor: "pointer",
+                                            fontSize: "5rem",
+                                            fontWeight: "bold",
+                                            color: "#f59e0b",
+                                            transition: "all 0.3s ease",
+                                            boxShadow: hoveredGrade === 'C' ? "0 4px 16px rgba(245, 158, 11, 0.4)" : "0 2px 8px rgba(0,0,0,0.1)",
+                                            transform: hoveredGrade === 'C' ? "scale(1.08)" : "scale(1)"
+                                        }}
+                                    >
+                                        C
+                                    </div>
+
+                                    {/* Multistructural - B */}
+                                    <div 
+                                        onMouseEnter={() => setHoveredGrade('B')}
+                                        onMouseLeave={() => setHoveredGrade(null)}
+                                        style={{
+                                            width: "140px",
+                                            height: "140px",
+                                            borderRadius: "12px",
+                                            backgroundColor: "#bfdbfe",
+                                            border: "3px solid #3b82f6",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            cursor: "pointer",
+                                            fontSize: "5rem",
+                                            fontWeight: "bold",
+                                            color: "#3b82f6",
+                                            transition: "all 0.3s ease",
+                                            boxShadow: hoveredGrade === 'B' ? "0 4px 16px rgba(59, 130, 246, 0.4)" : "0 2px 8px rgba(0,0,0,0.1)",
+                                            transform: hoveredGrade === 'B' ? "scale(1.08)" : "scale(1)"
+                                        }}
+                                    >
+                                        B
+                                    </div>
+
+                                    {/* Relational - A */}
+                                    <div 
+                                        onMouseEnter={() => setHoveredGrade('A')}
+                                        onMouseLeave={() => setHoveredGrade(null)}
+                                        style={{
+                                            width: "140px",
+                                            height: "140px",
+                                            borderRadius: "12px",
+                                            backgroundColor: "#d1fae5",
+                                            border: "3px solid #10b981",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            cursor: "pointer",
+                                            fontSize: "5rem",
+                                            fontWeight: "bold",
+                                            color: "#10b981",
+                                            transition: "all 0.3s ease",
+                                            boxShadow: hoveredGrade === 'A' ? "0 4px 16px rgba(16, 185, 129, 0.4)" : "0 2px 8px rgba(0,0,0,0.1)",
+                                            transform: hoveredGrade === 'A' ? "scale(1.08)" : "scale(1)"
+                                        }}
+                                    >
+                                        A
+                                    </div>
+
+                                    {/* Extended Abstract - A+ */}
+                                    <div 
+                                        onMouseEnter={() => setHoveredGrade('A+')}
+                                        onMouseLeave={() => setHoveredGrade(null)}
+                                        style={{
+                                            width: "140px",
+                                            height: "140px",
+                                            borderRadius: "12px",
+                                            backgroundColor: "#e9d5ff",
+                                            border: "3px solid #8b5cf6",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            cursor: "pointer",
+                                            fontSize: "4rem",
+                                            fontWeight: "bold",
+                                            color: "#8b5cf6",
+                                            transition: "all 0.3s ease",
+                                            boxShadow: hoveredGrade === 'A+' ? "0 4px 16px rgba(139, 92, 246, 0.4)" : "0 2px 8px rgba(0,0,0,0.1)",
+                                            transform: hoveredGrade === 'A+' ? "scale(1.08)" : "scale(1)",
+                                            letterSpacing: "-2px"
+                                        }}
+                                    >
+                                        A+
+                                    </div>
+                                </div>
+
+                                {/* Information Box */}
+                                <div style={{
+                                    width: "450px",
+                                    minHeight: "200px",
+                                    backgroundColor: hoveredGrade ? "#f9fafb" : "#ffffff",
+                                    border: hoveredGrade ? "2px solid #e5e7eb" : "2px dashed #d1d5db",
+                                    borderRadius: "12px",
+                                    padding: "1.5rem",
+                                    boxShadow: hoveredGrade ? "0 4px 12px rgba(0,0,0,0.1)" : "none",
+                                    transition: "all 0.3s ease",
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    justifyContent: hoveredGrade ? "flex-start" : "center",
+                                    alignItems: hoveredGrade ? "stretch" : "center"
+                                }}>
+                                    {!hoveredGrade ? (
+                                        <p style={{ 
+                                            color: "#9ca3af", 
+                                            fontSize: "1rem", 
+                                            textAlign: "center",
+                                            fontStyle: "italic"
+                                        }}>
+                                            Hover over a grade to see tips
+                                        </p>
+                                    ) : (
+                                        <>
+                                            {hoveredGrade === 'C' && (
+                                                <>
+                                                    <h3 style={{ margin: "0 0 0.75rem 0", color: "#f59e0b", fontSize: "1.4rem", fontWeight: "bold" }}>
+                                                        Unistructural (Grade C)
+                                                    </h3>
+                                                    <p style={{ margin: "0 0 0.75rem 0", fontSize: "0.9rem", color: "#555", lineHeight: "1.5" }}>
+                                                        You're asking basic recall questions about single facts or definitions.
+                                                    </p>
+                                                    <div style={{ 
+                                                        backgroundColor: "#fffbeb", 
+                                                        padding: "0.75rem", 
+                                                        borderRadius: "6px",
+                                                        borderLeft: "3px solid #f59e0b",
+                                                        marginBottom: "0.75rem"
+                                                    }}>
+                                                        <p style={{ margin: "0 0 0.5rem 0", fontSize: "0.85rem", color: "#78350f", fontWeight: "600" }}>
+                                                         To reach Grade B:
+                                                        </p>
+                                                        <p style={{ margin: "0", fontSize: "0.85rem", color: "#78350f", lineHeight: "1.4" }}>
+                                                            Instead of "What is X?", try asking "What are the key components of X and how does each function?"
+                                                        </p>
+                                                    </div>
+                                                    <p style={{ margin: "0", fontSize: "0.8rem", color: "#666", fontStyle: "italic" }}>
+                                                        Ask yourself: "Am I listing multiple related concepts instead of just one?"
+                                                    </p>
+                                                </>
+                                            )}
+                                            {hoveredGrade === 'B' && (
+                                                <>
+                                                    <h3 style={{ margin: "0 0 0.75rem 0", color: "#3b82f6", fontSize: "1.4rem", fontWeight: "bold" }}>
+                                                        Multistructural (Grade B)
+                                                    </h3>
+                                                    <p style={{ margin: "0 0 0.75rem 0", fontSize: "0.9rem", color: "#555", lineHeight: "1.5" }}>
+                                                        You're describing multiple concepts but they're adjacent to one another in the same topic.
+                                                    </p>
+                                                    <div style={{ 
+                                                        backgroundColor: "#eff6ff", 
+                                                        padding: "0.75rem", 
+                                                        borderRadius: "6px",
+                                                        borderLeft: "3px solid #3b82f6",
+                                                        marginBottom: "0.75rem"
+                                                    }}>
+                                                        <p style={{ margin: "0 0 0.5rem 0", fontSize: "0.85rem", color: "#1e3a8a", fontWeight: "600" }}>
+                                                            To reach Grade A:
+                                                        </p>
+                                                        <p style={{ margin: "0", fontSize: "0.85rem", color: "#1e3a8a", lineHeight: "1.4" }}>
+                                                            Connect ideas across topics and analyze cause-effect relationships or trade-offs between certain parameters.
+                                                        </p>
+                                                    </div>
+                                                    <p style={{ margin: "0", fontSize: "0.8rem", color: "#666", fontStyle: "italic" }}>
+                                                        Ask yourself: "Am I exploring how changing one parameter impacts others?"
+                                                    </p>
+                                                </>
+                                            )}
+                                            {hoveredGrade === 'A' && (
+                                                <>
+                                                    <h3 style={{ margin: "0 0 0.75rem 0", color: "#10b981", fontSize: "1.4rem", fontWeight: "bold" }}>
+                                                        Relational (Grade A)
+                                                    </h3>
+                                                    <p style={{ margin: "0 0 0.75rem 0", fontSize: "0.9rem", color: "#555", lineHeight: "1.5" }}>
+                                                        You're analyzing how concepts interact across topics and exploring their relationships.
+                                                    </p>
+                                                    <div style={{ 
+                                                        backgroundColor: "#f0fdf4", 
+                                                        padding: "0.75rem", 
+                                                        borderRadius: "6px",
+                                                        borderLeft: "3px solid #10b981",
+                                                        marginBottom: "0.75rem"
+                                                    }}>
+                                                        <p style={{ margin: "0 0 0.5rem 0", fontSize: "0.85rem", color: "#064e3b", fontWeight: "600" }}>
+                                                            To reach Grade A+:
+                                                        </p>
+                                                        <p style={{ margin: "0", fontSize: "0.85rem", color: "#064e3b", lineHeight: "1.4" }}>
+                                                            Apply theoretical knowledge to specific real-world scenarios with constraints and multiple variables.
+                                                        </p>
+                                                    </div>
+                                                    <p style={{ margin: "0", fontSize: "0.8rem", color: "#666", fontStyle: "italic" }}>
+                                                        Ask yourself: "Am I applying theory to a specific real-world context with constraints?"
+                                                    </p>
+                                                </>
+                                            )}
+                                            {hoveredGrade === 'A+' && (
+                                                <>
+                                                    <h3 style={{ margin: "0 0 0.75rem 0", color: "#8b5cf6", fontSize: "1.4rem", fontWeight: "bold" }}>
+                                                        Extended Abstract (Grade A+)
+                                                    </h3>
+                                                    <p style={{ margin: "0 0 0.75rem 0", fontSize: "0.9rem", color: "#555", lineHeight: "1.5" }}>
+                                                        You're integrating concepts with real-world applications and evaluating alternatives.
+                                                    </p>
+                                                    <div style={{ 
+                                                        backgroundColor: "#faf5ff", 
+                                                        padding: "0.75rem", 
+                                                        borderRadius: "6px",
+                                                        borderLeft: "3px solid #8b5cf6",
+                                                        marginBottom: "0.75rem"
+                                                    }}>
+                                                        <p style={{ margin: "0 0 0.5rem 0", fontSize: "0.85rem", color: "#581c87", fontWeight: "600" }}>
+                                                            Keep excelling:
+                                                        </p>
+                                                        <p style={{ margin: "0", fontSize: "0.85rem", color: "#581c87", lineHeight: "1.4" }}>
+                                                            Explore edge cases, compare multiple solutions, and consider implementation constraints and trade-offs.
+                                                        </p>
+                                                    </div>
+                                                    <p style={{ margin: "0", fontSize: "0.8rem", color: "#666", fontStyle: "italic" }}>
+                                                        Ask yourself: "Am I comparing alternatives and evaluating trade-offs of different options in realistic scenarios?"
+                                                    </p>
+                                                </>
+                                            )}
+                                        </>
+                                    )}
+                                </div>
+                            </div>
                         </section>
 
                         {/* Stats Grid (Lines 469-563) */}
@@ -1385,90 +1924,49 @@ export default function DashboardPage() {
             <div role="tabpanel" hidden={currentTab !== 2}>
                 {currentTab === 2 && (
                     <>
-                        {/* Line Charts (Lines 950-1045) */}
-                        <section style={{ marginTop: "2rem" }}>
-                            <div style={{ display: "flex", gap: "2rem", justifyContent: "center" }}>
-                                <div style={{
-                        flex: "1 1 450px",
-                        maxWidth: "600px",
-                        backgroundColor: "#f9f9f9",
-                        padding: "1.5rem",
-                        borderRadius: "12px",
-                        boxShadow: "0 2px 8px rgba(0,0,0,0.1)"
-                    }}>
-                        <h2 style={{
-                            textAlign: "center",
-                            marginBottom: "1rem",
-                            color: "#555"
+                        {/* Time Filter Controls */}
+                        <div style={{
+                            display: "flex",
+                            justifyContent: "center",
+                            alignItems: "center",
+                            gap: "1rem",
+                            marginTop: "1.5rem",
+                            marginBottom: "1rem"
                         }}>
-                            Number of Interaction Trends Over Time
-                            {selectedTopic && (
-                                <span style={{ display: "block", fontSize: "0.8rem", color: "#059669", marginTop: "0.25rem" }}>
-                                    Filtered by: {selectedTopic}
-                                </span>
-                            )}
-                        </h2>
-                        {dataLoading ? (
-                            <div style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>Loading chart data...</div>
-                        ) : (
-                            <ResponsiveLineChart
-                                data={interactionChartData}
-                                height={360}
-                                showResetButton={true}
-                            />
-                        )}
-                        <p style={{
-                            fontSize: "0.85rem",
-                            color: "#666",
-                            textAlign: "center",
-                            marginTop: "1rem"
-                        }}>
-                            Blue line: Your daily interactions | Red dashed: Class average
-                        </p>
-                    </div>
-                    <div style={{
-                        flex: "1 1 450px",
-                        maxWidth: "600px",
-                        backgroundColor: "#f9f9f9",
-                        padding: "1.5rem",
-                        borderRadius: "12px",
-                        boxShadow: "0 2px 8px rgba(0,0,0,0.1)"
-                    }}>
-                        <h2 style={{
-                            textAlign: "center",
-                            marginBottom: "1rem",
-                            color: "#555"
-                        }}>
-                            Average Duration of Conversation Over Time
-                            {selectedTopic && (
-                                <span style={{ display: "block", fontSize: "0.8rem", color: "#059669", marginTop: "0.25rem" }}>
-                                    Filtered by: {selectedTopic}
-                                </span>
-                            )}
-                        </h2>
-                        {dataLoading ? (
-                            <div style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>Loading chart data...</div>
-                        ) : (
-                            <ResponsiveLineChart
-                                data={durationChartData}
-                                height={360}
-                                showResetButton={true}
-                                yAxisLabel="Duration (minutes)"
-                            />
-                        )}
-                        <p style={{
-                            fontSize: "0.85rem",
-                            color: "#666",
-                            textAlign: "center",
-                            marginTop: "1rem"
-                        }}>
-                            Blue line: Your duration per conversation | Red dashed: Class average
-                        </p>
-                    </div>
+                            <span style={{ fontWeight: "600", color: "#555" }}>Time Range:</span>
+                            <div style={{
+                                display: "flex",
+                                gap: "0.5rem",
+                                backgroundColor: "#f3f4f6",
+                                padding: "0.25rem",
+                                borderRadius: "8px"
+                            }}>
+                                {[
+                                    { value: 'past-3-days', label: 'Past 3 Days' },
+                                    { value: 'past-week', label: 'Past Week' },
+                                    { value: 'all-time', label: 'All Time' }
+                                ].map(option => (
+                                    <button
+                                        key={option.value}
+                                        onClick={() => setTimeFilter(option.value)}
+                                        style={{
+                                            padding: "0.5rem 1rem",
+                                            borderRadius: "6px",
+                                            border: "none",
+                                            cursor: "pointer",
+                                            fontWeight: timeFilter === option.value ? "600" : "400",
+                                            backgroundColor: timeFilter === option.value ? "#3b82f6" : "transparent",
+                                            color: timeFilter === option.value ? "white" : "#555",
+                                            transition: "all 0.2s ease"
+                                        }}
+                                    >
+                                        {option.label}
+                                    </button>
+                                ))}
                             </div>
-                        </section>
-
-                        {/* Bar Charts (Lines 1047-1135) */}
+                        </div>
+                        
+                        {/* Bar Charts */}
                         <section style={{ marginTop: "2rem" }}>
                             <div style={{ display: "flex", gap: "2rem", justifyContent: "center" }}>
                                {/* Answer accuracy Vertical Bar Chart */}
@@ -1572,6 +2070,90 @@ export default function DashboardPage() {
                                 Blue bars: Your Questions | Red bars: Class Average
                             </p>
                         </div>
+                            </div>
+                        </section>
+
+                        {/* Line Charts */}
+                        <section style={{ marginTop: "2rem" }}>
+                            <div style={{ display: "flex", gap: "2rem", justifyContent: "center" }}>
+                                <div style={{
+                        flex: "1 1 450px",
+                        maxWidth: "600px",
+                        backgroundColor: "#f9f9f9",
+                        padding: "1.5rem",
+                        borderRadius: "12px",
+                        boxShadow: "0 2px 8px rgba(0,0,0,0.1)"
+                    }}>
+                        <h2 style={{
+                            textAlign: "center",
+                            marginBottom: "1rem",
+                            color: "#555"
+                        }}>
+                            Question Grades (GPA) Over Time
+                            {selectedTopic && (
+                                <span style={{ display: "block", fontSize: "0.8rem", color: "#059669", marginTop: "0.25rem" }}>
+                                    Filtered by: {selectedTopic}
+                                </span>
+                            )}
+                        </h2>
+                        {dataLoading ? (
+                            <div style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>Loading chart data...</div>
+                        ) : (
+                            <ResponsiveLineChart
+                                data={getTimeFilteredChartData(gradesChartData)}
+                                height={360}
+                                showResetButton={true}
+                                yAxisLabel="Grade Points (GPA)"
+                            />
+                        )}
+                        <p style={{
+                            fontSize: "0.85rem",
+                            color: "#666",
+                            textAlign: "center",
+                            marginTop: "1rem"
+                        }}>
+                            Blue line: Your average daily grades | Red dashed: Class average
+                        </p>
+                    </div>
+                    <div style={{
+                        flex: "1 1 450px",
+                        maxWidth: "600px",
+                        backgroundColor: "#f9f9f9",
+                        padding: "1.5rem",
+                        borderRadius: "12px",
+                        boxShadow: "0 2px 8px rgba(0,0,0,0.1)"
+                    }}>
+                        <h2 style={{
+                            textAlign: "center",
+                            marginBottom: "1rem",
+                            color: "#555"
+                        }}>
+                            Answer Accuracy Over Time
+                            {selectedTopic && (
+                                <span style={{ display: "block", fontSize: "0.8rem", color: "#059669", marginTop: "0.25rem" }}>
+                                    Filtered by: {selectedTopic}
+                                </span>
+                            )}
+                        </h2>
+                        {dataLoading ? (
+                            <div style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>Loading chart data...</div>
+                        ) : (
+                            <ResponsiveLineChart
+                                data={getTimeFilteredChartData(accuracyOverTimeChartData)}
+                                height={360}
+                                showResetButton={true}
+                                yAxisLabel="Accuracy (%)"
+                            />
+                        )}
+                        <p style={{
+                            fontSize: "0.85rem",
+                            color: "#666",
+                            textAlign: "center",
+                            marginTop: "1rem"
+                        }}>
+                            Blue line: Your answer accuracy | Red dashed: Class average
+                        </p>
+                    </div>
                             </div>
                         </section>
                     </>
