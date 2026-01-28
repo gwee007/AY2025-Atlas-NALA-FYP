@@ -1956,7 +1956,7 @@ Reflect on your recent learning patterns and question quality, as well as revisi
                                                         wordWrap: "break-word",
                                                         overflowWrap: "break-word"
                                                     }}>{chat.question}</span>
-                                                    <MarkdownTooltip title={`**Question Details:**\n\n${chat.question}\n\n---\n\n**Reasoning:** ${chat.reasoning}\n\n**SOLO Level:** ${chat.soloLevel}`}>
+                                                    <MarkdownTooltip title={`### SOLO Level: ${chat.soloLevel}\n\n${chat.reasoning}`}>
                                                         <IconButton size="small" style={{ padding: "2px", marginTop: "2px" }}>
                                                             <InfoOutlinedIcon style={{ fontSize: "0.9rem", color: "#64748b" }} />
                                                         </IconButton>
@@ -1983,7 +1983,7 @@ Reflect on your recent learning patterns and question quality, as well as revisi
                                                             wordWrap: "break-word",
                                                             overflowWrap: "break-word"
                                                         }}>{chat.answer.content}</span>
-                                                        <MarkdownTooltip title={`**Answer Details:**\n\n${chat.answer.content}\n\n---\n\n**Feedback:** ${chat.answer.feedback}\n\n**Accuracy:** ${chat.answer.accuracy}%`}>
+                                                        <MarkdownTooltip title={`### Accuracy: ${chat.answer.accuracy}%\n\n${chat.answer.feedback}`}>
                                                             <IconButton size="small" style={{ padding: "2px", marginTop: "2px" }}>
                                                                 <InfoOutlinedIcon style={{ fontSize: "0.9rem", color: "#64748b" }} />
                                                             </IconButton>
