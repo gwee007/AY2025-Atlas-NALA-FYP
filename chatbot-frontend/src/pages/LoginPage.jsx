@@ -43,7 +43,7 @@ export default function LoginPage() {
         login(userId.trim());
         navigate('/dashboard');
       } else {
-        setError('User ID not found. Please check your User ID and try again.');
+        setError('User ID not found. Failed to login.');
       }
     } catch (err) {
       console.error('Login error:', err);
@@ -194,7 +194,7 @@ export default function LoginPage() {
               fontSize: '0.85rem',
             }}
           >
-            NTU NALA CH3111 • Assessment Platform
+            FOR PROCESS CONTROL AND DYNAMICS (CH3111)
           </Typography>
         </Box>
       </Container>

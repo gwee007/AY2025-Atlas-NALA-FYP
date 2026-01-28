@@ -10,6 +10,7 @@ import { Button, Tabs, Tab, Box, IconButton } from '@mui/material';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import API_BASE_URL, { API_ENDPOINTS } from '../config/api';
 import ReactMarkdown from 'react-markdown';
+import { useAuth } from '../context/AuthContext';
 
 // Responsive Chart Wrapper Component
 function ResponsiveReflectiveBarChart({ data, height, onCategoryClick, selectedCategory }) {
@@ -50,6 +51,7 @@ function ResponsiveReflectiveBarChart({ data, height, onCategoryClick, selectedC
 }
 
 export default function DashboardPage() {
+    const { userId } = useAuth(); // Get userId from AuthContext
     const [selectedTopic, setSelectedTopic] = useState(null);
     const [hoveredGrade, setHoveredGrade] = useState(null);
     
@@ -68,7 +70,6 @@ export default function DashboardPage() {
     
     const [page,setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
-    const USER_ID = '2'; // We're centralising it here
     
     // State for all chart data
     const [interactionChartData, setInteractionChartData] = useState({ individual: [], average: [] });
@@ -143,7 +144,7 @@ export default function DashboardPage() {
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ user_id: USER_ID})
+                    body: JSON.stringify({ user_id: userId})
                 });
                 
                 if (!response.ok) {
@@ -220,7 +221,7 @@ export default function DashboardPage() {
                 const individualResponse = await fetch(API_ENDPOINTS.individualStatistics, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ user_id: USER_ID })
+                    body: JSON.stringify({ user_id: userId })
                 });
                 
                 // Fetch group statistics
@@ -736,7 +737,7 @@ export default function DashboardPage() {
                     // REFACTOR 1: Add user_id and page parameters to the URL
                     // We use `per_page=5` to match your log example
                     const queryParams = new URLSearchParams({
-                        user_id: USER_ID,
+                        user_id: userId,
                         page: page,
                         per_page: 4, 
                         ...(topicId && { topic_id: topicId })
@@ -803,13 +804,13 @@ export default function DashboardPage() {
             // Fetch topic dependencies when a topic is selected
         useEffect(() => {
 
-            if (!USER_ID) return; // Safety check
+            if (!userId) return; // Safety check
 
             const fetchTopicDependencies = async () => {
                 setDependenciesLoading(true);
                 try {
                     // 1. Pass user_id to backend (so it injects grades automatically)
-                    const response = await fetch(`${API_ENDPOINTS.topicDependencies}?user_id=${USER_ID}`);
+                    const response = await fetch(`${API_ENDPOINTS.topicDependencies}?user_id=${userId}`);
                     
                     if (!response.ok) throw new Error('Failed to fetch topic dependencies');
                     
@@ -838,7 +839,7 @@ export default function DashboardPage() {
             };
 
             fetchTopicDependencies();
-        }, [USER_ID]); // <--- IMPORTANT: Re-run this if the user changes
+        }, [userId]); // <--- IMPORTANT: Re-run this if the user changes
 
     // Filter topics based on search term
     const filteredTopicalPerformanceData = {

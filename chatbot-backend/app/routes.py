@@ -23,6 +23,27 @@ def health_check():
     return jsonify({"status": "Chatbot backend is running"}), 200
 
 
+@main_bp.route('/api/verify-user/<string:user_id>', methods=['GET'])
+def verify_user(user_id: str):
+    """Verify if a user exists in the database."""
+    db: Session = get_db_session()
+    
+    try:
+        user = db.query(User).filter(User.id == user_id).first()
+        
+        if user:
+            return jsonify({"exists": True, "user_id": user_id}), 200
+        else:
+            return jsonify({"exists": False, "message": "User not found"}), 404
+    
+    except Exception as e:
+        logger.error(f"Error verifying user: {e}")
+        return jsonify({"error": "Failed to verify user"}), 500
+    
+    finally:
+        db.close()
+
+
 @main_bp.route('/api/chat', methods=['POST'])
 def chat():
     """Handle chat interactions: new questions and answers to pending questions."""

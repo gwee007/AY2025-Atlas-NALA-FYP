@@ -1,5 +1,6 @@
 // frontend/src/hooks/useChatbotConversations.js
 import { useState, useEffect, useRef } from "react";
+import { useAuth } from "../context/AuthContext";
 import { DEFAULT_FIRST_MESSAGE } from "../data/defaultMessages";
 import { API_ENDPOINTS } from "../config/api";
 
@@ -10,13 +11,15 @@ export default function useChatbotConversations() {
     const [messages, setMessages] = useState([]);
     const [input, setInput] = useState("");
     const [isTyping, setIsTyping] = useState(false);
-    const userId = "2"; // Default userId
+    const { userId } = useAuth(); // Get userId from AuthContext
     const [_localMessageIds, setLocalMessageIds] = useState(new Set()); // Track optimistically added messages
     const isLoadingConversation = useRef(false); // Track if conversation is being loaded
     const loadedMessageIds = useRef(new Set()); // Track all message IDs to prevent duplicates
     
     // Track if user is in chatbot and if they've asked new questions
     useEffect(() => {
+        if (!userId) return; // Don't run if userId is not available
+        
         // Mark that user entered chatbot area
         sessionStorage.setItem(`chatbot_active_${userId}`, 'true');
         
@@ -41,10 +44,13 @@ export default function useChatbotConversations() {
 
     // Fetch conversations from backend on mount
     useEffect(() => {
+        if (!userId) return; // Don't fetch if userId is not available
         fetchConversations();
     }, [userId]);
 
     const fetchConversations = async (skipAutoLoad = false) => {
+        if (!userId) return; // Don't fetch if userId is not available
+        
         try {
             const response = await fetch(`${API_ENDPOINTS.chatbotConversations}?user_id=${userId}`);
             
@@ -72,6 +78,8 @@ export default function useChatbotConversations() {
     };
 
     const loadConversationMessages = async (conversationId) => {
+        if (!userId) return; // Don't load if userId is not available
+        
         // Prevent duplicate loads
         if (isLoadingConversation.current) {
             return;
@@ -162,7 +170,7 @@ export default function useChatbotConversations() {
     }, [conversations.length, activeConversationId]);
 
     const handleSend = async () => {
-        if (!input.trim()) return;
+        if (!input.trim() || !userId) return; // Don't send if no input or userId
 
         const currentTime = new Date();
         const localMessageId = `local-user-${Date.now()}`;

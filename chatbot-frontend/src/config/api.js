@@ -7,6 +7,7 @@ export const API_ENDPOINTS = {
     chatbotHealth: `${API_URL}/api/health`,
     chat: `${API_URL}/api/chat`,
     chatbotConversations: `${API_URL}/api/conversations`,
+    verifyUser: (userId) => `${API_URL}/api/verify-user/${userId}`,
     
     // Dashboard endpoints
     health: `${API_URL}/api/health`,
