@@ -3,6 +3,9 @@ import Navbar from './components/Navbar'
 import ChatbotPage from './pages/ChatbotPage'
 import DashboardPage from './pages/DashboardPage'
 import ChatbotAssessPage from './pages/ChatbotAssessPage'
+import LoginPage from './pages/LoginPage'
+import ProtectedRoute from './components/ProtectedRoute'
+import { AuthProvider } from './context/AuthContext'
 import { createBrowserRouter, RouterProvider, Outlet, Navigate } from "react-router-dom";
 
 function RootLayout() {
@@ -22,19 +25,19 @@ const router = createBrowserRouter([
       { index: true, element: <Navigate to="/dashboard" replace /> },
       {
         path: "dashboard",
-        element: <DashboardPage />,
+        element: <ProtectedRoute><DashboardPage /></ProtectedRoute>,
       }, 
       {
         path: "chatbot",
-        element: <ChatbotPage />,
+        element: <ProtectedRoute><ChatbotPage /></ProtectedRoute>,
       },
       {
         path: "chatbot/:userId/:conversationId",
-        element: <ChatbotAssessPage />,
+        element: <ProtectedRoute><ChatbotAssessPage /></ProtectedRoute>,
       },
       {
         path: "chatbot/assess",
-        element: <ChatbotAssessPage />,
+        element: <ProtectedRoute><ChatbotAssessPage /></ProtectedRoute>,
       },
       // catch all route - 404
       {
@@ -43,8 +46,16 @@ const router = createBrowserRouter([
       },
     ],
   },
+  {
+    path: "/login",
+    element: <LoginPage />,
+  },
 ]);
 
 export default function App() {
-  return <RouterProvider router={router} />;
+  return (
+    <AuthProvider>
+      <RouterProvider router={router} />
+    </AuthProvider>
+  );
 }

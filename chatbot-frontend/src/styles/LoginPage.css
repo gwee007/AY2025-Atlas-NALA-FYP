@@ -1,0 +1,100 @@
+/* Login Page Wrapper */
+.login-page-wrapper {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+/* Login Container */
+.login-page-container {
+  background: white;
+  border-radius: 16px;
+  padding: 60px 50px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+  max-width: 450px;
+  width: 100%;
+}
+
+/* Header Section */
+.login-header {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.login-main-title {
+  color: #2c3e50;
+  font-weight: 700;
+  margin-bottom: 0;
+}
+
+/* Form Wrapper */
+.login-form-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* Error Alert */
+.login-error-alert {
+  border-radius: 8px;
+}
+
+/* Input Field */
+.login-input-field {
+  margin: 0;
+}
+
+.login-input-field .MuiOutlinedInput-root {
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.login-input-field .MuiOutlinedInput-root:hover {
+  background-color: #f8f9fa;
+}
+
+.login-input-field .MuiOutlinedInput-root.Mui-focused {
+  background-color: white;
+}
+
+/* Submit Button */
+.login-submit-button {
+  margin-top: 8px;
+  padding: 14px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+  transition: background 0.3s ease, box-shadow 0.3s ease !important;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.login-submit-button:hover:not(:disabled) {
+  background: linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%) !important;
+  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+}
+
+.login-submit-button:disabled {
+  opacity: 0.6;
+}
+
+/* Responsive Design */
+@media (max-width: 600px) {
+  .login-page-container {
+    padding: 40px 30px;
+  }
+
+  .login-main-title {
+    font-size: 1.75rem;
+  }
+}
+
+@media (max-width: 400px) {
+  .login-page-container {
+    padding: 30px 20px;
+  }
+
+  .login-main-title {
+    font-size: 1.5rem;
+  }
+}

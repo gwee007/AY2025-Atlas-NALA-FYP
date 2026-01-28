@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Link as RouterLink } from 'react-router-dom';
+import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import AppBar from '@mui/material/AppBar';
 import Box from '@mui/material/Box';
 import Toolbar from '@mui/material/Toolbar';
@@ -15,6 +15,7 @@ import {
     AssistantRounded as AssistantRoundedIcon,
     Logout as LogoutIcon
 } from '@mui/icons-material';
+import { useAuth } from '../context/AuthContext';
 
 const pages = [
     { name: 'Dashboard', path: '/dashboard', icon: <DashboardRoundedIcon /> },
@@ -23,6 +24,8 @@ const pages = [
 
 function Navbar() {
     const [anchorElNav, setAnchorElNav] = React.useState(null);
+    const { logout } = useAuth();
+    const navigate = useNavigate();
 
     const handleOpenNavMenu = (event) => {
         setAnchorElNav(event.currentTarget);
@@ -31,8 +34,8 @@ function Navbar() {
         setAnchorElNav(null);
     };
     const handleLogout = () => {
-        // Add logout logic here
-        console.log('Logout clicked');
+        logout();
+        navigate('/login');
     };
 
     return (
