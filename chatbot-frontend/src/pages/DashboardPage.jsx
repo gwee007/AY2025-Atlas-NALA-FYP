@@ -68,7 +68,7 @@ export default function DashboardPage() {
     
     const [page,setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
-    const USER_ID = 'test_user_1'; // We're centralising it here
+    const USER_ID = '2'; // We're centralising it here
     
     // State for all chart data
     const [interactionChartData, setInteractionChartData] = useState({ individual: [], average: [] });
@@ -110,6 +110,7 @@ export default function DashboardPage() {
     const [conversationsLoading, setQuestionsLoading] = useState(true);
     const [topicIdMap, setTopicIdMap] = useState({}); // Map topic names to IDs
     const [topicNameToIdMap, setTopicNameToIdMap] = useState({}); // Map topic names to IDs for filtering
+    const [showAnsweredOnly, setShowAnsweredOnly] = useState(false); // Filter for answered questions
 
     
    
@@ -766,13 +767,22 @@ export default function DashboardPage() {
                         id: q.question_id,
                         question: q.content || 'No content',
                         grade: q.grade || 'N/A',
-                        conversation_id: q.conversation_id,  // Add conversation_id
+                        reasoning: q.reasoning || 'N/A',
+                        soloLevel: q.solo_taxonomy_level || 'N/A',
+                        conversation_id: q.conversation_id,
                         timestamp: q.timestamp
                             ? new Date(q.timestamp).toLocaleString('en-US', {
                                 year: 'numeric', month: '2-digit', day: '2-digit',
                                 hour: '2-digit', minute: '2-digit'
                             })
-                            : 'N/A'
+                            : 'N/A',
+                        // Answer details (if available)
+                        answer: q.answer ? {
+                            id: q.answer.answer_id,
+                            content: q.answer.content || 'No answer',
+                            accuracy: q.answer.accuracy_score,
+                            feedback: q.answer.feedback || 'N/A'
+                        } : null
                     }));
                     
                     setQuestions(transformedData); // Note: Your state is named 'conversations' in the snippet, ensure this matches
@@ -1819,15 +1829,16 @@ Review this regularly to identify areas to start jumping in with NALA-Assess!`}>
                                     flexDirection: "column",
                                     maxHeight: "500px"
                                 }}>
-                                    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.75rem" }}>
-                                        <h3 style={{ 
-                                            color: "#555",
-                                            margin: 0,
-                                            fontSize: "1rem"
-                                        }}>
-                                            Recent Questions
-                                        </h3>
-                                        <MarkdownTooltip title={`### Recent Interactions
+                                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.5rem", marginBottom: "0.75rem" }}>
+                                        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                                            <h3 style={{ 
+                                                color: "#555",
+                                                margin: 0,
+                                                fontSize: "1rem"
+                                            }}>
+                                                Recent Questions
+                                            </h3>
+                                            <MarkdownTooltip title={`### Recent Interactions
 
 Shows your latest chatbot conversations.
 
@@ -1839,8 +1850,21 @@ Shows your latest chatbot conversations.
 
 **Use this to:**
 Reflect on your recent learning patterns and question quality, as well as revisit questions in context.`}>
-                                            <IconButton size="small"><InfoOutlinedIcon fontSize="small" /></IconButton>
-                                        </MarkdownTooltip>
+                                                <IconButton size="small"><InfoOutlinedIcon fontSize="small" /></IconButton>
+                                            </MarkdownTooltip>
+                                        </div>
+                                        <Button 
+                                            variant={showAnsweredOnly ? "contained" : "outlined"}
+                                            size="small"
+                                            onClick={() => setShowAnsweredOnly(!showAnsweredOnly)}
+                                            style={{
+                                                fontSize: "0.75rem",
+                                                padding: "0.3rem 0.8rem",
+                                                textTransform: "none"
+                                            }}
+                                        >
+                                            {showAnsweredOnly ? "Show All" : "Answered Only"}
+                                        </Button>
                                     </div>
                                     <div style={{ 
                                         flex: "1",
@@ -1861,7 +1885,8 @@ Reflect on your recent learning patterns and question quality, as well as revisi
                                                         borderBottom: "2px solid #e2e8f0",
                                                         color: "#64748b",
                                                         fontWeight: "600",
-                                                        fontSize: "0.8rem"
+                                                        fontSize: "0.8rem",
+                                                        width: "25%"
                                                     }}>Question</th>
                                                     <th style={{ 
                                                         padding: "0.6rem", 
@@ -1869,9 +1894,27 @@ Reflect on your recent learning patterns and question quality, as well as revisi
                                                         borderBottom: "2px solid #e2e8f0",
                                                         color: "#64748b",
                                                         fontWeight: "600",
-                                                        width: "70px",
+                                                        width: "60px",
                                                         fontSize: "0.8rem"
-                                                    }}>Grade</th>
+                                                    }}>Q Grade</th>
+                                                    <th style={{ 
+                                                        padding: "0.6rem", 
+                                                        textAlign: "left",
+                                                        borderBottom: "2px solid #e2e8f0",
+                                                        color: "#64748b",
+                                                        fontWeight: "600",
+                                                        fontSize: "0.8rem",
+                                                        width: "25%"
+                                                    }}>Answer</th>
+                                                    <th style={{ 
+                                                        padding: "0.6rem", 
+                                                        textAlign: "center",
+                                                        borderBottom: "2px solid #e2e8f0",
+                                                        color: "#64748b",
+                                                        fontWeight: "600",
+                                                        width: "60px",
+                                                        fontSize: "0.8rem"
+                                                    }}>A Grade</th>
                                                     <th style={{ 
                                                         padding: "0.6rem", 
                                                         textAlign: "center",
@@ -1886,26 +1929,40 @@ Reflect on your recent learning patterns and question quality, as well as revisi
                                             <tbody>
                                                 {conversationsLoading ? (
                                                 <tr>
-                                                    <td colSpan="3" style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>
+                                                    <td colSpan="5" style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>
                                                         Loading questions...
                                                     </td>
                                                 </tr>
-                                            ) : conversations.length === 0 ? (
+                                            ) : conversations.filter(chat => !showAnsweredOnly || chat.answer !== null).length === 0 ? (
                                                 <tr>
-                                                    <td colSpan="3" style={{ textAlign: 'center', padding: '2rem', color: '#94a3b8' }}>
-                                                        No questions found
+                                                    <td colSpan="5" style={{ textAlign: 'center', padding: '2rem', color: '#94a3b8' }}>
+                                                        {showAnsweredOnly ? 'No answered questions found' : 'No questions found'}
                                                     </td>
                                                 </tr>
                                             ) : (
-                                                conversations.map((chat, index) => (
+                                                conversations.filter(chat => !showAnsweredOnly || chat.answer !== null).map((chat, index) => (
                                                     <tr key={chat.id} style={{
                                                         backgroundColor: index % 2 === 0 ? "white" : "#f8fafc"
                                                     }}>
                                             <td style={{ 
                                                 padding: "0.6rem",
                                                 borderBottom: "1px solid #e2e8f0",
-                                                color: "#334155"
-                                            }}>{chat.question}</td>
+                                                color: "#334155",
+                                                maxWidth: "250px"
+                                            }}>
+                                                <div style={{ display: "flex", alignItems: "flex-start", gap: "0.3rem" }}>
+                                                    <span style={{
+                                                        flex: 1,
+                                                        wordWrap: "break-word",
+                                                        overflowWrap: "break-word"
+                                                    }}>{chat.question}</span>
+                                                    <MarkdownTooltip title={`### SOLO Level: ${chat.soloLevel}\n\n${chat.reasoning}`}>
+                                                        <IconButton size="small" style={{ padding: "2px", marginTop: "2px" }}>
+                                                            <InfoOutlinedIcon style={{ fontSize: "0.9rem", color: "#64748b" }} />
+                                                        </IconButton>
+                                                    </MarkdownTooltip>
+                                                </div>
+                                            </td>
                                             <td style={{ 
                                                 padding: "0.6rem",
                                                 textAlign: "center",
@@ -1913,6 +1970,37 @@ Reflect on your recent learning patterns and question quality, as well as revisi
                                                 fontWeight: "bold",
                                                 color: chat.grade.startsWith('A') ? "#10b981" : "#3b82f6"
                                             }}>{chat.grade}</td>
+                                            <td style={{ 
+                                                padding: "0.6rem",
+                                                borderBottom: "1px solid #e2e8f0",
+                                                color: "#334155",
+                                                maxWidth: "250px"
+                                            }}>
+                                                {chat.answer ? (
+                                                    <div style={{ display: "flex", alignItems: "flex-start", gap: "0.3rem" }}>
+                                                        <span style={{
+                                                            flex: 1,
+                                                            wordWrap: "break-word",
+                                                            overflowWrap: "break-word"
+                                                        }}>{chat.answer.content}</span>
+                                                        <MarkdownTooltip title={`### Accuracy: ${chat.answer.accuracy}%\n\n${chat.answer.feedback}`}>
+                                                            <IconButton size="small" style={{ padding: "2px", marginTop: "2px" }}>
+                                                                <InfoOutlinedIcon style={{ fontSize: "0.9rem", color: "#64748b" }} />
+                                                            </IconButton>
+                                                        </MarkdownTooltip>
+                                                    </div>
+                                                ) : '—'}
+                                            </td>
+                                            <td style={{ 
+                                                padding: "0.6rem",
+                                                textAlign: "center",
+                                                borderBottom: "1px solid #e2e8f0",
+                                                fontWeight: "bold",
+                                                color: chat.answer ? (
+                                                    chat.answer.accuracy >= 80 ? "#10b981" : 
+                                                    chat.answer.accuracy >= 60 ? "#f59e0b" : "#ef4444"
+                                                ) : "#94a3b8"
+                                            }}>{chat.answer ? `${chat.answer.accuracy}%` : '—'}</td>
                                             <td style={{ 
                                                 padding: "0.6rem",
                                                 textAlign: "center",

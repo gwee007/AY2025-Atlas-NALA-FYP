@@ -341,14 +341,23 @@ def get_questions():
         per_page = request.args.get('per_page', 5, type=int)
         offset= (page - 1) * per_page
 
-        # Join Question -> Message
-        query = session.query(Question, Message).join(
-            Message, Question.message_id == Message.id # UPDATED: Message.id
+        # Join Question -> Message (for question content) -> Answer (optional) -> Message (for answer content)
+        # We need to alias the Message table to distinguish question message from answer message
+        from sqlalchemy.orm import aliased
+        QuestionMessage = aliased(Message)
+        AnswerMessage = aliased(Message)
+        
+        query = session.query(Question, QuestionMessage, Answer, AnswerMessage).join(
+            QuestionMessage, Question.message_id == QuestionMessage.id
+        ).outerjoin(
+            Answer, Question.id == Answer.question_id
+        ).outerjoin(
+            AnswerMessage, Answer.message_id == AnswerMessage.id
         )
         
         # Filter by topic_id if provided (Many-to-Many)
         if user_id:
-            query = query.join(Conversation, Message.conversation_id == Conversation.id)\
+            query = query.join(Conversation, QuestionMessage.conversation_id == Conversation.id)\
                          .filter(Conversation.user_id == user_id)
         if topic_id:
             query = query.join(question_topics, Question.id == question_topics.c.question_id)\
@@ -359,14 +368,29 @@ def get_questions():
         questions = query.all()
         questions_data = []
         
-        for q, msg in questions:
-            questions_data.append({
-                'question_id': q.id, # UPDATED: q.id
-                'content': msg.content,
+        for q, q_msg, ans, ans_msg in questions:
+            question_data = {
+                'question_id': q.id,
+                'content': q_msg.content,
                 'grade': q.grade,
-                'timestamp': msg.timestamp.isoformat() if msg.timestamp else None,
-                'conversation_id': msg.conversation_id  # Add conversation_id for linking
-            })
+                'reasoning': q.reasoning,
+                'solo_taxonomy_level': q.solo_taxonomy_level,
+                'timestamp': q_msg.timestamp.isoformat() if q_msg.timestamp else None,
+                'conversation_id': q_msg.conversation_id
+            }
+            
+            # Add answer details if answer exists
+            if ans:
+                question_data['answer'] = {
+                    'answer_id': ans.id,
+                    'accuracy_score': ans.accuracy_score,
+                    'content': ans_msg.content if ans_msg else None,
+                    'feedback': ans.feedback
+                }
+            else:
+                question_data['answer'] = None
+            
+            questions_data.append(question_data)
 
         return jsonify({
             'data': questions_data,
