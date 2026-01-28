@@ -766,13 +766,22 @@ export default function DashboardPage() {
                         id: q.question_id,
                         question: q.content || 'No content',
                         grade: q.grade || 'N/A',
-                        conversation_id: q.conversation_id,  // Add conversation_id
+                        reasoning: q.reasoning || 'N/A',
+                        soloLevel: q.solo_taxonomy_level || 'N/A',
+                        conversation_id: q.conversation_id,
                         timestamp: q.timestamp
                             ? new Date(q.timestamp).toLocaleString('en-US', {
                                 year: 'numeric', month: '2-digit', day: '2-digit',
                                 hour: '2-digit', minute: '2-digit'
                             })
-                            : 'N/A'
+                            : 'N/A',
+                        // Answer details (if available)
+                        answer: q.answer ? {
+                            id: q.answer.answer_id,
+                            content: q.answer.content || 'No answer',
+                            accuracy: q.answer.accuracy_score,
+                            feedback: q.answer.feedback || 'N/A'
+                        } : null
                     }));
                     
                     setQuestions(transformedData); // Note: Your state is named 'conversations' in the snippet, ensure this matches
@@ -1861,7 +1870,8 @@ Reflect on your recent learning patterns and question quality, as well as revisi
                                                         borderBottom: "2px solid #e2e8f0",
                                                         color: "#64748b",
                                                         fontWeight: "600",
-                                                        fontSize: "0.8rem"
+                                                        fontSize: "0.8rem",
+                                                        width: "25%"
                                                     }}>Question</th>
                                                     <th style={{ 
                                                         padding: "0.6rem", 
@@ -1869,9 +1879,27 @@ Reflect on your recent learning patterns and question quality, as well as revisi
                                                         borderBottom: "2px solid #e2e8f0",
                                                         color: "#64748b",
                                                         fontWeight: "600",
-                                                        width: "70px",
+                                                        width: "60px",
                                                         fontSize: "0.8rem"
-                                                    }}>Grade</th>
+                                                    }}>Q Grade</th>
+                                                    <th style={{ 
+                                                        padding: "0.6rem", 
+                                                        textAlign: "left",
+                                                        borderBottom: "2px solid #e2e8f0",
+                                                        color: "#64748b",
+                                                        fontWeight: "600",
+                                                        fontSize: "0.8rem",
+                                                        width: "25%"
+                                                    }}>Answer</th>
+                                                    <th style={{ 
+                                                        padding: "0.6rem", 
+                                                        textAlign: "center",
+                                                        borderBottom: "2px solid #e2e8f0",
+                                                        color: "#64748b",
+                                                        fontWeight: "600",
+                                                        width: "60px",
+                                                        fontSize: "0.8rem"
+                                                    }}>A Grade</th>
                                                     <th style={{ 
                                                         padding: "0.6rem", 
                                                         textAlign: "center",
@@ -1886,13 +1914,13 @@ Reflect on your recent learning patterns and question quality, as well as revisi
                                             <tbody>
                                                 {conversationsLoading ? (
                                                 <tr>
-                                                    <td colSpan="3" style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>
+                                                    <td colSpan="5" style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>
                                                         Loading questions...
                                                     </td>
                                                 </tr>
                                             ) : conversations.length === 0 ? (
                                                 <tr>
-                                                    <td colSpan="3" style={{ textAlign: 'center', padding: '2rem', color: '#94a3b8' }}>
+                                                    <td colSpan="5" style={{ textAlign: 'center', padding: '2rem', color: '#94a3b8' }}>
                                                         No questions found
                                                     </td>
                                                 </tr>
@@ -1904,8 +1932,12 @@ Reflect on your recent learning patterns and question quality, as well as revisi
                                             <td style={{ 
                                                 padding: "0.6rem",
                                                 borderBottom: "1px solid #e2e8f0",
-                                                color: "#334155"
-                                            }}>{chat.question}</td>
+                                                color: "#334155",
+                                                maxWidth: "200px",
+                                                overflow: "hidden",
+                                                textOverflow: "ellipsis",
+                                                whiteSpace: "nowrap"
+                                            }} title={chat.question}>{chat.question}</td>
                                             <td style={{ 
                                                 padding: "0.6rem",
                                                 textAlign: "center",
@@ -1913,6 +1945,27 @@ Reflect on your recent learning patterns and question quality, as well as revisi
                                                 fontWeight: "bold",
                                                 color: chat.grade.startsWith('A') ? "#10b981" : "#3b82f6"
                                             }}>{chat.grade}</td>
+                                            <td style={{ 
+                                                padding: "0.6rem",
+                                                borderBottom: "1px solid #e2e8f0",
+                                                color: "#334155",
+                                                maxWidth: "200px",
+                                                overflow: "hidden",
+                                                textOverflow: "ellipsis",
+                                                whiteSpace: "nowrap"
+                                            }} title={chat.answer ? chat.answer.content : 'No answer yet'}>
+                                                {chat.answer ? chat.answer.content : '—'}
+                                            </td>
+                                            <td style={{ 
+                                                padding: "0.6rem",
+                                                textAlign: "center",
+                                                borderBottom: "1px solid #e2e8f0",
+                                                fontWeight: "bold",
+                                                color: chat.answer ? (
+                                                    chat.answer.accuracy >= 80 ? "#10b981" : 
+                                                    chat.answer.accuracy >= 60 ? "#f59e0b" : "#ef4444"
+                                                ) : "#94a3b8"
+                                            }}>{chat.answer ? `${chat.answer.accuracy}%` : '—'}</td>
                                             <td style={{ 
                                                 padding: "0.6rem",
                                                 textAlign: "center",
