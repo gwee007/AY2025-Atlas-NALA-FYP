@@ -44,7 +44,7 @@ export default function useChatbotConversations() {
         fetchConversations();
     }, [userId]);
 
-    const fetchConversations = async () => {
+    const fetchConversations = async (skipAutoLoad = false) => {
         try {
             const response = await fetch(`${API_ENDPOINTS.chatbotConversations}?user_id=${userId}`);
             
@@ -58,8 +58,9 @@ export default function useChatbotConversations() {
                 }));
                 setConversations(formattedConversations);
                 
-                // If no active conversation and conversations exist, set the first one
-                if (!activeConversationId && formattedConversations.length > 0) {
+                // Only auto-load if no active conversation and not skipping
+                // Skip when user is actively chatting to avoid overwriting message state
+                if (!skipAutoLoad && !activeConversationId && formattedConversations.length > 0) {
                     const firstConv = formattedConversations[0];
                     setActiveConversationId(firstConv.id);
                     await loadConversationMessages(firstConv.id);
@@ -99,15 +100,19 @@ export default function useChatbotConversations() {
                         from: msg.sender,
                         text: msg.content,
                         timestamp: new Date(msg.timestamp)
-                    }));
+                    }))
+                    // Sort by timestamp ascending (oldest first)
+                    .sort((a, b) => a.timestamp - b.timestamp);
                 
-                // Always prepend the welcome message at the start
+                // Always prepend the welcome message at the start with earliest timestamp
+                const welcomeTimestamp = new Date(0); // Epoch time to ensure it's first
                 const messagesWithWelcome = [
                     { 
                         id: `welcome-${conversationId}`, 
                         from: "bot", 
                         text: DEFAULT_FIRST_MESSAGE,
-                        isDefault: true // Mark as default message
+                        isDefault: true, // Mark as default message
+                        timestamp: welcomeTimestamp
                     },
                     ...formattedMessages
                 ];
@@ -124,7 +129,8 @@ export default function useChatbotConversations() {
                 id: `welcome-${Date.now()}`, 
                 from: "bot", 
                 text: DEFAULT_FIRST_MESSAGE,
-                isDefault: true
+                isDefault: true,
+                timestamp: new Date(0)
             };
             loadedMessageIds.current = new Set([welcomeMsg.id]);
             setMessages([welcomeMsg]);
@@ -140,7 +146,8 @@ export default function useChatbotConversations() {
             id: `welcome-new-${Date.now()}`, 
             from: "bot", 
             text: DEFAULT_FIRST_MESSAGE,
-            isDefault: true
+            isDefault: true,
+            timestamp: new Date(0) // Earliest timestamp to ensure it's first
         };
         loadedMessageIds.current = new Set([welcomeMsg.id]);
         setMessages([welcomeMsg]);
@@ -157,11 +164,13 @@ export default function useChatbotConversations() {
     const handleSend = async () => {
         if (!input.trim()) return;
 
+        const currentTime = new Date();
         const localMessageId = `local-user-${Date.now()}`;
         const userMsg = { 
             id: localMessageId, 
             from: "user", 
-            text: input 
+            text: input,
+            timestamp: currentTime // Add timestamp for proper ordering
         };
         
         setLocalMessageIds(prev => new Set(prev).add(localMessageId));
@@ -189,17 +198,12 @@ export default function useChatbotConversations() {
 
             const data = await response.json();
 
-            // Update conversation ID if it was created by backend
-            if (data.conversation_id && data.conversation_id !== activeConversationId) {
-                const newConvId = parseInt(data.conversation_id);
-                setActiveConversationId(newConvId);
-                await fetchConversations();
-            }
-
             const botMessageId = `bot-${data.chatbot_message_id}`;
             const userMessageId = `user-${data.user_message_id || Date.now()}`;
+            const botTimestamp = new Date(); // Bot response timestamp
 
             // Replace local user message with backend version and add bot response
+            // This MUST happen BEFORE updating conversation to prevent race condition
             setMessages((prev) => {
                 // Check if bot message already exists in current messages or loaded IDs
                 const botExists = prev.some(msg => msg.id === botMessageId) || 
@@ -227,15 +231,31 @@ export default function useChatbotConversations() {
                     text: data.response || "Sorry, I encountered an error.",
                     evaluationType: data.evaluation_type,
                     questionId: data.question_id,
-                    metadata: data.metadata
+                    metadata: data.metadata,
+                    timestamp: botTimestamp // Add timestamp for proper ordering
                 };
                 
                 // Track the new message IDs
                 loadedMessageIds.current.add(userMessageId);
                 loadedMessageIds.current.add(botMessageId);
                 
-                return [...updated, botMsg];
+                // Sort messages by timestamp to maintain order
+                const allMessages = [...updated, botMsg].sort((a, b) => {
+                    const timeA = a.timestamp || new Date(0);
+                    const timeB = b.timestamp || new Date(0);
+                    return timeA - timeB;
+                });
+                
+                return allMessages;
             });
+
+            // Update conversation ID if it was created by backend
+            // Pass skipAutoLoad=true to prevent overwriting our message state
+            if (data.conversation_id && data.conversation_id !== activeConversationId) {
+                const newConvId = parseInt(data.conversation_id);
+                setActiveConversationId(newConvId);
+                await fetchConversations(true); // Skip auto-loading messages
+            }
 
             setLocalMessageIds(prev => {
                 const newSet = new Set(prev);
@@ -249,10 +269,18 @@ export default function useChatbotConversations() {
             const errorMsg = { 
                 id: `bot-error-${Date.now()}`,
                 from: "bot", 
-                text: "⚠️ **Network Error**: Could not connect to the chatbot backend. Please ensure the backend server is running on port 8000." 
+                text: "⚠️ **Network Error**: Could not connect to the chatbot backend. Please ensure the backend server is running on port 8000.",
+                timestamp: new Date() // Add timestamp for proper ordering
             };
             
-            setMessages((prev) => [...prev, errorMsg]);
+            setMessages((prev) => {
+                const allMessages = [...prev, errorMsg].sort((a, b) => {
+                    const timeA = a.timestamp || new Date(0);
+                    const timeB = b.timestamp || new Date(0);
+                    return timeA - timeB;
+                });
+                return allMessages;
+            });
             setLocalMessageIds(prev => {
                 const newSet = new Set(prev);
                 newSet.delete(localMessageId);

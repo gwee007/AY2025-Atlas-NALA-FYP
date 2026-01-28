@@ -68,7 +68,7 @@ export default function DashboardPage() {
     
     const [page,setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
-    const USER_ID = 'test_user_1'; // We're centralising it here
+    const USER_ID = '2'; // We're centralising it here
     
     // State for all chart data
     const [interactionChartData, setInteractionChartData] = useState({ individual: [], average: [] });
@@ -110,6 +110,7 @@ export default function DashboardPage() {
     const [conversationsLoading, setQuestionsLoading] = useState(true);
     const [topicIdMap, setTopicIdMap] = useState({}); // Map topic names to IDs
     const [topicNameToIdMap, setTopicNameToIdMap] = useState({}); // Map topic names to IDs for filtering
+    const [showAnsweredOnly, setShowAnsweredOnly] = useState(false); // Filter for answered questions
 
     
    
@@ -1828,15 +1829,16 @@ Review this regularly to identify areas to start jumping in with NALA-Assess!`}>
                                     flexDirection: "column",
                                     maxHeight: "500px"
                                 }}>
-                                    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.75rem" }}>
-                                        <h3 style={{ 
-                                            color: "#555",
-                                            margin: 0,
-                                            fontSize: "1rem"
-                                        }}>
-                                            Recent Questions
-                                        </h3>
-                                        <MarkdownTooltip title={`### Recent Interactions
+                                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.5rem", marginBottom: "0.75rem" }}>
+                                        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                                            <h3 style={{ 
+                                                color: "#555",
+                                                margin: 0,
+                                                fontSize: "1rem"
+                                            }}>
+                                                Recent Questions
+                                            </h3>
+                                            <MarkdownTooltip title={`### Recent Interactions
 
 Shows your latest chatbot conversations.
 
@@ -1848,8 +1850,21 @@ Shows your latest chatbot conversations.
 
 **Use this to:**
 Reflect on your recent learning patterns and question quality, as well as revisit questions in context.`}>
-                                            <IconButton size="small"><InfoOutlinedIcon fontSize="small" /></IconButton>
-                                        </MarkdownTooltip>
+                                                <IconButton size="small"><InfoOutlinedIcon fontSize="small" /></IconButton>
+                                            </MarkdownTooltip>
+                                        </div>
+                                        <Button 
+                                            variant={showAnsweredOnly ? "contained" : "outlined"}
+                                            size="small"
+                                            onClick={() => setShowAnsweredOnly(!showAnsweredOnly)}
+                                            style={{
+                                                fontSize: "0.75rem",
+                                                padding: "0.3rem 0.8rem",
+                                                textTransform: "none"
+                                            }}
+                                        >
+                                            {showAnsweredOnly ? "Show All" : "Answered Only"}
+                                        </Button>
                                     </div>
                                     <div style={{ 
                                         flex: "1",
@@ -1918,14 +1933,14 @@ Reflect on your recent learning patterns and question quality, as well as revisi
                                                         Loading questions...
                                                     </td>
                                                 </tr>
-                                            ) : conversations.length === 0 ? (
+                                            ) : conversations.filter(chat => !showAnsweredOnly || chat.answer !== null).length === 0 ? (
                                                 <tr>
                                                     <td colSpan="5" style={{ textAlign: 'center', padding: '2rem', color: '#94a3b8' }}>
-                                                        No questions found
+                                                        {showAnsweredOnly ? 'No answered questions found' : 'No questions found'}
                                                     </td>
                                                 </tr>
                                             ) : (
-                                                conversations.map((chat, index) => (
+                                                conversations.filter(chat => !showAnsweredOnly || chat.answer !== null).map((chat, index) => (
                                                     <tr key={chat.id} style={{
                                                         backgroundColor: index % 2 === 0 ? "white" : "#f8fafc"
                                                     }}>
@@ -1933,11 +1948,21 @@ Reflect on your recent learning patterns and question quality, as well as revisi
                                                 padding: "0.6rem",
                                                 borderBottom: "1px solid #e2e8f0",
                                                 color: "#334155",
-                                                maxWidth: "200px",
-                                                overflow: "hidden",
-                                                textOverflow: "ellipsis",
-                                                whiteSpace: "nowrap"
-                                            }} title={chat.question}>{chat.question}</td>
+                                                maxWidth: "250px"
+                                            }}>
+                                                <div style={{ display: "flex", alignItems: "flex-start", gap: "0.3rem" }}>
+                                                    <span style={{
+                                                        flex: 1,
+                                                        wordWrap: "break-word",
+                                                        overflowWrap: "break-word"
+                                                    }}>{chat.question}</span>
+                                                    <MarkdownTooltip title={`**Question Details:**\n\n${chat.question}\n\n---\n\n**Reasoning:** ${chat.reasoning}\n\n**SOLO Level:** ${chat.soloLevel}`}>
+                                                        <IconButton size="small" style={{ padding: "2px", marginTop: "2px" }}>
+                                                            <InfoOutlinedIcon style={{ fontSize: "0.9rem", color: "#64748b" }} />
+                                                        </IconButton>
+                                                    </MarkdownTooltip>
+                                                </div>
+                                            </td>
                                             <td style={{ 
                                                 padding: "0.6rem",
                                                 textAlign: "center",
@@ -1949,12 +1974,22 @@ Reflect on your recent learning patterns and question quality, as well as revisi
                                                 padding: "0.6rem",
                                                 borderBottom: "1px solid #e2e8f0",
                                                 color: "#334155",
-                                                maxWidth: "200px",
-                                                overflow: "hidden",
-                                                textOverflow: "ellipsis",
-                                                whiteSpace: "nowrap"
-                                            }} title={chat.answer ? chat.answer.content : 'No answer yet'}>
-                                                {chat.answer ? chat.answer.content : '—'}
+                                                maxWidth: "250px"
+                                            }}>
+                                                {chat.answer ? (
+                                                    <div style={{ display: "flex", alignItems: "flex-start", gap: "0.3rem" }}>
+                                                        <span style={{
+                                                            flex: 1,
+                                                            wordWrap: "break-word",
+                                                            overflowWrap: "break-word"
+                                                        }}>{chat.answer.content}</span>
+                                                        <MarkdownTooltip title={`**Answer Details:**\n\n${chat.answer.content}\n\n---\n\n**Feedback:** ${chat.answer.feedback}\n\n**Accuracy:** ${chat.answer.accuracy}%`}>
+                                                            <IconButton size="small" style={{ padding: "2px", marginTop: "2px" }}>
+                                                                <InfoOutlinedIcon style={{ fontSize: "0.9rem", color: "#64748b" }} />
+                                                            </IconButton>
+                                                        </MarkdownTooltip>
+                                                    </div>
+                                                ) : '—'}
                                             </td>
                                             <td style={{ 
                                                 padding: "0.6rem",
