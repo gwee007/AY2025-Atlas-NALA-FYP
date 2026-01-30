@@ -35,9 +35,9 @@ body {
 }
 
 /* allow wheel scroll on inner scrollable areas even when body is hidden */
-body * {
+/* body * {
   overscroll-behavior: contain;
-}
+} */
 
 #root {
   width: 100%;
