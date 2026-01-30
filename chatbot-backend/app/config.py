@@ -13,7 +13,7 @@ class Config:
     
     # DATABASE_URL = f"postgresql://{POSTGRES_USER}:{POSTGRES_PASS}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
     
-    POSTGRES (LOCAL)
+    # POSTGRES (LOCAL)
     DATABASE_URL = os.environ.get("DATABASE_URL")
     
     # NALA API

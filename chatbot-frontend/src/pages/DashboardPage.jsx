@@ -6,10 +6,10 @@ import VerticalBarChart from '../components/charts/VerticalBarChart';
 import TopicGraph from '../components/charts/TopicGraph';
 import CriticalThinkingGuide from '../components/dashboard/CriticalThinkingGuide';
 import MarkdownTooltip from '../components/dashboard/MarkdownTooltip';
+import MarkdownRenderer from '../components/dashboard/MarkdownRenderer';
 import { Button, Tabs, Tab, Box, IconButton } from '@mui/material';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import API_BASE_URL, { API_ENDPOINTS } from '../config/api';
-import ReactMarkdown from 'react-markdown';
 import { useAuth } from '../context/AuthContext';
 
 // Responsive Chart Wrapper Component
@@ -1081,7 +1081,7 @@ Review this regularly to identify areas to start jumping in with NALA-Assess!`}>
                                         boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
                                         borderLeft: "4px solid #3b82f6"
                                     }}>
-                                        <ReactMarkdown components={{
+                                        <MarkdownRenderer components={{
                                             ...markdownComponents,
                                             h2: ({node, ...props}) => <h3 style={{
                                                 fontSize: "1.3rem",
@@ -1099,7 +1099,7 @@ Review this regularly to identify areas to start jumping in with NALA-Assess!`}>
                                             }} {...props} />
                                         }}>
                                             {strongAreas}
-                                        </ReactMarkdown>
+                                        </MarkdownRenderer>
                                     </div>
 
                                     {/* Areas for Improvement */}
@@ -1113,7 +1113,7 @@ Review this regularly to identify areas to start jumping in with NALA-Assess!`}>
                                         boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
                                         borderLeft: "4px solid #f59e0b"
                                     }}>
-                                        <ReactMarkdown components={{
+                                        <MarkdownRenderer components={{
                                             ...markdownComponents,
                                             h2: ({node, ...props}) => <h3 style={{
                                                 fontSize: "1.3rem",
@@ -1131,7 +1131,7 @@ Review this regularly to identify areas to start jumping in with NALA-Assess!`}>
                                             }} {...props} />
                                         }}>
                                             {improvement}
-                                        </ReactMarkdown>
+                                        </MarkdownRenderer>
                                     </div>
 
                                     {/* Peer Comparison */}
@@ -1165,7 +1165,7 @@ Review this regularly to identify areas to start jumping in with NALA-Assess!`}>
                                                 boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
                                                 borderLeft: `4px solid ${borderColor}`
                                             }}>
-                                                <ReactMarkdown components={{
+                                                <MarkdownRenderer components={{
                                                     ...markdownComponents,
                                                     h2: ({node, ...props}) => <h3 style={{
                                                         fontSize: "1.3rem",
@@ -1183,7 +1183,7 @@ Review this regularly to identify areas to start jumping in with NALA-Assess!`}>
                                                     }} {...props} />
                                                 }}>
                                                     {peerComparison}
-                                                </ReactMarkdown>
+                                                </MarkdownRenderer>
                                             </div>
                                         );
                                     })()}

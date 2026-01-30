@@ -1,6 +1,7 @@
 import React from 'react';
 import { Tooltip, styled } from '@mui/material';
-import ReactMarkdown from 'react-markdown';
+import MarkdownRenderer from './MarkdownRenderer';
+import 'katex/dist/katex.min.css';
 
 // Custom styled tooltip with larger font and markdown support
 const CustomTooltip = styled(({ className, ...props }) => (
@@ -41,6 +42,15 @@ const CustomTooltip = styled(({ className, ...props }) => (
         '& strong': {
             fontWeight: 600,
             color: '#1976d2'
+        },
+        '& .katex': {
+            fontSize: '0.95em',
+            fontFamily: "'KaTeX_Main', 'Times New Roman', serif"
+        },
+        '& .katex-display': {
+            margin: '0.5em 0',
+            overflow: 'auto',
+            textAlign: 'center'
         }
     },
     '& .MuiTooltip-arrow': {
@@ -55,9 +65,9 @@ export default function MarkdownTooltip({ title, children, ...props }) {
     return (
         <CustomTooltip
             title={
-                <ReactMarkdown>
+                <MarkdownRenderer>
                     {title}
-                </ReactMarkdown>
+                </MarkdownRenderer>
             }
             placement="right"
             arrow
