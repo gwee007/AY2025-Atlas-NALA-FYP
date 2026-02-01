@@ -1353,6 +1353,9 @@ Review this regularly to identify areas to start jumping in with NALA-Assess!`}>
                                                     <p style={{ margin: "0 0 0.75rem 0", fontSize: "0.9rem", color: "#555", lineHeight: "1.5" }}>
                                                         You're asking basic recall questions about single facts or definitions.
                                                     </p>
+                                                    <p style={{ margin: "0 0 0.75rem 0", fontSize: "0.75rem", color: "#78350f", lineHeight: "1.3" }}>
+                                                        <strong>GPA:</strong> 2.0
+                                                    </p>
                                                     <div style={{ 
                                                         backgroundColor: "#fffbeb", 
                                                         padding: "0.75rem", 
@@ -1379,6 +1382,9 @@ Review this regularly to identify areas to start jumping in with NALA-Assess!`}>
                                                     </h3>
                                                     <p style={{ margin: "0 0 0.75rem 0", fontSize: "0.9rem", color: "#555", lineHeight: "1.5" }}>
                                                         You're describing multiple concepts but they're adjacent to one another in the same topic.
+                                                    </p>
+                                                    <p style={{ margin: "0 0 0.75rem 0", fontSize: "0.75rem", color: "#1e3a8a", lineHeight: "1.3" }}>
+                                                        <strong>GPA:</strong> 3.0
                                                     </p>
                                                     <div style={{ 
                                                         backgroundColor: "#eff6ff", 
@@ -1407,6 +1413,9 @@ Review this regularly to identify areas to start jumping in with NALA-Assess!`}>
                                                     <p style={{ margin: "0 0 0.75rem 0", fontSize: "0.9rem", color: "#555", lineHeight: "1.5" }}>
                                                         You're analyzing how concepts interact across topics and exploring their relationships.
                                                     </p>
+                                                    <p style={{ margin: "0 0 0.75rem 0", fontSize: "0.75rem", color: "#064e3b", lineHeight: "1.3" }}>
+                                                        <strong>GPA:</strong> 4.0
+                                                    </p>
                                                     <div style={{ 
                                                         backgroundColor: "#f0fdf4", 
                                                         padding: "0.75rem", 
@@ -1433,6 +1442,9 @@ Review this regularly to identify areas to start jumping in with NALA-Assess!`}>
                                                     </h3>
                                                     <p style={{ margin: "0 0 0.75rem 0", fontSize: "0.9rem", color: "#555", lineHeight: "1.5" }}>
                                                         You're integrating concepts with real-world applications and evaluating alternatives.
+                                                    </p>
+                                                    <p style={{ margin: "0 0 0.75rem 0", fontSize: "0.75rem", color: "#581c87", lineHeight: "1.3" }}>
+                                                        <strong>GPA:</strong> 4.3
                                                     </p>
                                                     <div style={{ 
                                                         backgroundColor: "#faf5ff", 
