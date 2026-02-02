@@ -453,3 +453,14 @@ def generate_summary_endpoint():
         print(f"[ERROR] generate_summary failed: {str(e)}")
         print(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
+
+# Create Flask app and register blueprint for Gunicorn
+from flask import Flask
+from flask_cors import CORS
+
+app = Flask(__name__)
+CORS(app)
+app.register_blueprint(dashboard_bp, url_prefix='')
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=8001, debug=True)

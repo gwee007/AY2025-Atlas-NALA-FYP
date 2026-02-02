@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM python:3.13-slim
 
 WORKDIR /app
 
@@ -13,15 +13,18 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt gunicorn
 
 # Copy parent app directory for shared modules
-COPY ../app /app/app
+COPY app /app/app
 
 # Copy dashboard backend code
-COPY . /app/dashboard_backend
+COPY dashboard_backend /app/dashboard_backend
 
-WORKDIR /app/dashboard_backend
+# Set Python path to include /app so imports work
+ENV PYTHONPATH=/app
+
+WORKDIR /app
 
 # Expose port
 EXPOSE 8001
 
-# Run with Gunicorn
-CMD gunicorn --bind 0.0.0.0:8001 --workers 2 --timeout 120 --access-logfile - --error-logfile - api_server:app
+# Run with Gunicorn using module path
+CMD ["gunicorn", "--bind", "0.0.0.0:8001", "--workers", "2", "--timeout", "120", "--access-logfile", "-", "--error-logfile", "-", "dashboard_backend.api_server:app"]

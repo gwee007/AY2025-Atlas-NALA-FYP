@@ -31,12 +31,12 @@ services:
       - ./init-scripts/01-create-tables.sql:/docker-entrypoint-initdb.d/01-create-tables.sql:ro
     command: >
       bash -c "
-      docker-entrypoint.sh postgres &
-      PID=$$!
-      sleep 10
-      until pg_isready -U postgres; do sleep 2; done
-      echo 'Database tables created'
-      kill $$PID
+      docker-entrypoint.sh postgres & 
+      PID=$$!;
+      sleep 10;
+      until pg_isready -U postgres; do sleep 2; done;
+      echo 'Database tables created';
+      kill $$PID;
       wait $$PID
       "
     restart: "no"
@@ -46,21 +46,21 @@ services:
     image: ankane/pgvector:latest
     container_name: nala-db-init-indexes
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: dA^WPvd@5rRFcGB@ehI8
-      POSTGRES_DB: nala
+      POSTGRES_USER: "postgres"
+      POSTGRES_PASSWORD: "dA^WPvd@5rRFcGB@ehI8"
+      POSTGRES_DB: "nala"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./init-scripts/02-create-indexes-triggers.sql:/docker-entrypoint-initdb.d/02-create-indexes-triggers.sql:ro
     command: >
       bash -c "
-      docker-entrypoint.sh postgres &
-      PID=$$!
-      sleep 10
-      until pg_isready -U postgres; do sleep 2; done
-      psql -U postgres -d nala -f /docker-entrypoint-initdb.d/02-create-indexes-triggers.sql
-      echo 'Database indexes and triggers created'
-      kill $$PID
+      docker-entrypoint.sh postgres & 
+      PID=$$!;
+      sleep 10;
+      until pg_isready -U postgres; do sleep 2; done;
+      psql -U postgres -d nala -f /docker-entrypoint-initdb.d/02-create-indexes-triggers.sql;
+      echo 'Database indexes and triggers created';
+      kill $$PID;
       wait $$PID
       "
     depends_on:
@@ -73,21 +73,21 @@ services:
     image: ankane/pgvector:latest
     container_name: nala-db-init-data
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: dA^WPvd@5rRFcGB@ehI8
-      POSTGRES_DB: nala
+      POSTGRES_USER: "postgres"
+      POSTGRES_PASSWORD: "dA^WPvd@5rRFcGB@ehI8"
+      POSTGRES_DB: "nala"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./init-scripts/03-insert-data.sql:/docker-entrypoint-initdb.d/03-insert-data.sql:ro
     command: >
       bash -c "
-      docker-entrypoint.sh postgres &
-      PID=$$!
-      sleep 10
-      until pg_isready -U postgres; do sleep 2; done
-      psql -U postgres -d nala -f /docker-entrypoint-initdb.d/03-insert-data.sql
-      echo 'Initial data inserted'
-      kill $$PID
+      docker-entrypoint.sh postgres & 
+      PID=$$!;
+      sleep 10;
+      until pg_isready -U postgres; do sleep 2; done;
+      psql -U postgres -d nala -f /docker-entrypoint-initdb.d/03-insert-data.sql;
+      echo 'Initial data inserted';
+      kill $$PID;
       wait $$PID
       "
     depends_on:
@@ -100,9 +100,9 @@ services:
     image: ankane/pgvector:latest
     container_name: nala-postgres
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: dA^WPvd@5rRFcGB@ehI8
-      POSTGRES_DB: nala
+      POSTGRES_USER: "postgres"
+      POSTGRES_PASSWORD: "dA^WPvd@5rRFcGB@ehI8"
+      POSTGRES_DB: "nala"
     ports:
       - "5432:5432"
     volumes:
@@ -139,7 +139,7 @@ services:
       - ./chatbot-backend/.env
     environment:
       # Override with container network addresses
-      - DATABASE_URL=postgresql://postgres:dA^WPvd@5rRFcGB@ehI8@db:5432/nala
+      - DATABASE_URL=postgresql://postgres:dA%5EWPvd%405rRFcGB%40ehI8@db:5432/nala
       - REDIS_HOST=redis
       - REDIS_PORT=6379
     ports:
@@ -156,11 +156,11 @@ services:
   # Dashboard Backend Service
   dashboard-backend:
     build:
-      context: ./chatbot-backend/dashboard_backend
-      dockerfile: Dockerfile
+      context: ./chatbot-backend
+      dockerfile: dashboard_backend/Dockerfile
     container_name: nala-dashboard-backend
     environment:
-      - DATABASE_URL=postgresql://postgres:dA^WPvd@5rRFcGB@ehI8@db:5432/nala
+      - DATABASE_URL=postgresql://postgres:dA%5EWPvd%405rRFcGB%40ehI8@db:5432/nala
       - REDIS_HOST=redis
       - REDIS_PORT=6379
     ports:
