@@ -10,8 +10,16 @@ redis_url = os.getenv("REDIS_ENDPOINT", "redis://localhost:6379/0")
 redis_pool = redis.ConnectionPool.from_url(redis_url, decode_responses=True)
 redis_client = redis.Redis(connection_pool=redis_pool)
 
+# Raw client for binary data (gzip compressed)
+redis_pool_raw = redis.ConnectionPool.from_url(redis_url, decode_responses=False)
+redis_client_raw = redis.Redis(connection_pool=redis_pool_raw)
+
 def get_redis_client():
     return redis_client
+
+def get_redis_client_raw():
+    """Get Redis client that returns raw bytes (for gzip-compressed data)"""
+    return redis_client_raw
 
 def invalidate_user_cache(user_id: str):
     """Invalidate all cache keys related to a specific user."""
@@ -19,7 +27,7 @@ def invalidate_user_cache(user_id: str):
         # Pattern to match all user-specific cache keys
         patterns = [
             f"dashboard:individual_stats:user_{user_id}",
-            f"dashboard:summary:user_{user_id}"
+            f"dashboard:summary_data:{user_id}"
         ]
         
         deleted_count = 0

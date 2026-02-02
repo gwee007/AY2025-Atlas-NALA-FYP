@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 from app.database.models import Base, User, Conversation, Message, Question, Subtopic, Answer, Topic, question_topics, question_subtopics
 from app.database.session import get_db_session
 from .grading_calculation import point_to_grade
-from .redis_client import get_redis_client
+from .redis_client import get_redis_client, get_redis_client_raw
 
 load_dotenv()
 
@@ -59,7 +59,8 @@ def group_statistics():
     CACHE_KEY = "dashboard:group_statistics"
     
     try:
-        cached_data = red_client.get(CACHE_KEY)
+        red_client_raw = get_redis_client_raw()
+        cached_data = red_client_raw.get(CACHE_KEY)
         if cached_data:
             print("=== Using Cached Group Statistics ===")
             decompressed = gzip.decompress(cached_data)
@@ -948,11 +949,6 @@ def group_statistics():
                 } for row in ts_solo_accuracy_topic_res_7d if row.answer_count > 0]
             )
         }
-        
-        print("\n=== BACKEND: Final stats['questions_by_solo_over_time'] ===")
-        print(json.dumps(stats['questions_by_solo_over_time'], indent=2))
-        print("\n=== BACKEND: Final stats['accuracy_by_solo_over_time'] ===")
-        print(json.dumps(stats['accuracy_by_solo_over_time'], indent=2))
 
         try:
             compressed_data = gzip.compress(json.dumps(stats).encode('utf-8'))
@@ -974,7 +970,8 @@ def individual_statistics(user_id):
     CACHE_KEY = f"stats:user:{user_id}"
     
     try:
-        cached_data = red_client.get(CACHE_KEY)
+        red_client_raw = get_redis_client_raw()
+        cached_data = red_client_raw.get(CACHE_KEY)
         if cached_data:
             print(f"=== Using Cached Stats for User {user_id} ===")
             decompressed = gzip.decompress(cached_data)

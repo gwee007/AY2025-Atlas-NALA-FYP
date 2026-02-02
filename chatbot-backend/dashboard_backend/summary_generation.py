@@ -20,11 +20,14 @@ def generate_summary_data(user_id):
     """
     CACHE_KEY = f"dashboard:summary_data:{user_id}"
     
+    print(f"\n[DEBUG] generate_summary_data called for user_id={user_id}, CACHE_KEY={CACHE_KEY}")
+    
     # 1. Check Cache
     try:
         cached_summary = red_client.get(CACHE_KEY)
         if cached_summary:
             print("=== Using Cached Summary Data ===")
+            print(f"[DEBUG] Cached summary length: {len(cached_summary)} characters")
             return {"summary": cached_summary} 
     except Exception as e:
         print(f"[WARN] Redis read failed: {e}")
@@ -158,27 +161,48 @@ Once data is available, this section will compare you against your peers to high
     
     # === PEER COMPARISON SECTION ===
     summary.append("\n## Peer Comparison\n")
-    # UPDATED: Removed "GPA" text, kept only the number
-    summary.append(f"**Your overall grade:** {individual_overall_letter} ({individual_overall_grade:.2f})  \n")
+    
+    # Question Cognitive Complexity Subsection
+  
+    summary.append(f"**Your overall question grade:** {individual_overall_letter} ({individual_overall_grade:.2f})  \n")
     summary.append(f"**Class average:** {group_overall_letter} ({group_overall_grade:.2f})  \n")
     
     if grade_comparison == 'above':
-        summary.append(f"\nYou're performing **{performance_diff:.1f}% above** the class average - keep up the excellent work! ")
-        summary.append(f"Your engagement and dedication are reflected in your results.\n")
+        summary.append(f"\nYou're tackling questions **{performance_diff:.1f} percent above** the peer benchmark for cognitive complexity - excellent work! ")
+        summary.append(f"Your ability to handle complex concepts is reflected in your performance.\n")
     elif grade_comparison == 'below':
-        summary.append(f"\nYou're currently **{abs(performance_diff):.1f}% below** the class average. ")
-        summary.append(f"Don't be discouraged - this is an opportunity to identify areas for growth and take targeted action to improve.\n")
+        summary.append(f"\nYou're currently **{abs(performance_diff):.1f} percent below** the peer benchmark for cognitive complexity. ")
+        summary.append(f"Focus on understanding foundational concepts more deeply, and consider seeking additional support to strengthen your grasp of complex topics.\n")
     else:  # AT class average
-        summary.append(f"\nYou're performing **at the same grade level ({individual_overall_letter}) as the class average**. ")
-        summary.append(f"With focused effort on your weaker areas, you can improve to exceed the class average!\n")
+        summary.append(f"\nYou're at the average peer benchmark for cognitive complexity ({individual_overall_letter}). ")
+        summary.append(f"With enough focused effort on your weaker areas, you can improve to exceed the class average!\n")
+    
+    # Answer Accuracy Subsection
+    ind_answer_acc = individual_stats.get('average_answer_accuracy')
+    grp_answer_acc = group_stats.get('overall_average_accuracy')
+    
+    if ind_answer_acc is not None and grp_answer_acc is not None:
+        summary.append(f"\n**Your answer accuracy:** {ind_answer_acc:.1f} percent  \n")
+        summary.append(f"**Class answer accuracy:** {grp_answer_acc:.1f} percent  \n")
+        
+        # Calculate answer accuracy difference
+        answer_acc_diff = ind_answer_acc - grp_answer_acc
+        
+        if answer_acc_diff > 1.0:  # Above average by more than 1%
+            summary.append(f"\nYour answer accuracy is **{answer_acc_diff:.1f} percent above** the class average - well done! ")
+            summary.append(f"Your thorough preparation and understanding are clearly paying off.\n")
+        elif answer_acc_diff < -1.0:  # Below average by more than 1%
+            summary.append(f"\nYour answer accuracy is **{abs(answer_acc_diff):.1f} percent below** the class average. ")
+            summary.append(f"More revision is needed to effectively answer your questions accurately. Consider reviewing answer feedback and practicing similar questions to improve.\n")
+        else:  # Within 1% of average (essentially at average)
+            summary.append(f"\nYour answer accuracy is on par with the class average. ")
+            summary.append(f"Continue practicing and reviewing feedback to maintain and improve your accuracy further.\n")
     
     # === NEXT STEPS SECTION ===
-    summary.append("\n## Next Steps\n")
-    summary.append("Based on your performance data, here are specific recommendations:\n\n")
+    summary.append("\nBased on your performance data, here are specific recommendations:\n\n")
     
     if topics_below_average:
-        summary.append(f"- Focus on {', '.join([t['topic_name'] for t in topics_below_average[-2:]])} - these need immediate attention\n")
-        summary.append(f"- Reach out to instructors or tutors now\n")
+        summary.append(f"- Focus on {', '.join([t['topic_name'] for t in topics_below_average[-2:]])} - these need immediate attention. Consider to reach out to instructors or tutors.\n")
     else:
         summary.append(f"- Keep your study habits consistent across all topics\n")
         summary.append(f"- Look for advanced problems to deepen understanding\n")
@@ -190,6 +214,13 @@ Once data is available, this section will compare you against your peers to high
     summary.append(f"- Review your performance regularly and adjust study strategies as needed\n")
     
     output = ''.join(summary)
+    
+    # Debug: Print the generated summary
+    print("\n" + "="*80)
+    print(f"[DEBUG] Generated Summary for user_id={user_id}:")
+    print("="*80)
+    print(output)
+    print("="*80 + "\n")
     
     try:
         red_client.setex(CACHE_KEY, 600, output)
