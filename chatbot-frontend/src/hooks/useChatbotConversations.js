@@ -45,7 +45,7 @@ export default function useChatbotConversations() {
     // Fetch conversations from backend on mount
     useEffect(() => {
         if (!userId) return; // Don't fetch if userId is not available
-        fetchConversations();
+        fetchConversations(true); // Skip auto-loading to show fresh conversation
     }, [userId]);
 
     const fetchConversations = async (skipAutoLoad = false) => {

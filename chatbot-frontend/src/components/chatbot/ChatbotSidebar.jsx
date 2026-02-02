@@ -168,42 +168,44 @@ export default function ChatbotSidebar({
             ) : (
               filteredConversations.map((conversation) => (
                 <ListItem key={conversation.id} disablePadding sx={{ mb: 0.5 }}>
-                  <ListItemButton
-                    onClick={() => onConversationClick(conversation.id)}
-                    selected={activeConversationId === conversation.id}
-                    sx={{
-                      borderRadius: "8px",
-                      minHeight: 48,
-                      bgcolor: activeConversationId === conversation.id ? "#a9a9a9" : "transparent",
-                      px: 2,
-                    }}
-                  >
-                    <Avatar
+                  <Tooltip title={conversation.title} placement="right" arrow>
+                    <ListItemButton
+                      onClick={() => onConversationClick(conversation.id)}
+                      selected={activeConversationId === conversation.id}
                       sx={{
-                        width: 32,
-                        height: 32,
-                        bgcolor: theme.palette.primary.main + "33",
-                        color: theme.palette.primary.main,
-                        fontSize: 18,
-                        mr: 2,
+                        borderRadius: "8px",
+                        minHeight: 48,
+                        bgcolor: activeConversationId === conversation.id ? "#a9a9a9" : "transparent",
+                        px: 2,
                       }}
                     >
-                      <ChatIcon fontSize="small" />
-                    </Avatar>
-                    <ListItemText
-                      primary={conversation.title}
-                      primaryTypographyProps={{
-                        sx: {
-                          fontSize: "15px",
-                          color: colors.sidebarForeground,
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                          fontFamily: "Inter, system-ui, -apple-system, sans-serif",
-                        },
-                      }}
-                    />
-                  </ListItemButton>
+                      <Avatar
+                        sx={{
+                          width: 32,
+                          height: 32,
+                          bgcolor: theme.palette.primary.main + "33",
+                          color: theme.palette.primary.main,
+                          fontSize: 18,
+                          mr: 2,
+                        }}
+                      >
+                        <ChatIcon fontSize="small" />
+                      </Avatar>
+                      <ListItemText
+                        primary={conversation.title}
+                        primaryTypographyProps={{
+                          sx: {
+                            fontSize: "15px",
+                            color: colors.sidebarForeground,
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                            fontFamily: "Inter, system-ui, -apple-system, sans-serif",
+                          },
+                        }}
+                      />
+                    </ListItemButton>
+                  </Tooltip>
                 </ListItem>
               ))
             )}
