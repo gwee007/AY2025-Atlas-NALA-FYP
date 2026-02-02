@@ -62,3 +62,7 @@ dump.rdb
 .coverage
 htmlcov/
 .pytest_cache/
+scripts/cleanup_mock_data.py
+scripts/clear_all_data.py 
+scripts/seed_mock_data.py
+scripts/db_analysis.ipynb
