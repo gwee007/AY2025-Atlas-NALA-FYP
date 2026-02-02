@@ -57,7 +57,7 @@ def chat():
         
         user_question = data.get('question')
         conversation_id = data.get('conversation_id')
-        user_id = data.get('user_id', "2")  # Default to user_id="2" as string
+        user_id = data.get('user_id')
         
         # Ensure user exists - user_id is now string
         user = db.query(User).filter(User.id == user_id).first()
@@ -164,8 +164,7 @@ def get_conversations():
     db: Session = get_db_session()
     
     try:
-        user_id = request.args.get('user_id', default="2", type=str)  # Accept as string
-        
+        user_id = request.args.get('user_id', type=str)  
         # Only fetch conversations for the specified user
         conversations = db.query(Conversation).filter(
             Conversation.user_id == user_id  # Direct string comparison
@@ -196,7 +195,7 @@ def create_conversation():
     
     try:
         data = request.get_json()
-        user_id = data.get('user_id', "2")  # Default to user_id="2" as string
+        user_id = data.get('user_id')
         
         # Ensure user exists
         user = db.query(User).filter(User.id == user_id).first()
@@ -240,7 +239,7 @@ def get_conversation_messages(conversation_id: int):
     db: Session = get_db_session()
     
     try:
-        user_id = request.args.get('user_id', default="2", type=str)  # Accept as string
+        user_id = request.args.get('user_id', type=str)
         
         # Check conversation exists and belongs to the user
         conversation = db.query(Conversation).filter(

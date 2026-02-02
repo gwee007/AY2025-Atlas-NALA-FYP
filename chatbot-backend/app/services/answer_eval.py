@@ -91,9 +91,14 @@ class AnswerEvaluationService:
         - Relational: Integrate and explain relationships between multiple concepts from the reference material to form a coherent explanation.
         - Extended Abstract: Synthesize and apply relevant concepts from the reference material to the real-world contextual scenario described in the question.
 
+        FORMATTING REQUIREMENTS:
+        - **Always use LaTeX notation for all mathematical expressions, equations, and formulas**
+        - Inline math: wrap in single dollar signs $expression$
+        - Block math equations: wrap in double dollar signs $$equation$$
+
         OUTPUT REQUIREMENTS:
-        - Reasoning Trace: Give a concise and clear explanation of how you selected and synthesized information from the reference material to construct the answer.
-        - Suggested Answer: The final continuous, well-formed answer explicitly derived from the reasoning trace.
+        - Reasoning Trace: Give a concise and clear explanation of how you selected and synthesized information from the reference material to construct the answer. Use LaTeX for all mathematical expressions.
+        - Suggested Answer: The final continuous, well-formed answer explicitly derived from the reasoning trace. Use LaTeX for all mathematical expressions.
         
         {parser.get_format_instructions()}
         """
@@ -154,12 +159,17 @@ class AnswerEvaluationService:
             - 1-30: Completely wrong or fails to demonstrate appropriate synthesis and application of concepts
             - 0: Question submitted instead of answer
 
+        FORMATTING REQUIREMENTS:
+        - **Always use LaTeX notation for all mathematical expressions, equations, and formulas**
+        - Inline math: wrap in single dollar signs $expression$
+        - Block math equations: wrap in double dollar signs $$equation$$
+
         OUTPUT REQUIREMENTS:
         - Accuracy Score (0-100) based on the grading rubric for the SOLO taxonomy level
         - Constructive feedback: 
             - If a question was submitted: Explain that asking a question instead of answering results in 0 score. Encourage them to review the suggested answer and reasoning trace to learn how to approach similar questions in the future. Conclude the assessment session.
-            - If it's an answer attempt: Provide normal evaluation feedback with strengths and suggestions for improvement
-        - Higher-order concepts: A suggested list of well-phrased 1-2 higher-order concepts that extend learning beyond the current SOLO taxonomy level related to the subtopics discussed. Provide this regardless of whether they submitted a question or answer.
+            - If it's an answer attempt: Provide normal evaluation feedback with strengths and suggestions for improvement. Use LaTeX for all mathematical expressions.
+        - Higher-order concepts: A suggested list of well-phrased 1-2 higher-order concepts that extend learning beyond the current SOLO taxonomy level related to the subtopics discussed. Provide this regardless of whether they submitted a question or answer. Use LaTeX for all mathematical expressions.
         
         {parser.get_format_instructions()}
         """
