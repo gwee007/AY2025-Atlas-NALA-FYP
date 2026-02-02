@@ -46,30 +46,32 @@ const HeroSection = () => (
               Revolutionize your self-learning with self-assessment using SOLO taxonomy — Ask questions, receive personalised feedback, and enhance your critical thinking skills.
             </Typography>
             
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ pt: 1, width: { xs: '100%', sm: 'auto' } }}>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ pt: 2, width: { xs: '100%', sm: 'auto' } }}>
               <Button
                 component={Link}
                 to="/chatbot/assess"
                 variant="contained"
                 size="large"
-                endIcon={<ArrowForward />}
+                endIcon={<ArrowForward sx={{ fontSize: { xs: '1.5rem', sm: '1.8rem' } }} />}
                 sx={{
-                  px: { xs: 3, sm: 4 },
-                  py: { xs: 1.5, sm: 1.8 },
-                  fontSize: { xs: '0.95rem', sm: '1rem' },
+                  px: { xs: 4, sm: 6, md: 8 },
+                  py: { xs: 2, sm: 2.5, md: 3 },
+                  fontSize: { xs: '1.1rem', sm: '1.3rem', md: '1.5rem' },
                   fontWeight: 700,
-                  bgcolor: '#0f172a',
+                  bgcolor: '#6366f1',
                   color: 'white',
-                  borderRadius: 2,
+                  borderRadius: 3,
                   textTransform: 'none',
-                  boxShadow: '0 10px 20px -10px rgba(15, 23, 42, 0.5)',
+                  boxShadow: '0 15px 35px -10px rgba(99, 102, 241, 0.6)',
+                  transition: 'all 0.3s ease',
                   '&:hover': {
-                    bgcolor: '#334155',
-                    transform: 'translateY(-2px)',
+                    bgcolor: '#4f46e5',
+                    transform: 'translateY(-3px)',
+                    boxShadow: '0 20px 40px -10px rgba(99, 102, 241, 0.8)',
                   },
                 }}
               >
-                Start Assessment
+                Start Assessment Now
               </Button>
             </Stack>
           </Stack>

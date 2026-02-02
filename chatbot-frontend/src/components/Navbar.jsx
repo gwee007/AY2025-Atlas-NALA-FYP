@@ -61,7 +61,7 @@ function Navbar() {
                             }
                         }}
                     >
-                        NTU NALA CH3111
+                        NALA-Assess CH3111
                     </Typography>
 
                     {/* Mobile menu button and title container */}
@@ -99,7 +99,7 @@ function Navbar() {
                                 '&:hover': { color: 'rgb(211, 211, 211)' }
                             }}
                         >
-                            NTU NALA CH3111
+                            NALA-Assess CH3111
                         </Typography>
 
                         {/* Logout button for mobile */}
