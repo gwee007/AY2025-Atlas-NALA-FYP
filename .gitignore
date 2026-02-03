@@ -66,3 +66,6 @@ scripts/cleanup_mock_data.py
 scripts/clear_all_data.py 
 scripts/seed_mock_data.py
 scripts/db_analysis.ipynb
+
+# postgres data
+exported_data.sql
