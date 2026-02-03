@@ -22,10 +22,13 @@ class ModelResources:
             return
         
         try:
-            print("[ModelResources] Loading BGE-M3 embedding model...")
-            self.embedding_model = SentenceTransformer('BAAI/bge-m3')
-            print("[ModelResources] Loading BGE Reranker model...")
-            self.reranker_model = FlagReranker('BAAI/bge-reranker-v2-m3', use_fp16=True)
+            # Load from local paths where models were downloaded
+            print("[ModelResources] Loading BGE-M3 embedding model from /models/bge-m3...")
+            self.embedding_model = SentenceTransformer('/models/bge-m3')
+            
+            print("[ModelResources] Loading BGE Reranker model from /models/bge-reranker-v2-m3...")
+            self.reranker_model = FlagReranker('/models/bge-reranker-v2-m3', use_fp16=True)
+            
             self._models_loaded = True
             print("[ModelResources] All models loaded successfully.")
         except Exception as e:
