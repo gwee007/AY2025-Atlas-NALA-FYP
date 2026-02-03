@@ -1,200 +1,3 @@
-# version: '3.8'
-
-# services:
-#   # Model Loader - Temporary container that downloads models and exits
-#   model-loader:
-#     image: alpine:latest
-#     container_name: nala-model-loader
-#     volumes:
-#       - ai_models:/models
-#       - ./scripts/download-models.sh:/download-models.sh:ro
-#     command: >
-#       sh -c "
-#       apk add --no-cache wget &&
-#       chmod +x /download-models.sh &&
-#       /download-models.sh &&
-#       echo 'Model download complete. Container will now exit.' &&
-#       exit 0
-#       "
-#     restart: "no"
-
-#   # PostgreSQL with pgvector - Step 1: Create Tables
-#   db-init-1-tables:
-#     image: ankane/pgvector:latest
-#     container_name: nala-db-init-tables
-#     environment:
-#       POSTGRES_USER: postgres
-#       POSTGRES_PASSWORD: psw18
-#       POSTGRES_DB: nala_assess
-#     volumes:
-#       - postgres_data:/var/lib/postgresql/data
-#       - ./init-scripts/01-create-tables.sql:/docker-entrypoint-initdb.d/01-create-tables.sql:ro
-#     command: >
-#       bash -c "
-#       docker-entrypoint.sh postgres & 
-#       PID=$$!;
-#       sleep 10;
-#       until pg_isready -U postgres; do sleep 2; done;
-#       echo 'Database tables created';
-#       kill $$PID;
-#       wait $$PID
-#       "
-#     restart: "no"
-
-#   # PostgreSQL - Step 2: Create Indexes and Triggers
-#   db-init-2-indexes:
-#     image: ankane/pgvector:latest
-#     container_name: nala-db-init-indexes
-#     environment:
-#       POSTGRES_USER: "postgres"
-#       POSTGRES_PASSWORD: "psw18"
-#       POSTGRES_DB: "nala_assess"
-#     volumes:
-#       - postgres_data:/var/lib/postgresql/data
-#       - ./init-scripts/02-create-indexes-triggers.sql:/docker-entrypoint-initdb.d/02-create-indexes-triggers.sql:ro
-#     command: >
-#       bash -c "
-#       docker-entrypoint.sh postgres & 
-#       PID=$$!;
-#       sleep 10;
-#       until pg_isready -U postgres; do sleep 2; done;
-#       psql -U postgres -d nala_assess -f /docker-entrypoint-initdb.d/02-create-indexes-triggers.sql;
-#       echo 'Database indexes and triggers created';
-#       kill $$PID;
-#       wait $$PID
-#       "
-#     depends_on:
-#       db-init-1-tables:
-#         condition: service_completed_successfully
-#     restart: "no"
-
-#   # PostgreSQL - Step 3: Insert Data
-#   db-init-3-data:
-#     image: ankane/pgvector:latest
-#     container_name: nala-db-init-data
-#     environment:
-#       POSTGRES_USER: "postgres"
-#       POSTGRES_PASSWORD: "psw18"
-#       POSTGRES_DB: "nala_assess"
-#     volumes:
-#       - postgres_data:/var/lib/postgresql/data
-#       - ./init-scripts/03-insert-data.sql:/docker-entrypoint-initdb.d/03-insert-data.sql:ro
-#     command: >
-#       bash -c "
-#       docker-entrypoint.sh postgres & 
-#       PID=$$!;
-#       sleep 10;
-#       until pg_isready -U postgres; do sleep 2; done;
-#       psql -U postgres -d nala_assess -f /docker-entrypoint-initdb.d/03-insert-data.sql;
-#       echo 'Initial data inserted';
-#       kill $$PID;
-#       wait $$PID
-#       "
-#     depends_on:
-#       db-init-2-indexes:
-#         condition: service_completed_successfully
-#     restart: "no"
-
-#   # Main PostgreSQL Database Service
-#   db:
-#     image: ankane/pgvector:latest
-#     container_name: nala-postgres
-#     environment:
-#       POSTGRES_USER: "postgres"
-#       POSTGRES_PASSWORD: "psw18"
-#       POSTGRES_DB: "nala_assess"
-#     ports:
-#       - "5432:5432"
-#     volumes:
-#       - postgres_data:/var/lib/postgresql/data
-#     depends_on:
-#       db-init-3-data:
-#         condition: service_completed_successfully
-#     restart: unless-stopped
-#     # No healthcheck - AWS Load Balancer handles health checks
-
-#   # Redis for caching
-#   redis:
-#     image: redis:7-alpine
-#     container_name: nala-redis
-#     ports:
-#       - "6379:6379"
-#     volumes:
-#       - redis_data:/data
-#     command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
-#     restart: unless-stopped
-#     deploy:
-#       resources:
-#         limits:
-#           memory: 512M
-#     # No healthcheck - AWS Load Balancer handles health checks
-
-#   # Backend Service
-#   backend:
-#     build:
-#       context: ./chatbot-backend
-#       dockerfile: Dockerfile
-#     container_name: nala-backend
-#     env_file:
-#       - ./chatbot-backend/.env
-#     environment:
-#       # Override with container network addresses
-#       - DATABASE_URL=postgresql://postgres:psw18@db:5432/nala_assess
-#       - REDIS_HOST=redis
-#       - REDIS_PORT=6379
-#     ports:
-#       - "8000:8000"
-#     volumes:
-#       - ai_models:/models:ro
-#     depends_on:
-#       - db
-#       - redis
-#       - model-loader
-#     restart: unless-stopped
-#     # No healthcheck - AWS Load Balancer on port 80 handles health checks
-
-#   # Dashboard Backend Service
-#   dashboard-backend:
-#     build:
-#       context: ./chatbot-backend
-#       dockerfile: dashboard_backend/Dockerfile
-#     container_name: nala-dashboard-backend
-#     environment:
-#       - DATABASE_URL=postgresql://postgres:psw18@db:5432/nala_assess
-#       - REDIS_HOST=redis
-#       - REDIS_PORT=6379
-#     ports:
-#       - "8001:8001"
-#     depends_on:
-#       - db
-#       - redis
-#     restart: unless-stopped
-#     # No healthcheck - AWS Load Balancer handles health checks
-
-#   # Frontend Service
-#   frontend:
-#     build:
-#       context: ./chatbot-frontend
-#       dockerfile: Dockerfile
-#       args:
-#         - VITE_API_URL=${VITE_API_URL:-http://localhost:8000}
-#     container_name: nala-frontend
-#     ports:
-#       - "80:80"
-#     depends_on:
-#       - backend
-#       - dashboard-backend
-#     restart: unless-stopped
-#     # No healthcheck - AWS Load Balancer handles health checks
-
-# volumes:
-#   postgres_data:
-#     driver: local
-#   redis_data:
-#     driver: local
-#   ai_models:
-#     driver: local
-
 version: '3.8'
 
 services:
@@ -253,7 +56,7 @@ services:
       context: ./chatbot-backend
       dockerfile: Dockerfile
     container_name: nala-backend
-    image: gwee007/nala-assess-chatbot-backend:latest
+    image: yophyooo/nala-assess-chatbot-backend:latest
     env_file:
       - ./chatbot-backend/.env
     environment:
@@ -275,7 +78,7 @@ services:
     build:
       context: ./chatbot-backend
       dockerfile: dashboard_backend/Dockerfile
-    image: gwee007/nala-assess-dashboard-backend:latest
+    image: yophyooo/nala-assess-dashboard-backend:latest
     container_name: nala-dashboard-backend
     environment:
       - DATABASE_URL=postgresql://postgres:psw18@db:5432/nala_assess
@@ -295,7 +98,7 @@ services:
       dockerfile: Dockerfile
       args:
         - VITE_API_URL=${VITE_API_URL:-http://localhost:8000}
-    image: gwee007/nala-assess-frontend:latest
+    image: yophyooo/nala-assess-frontend:latest
     container_name: nala-frontend
     ports:
       - "80:80"
