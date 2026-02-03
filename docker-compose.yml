@@ -253,6 +253,7 @@ services:
       context: ./chatbot-backend
       dockerfile: Dockerfile
     container_name: nala-backend
+    image: gwee007/nala-assess-chatbot-backend:latest
     env_file:
       - ./chatbot-backend/.env
     environment:
@@ -274,6 +275,7 @@ services:
     build:
       context: ./chatbot-backend
       dockerfile: dashboard_backend/Dockerfile
+    image: gwee007/nala-assess-dashboard-backend:latest
     container_name: nala-dashboard-backend
     environment:
       - DATABASE_URL=postgresql://postgres:psw18@db:5432/nala_assess
@@ -293,6 +295,7 @@ services:
       dockerfile: Dockerfile
       args:
         - VITE_API_URL=${VITE_API_URL:-http://localhost:8000}
+    image: gwee007/nala-assess-frontend:latest
     container_name: nala-frontend
     ports:
       - "80:80"
