@@ -15,8 +15,29 @@ export function AuthProvider({ children }) {
     if (storedUserId && storedAuth === 'true') {
       setUserId(storedUserId);
       setIsAuthenticated(true);
+    } else {
+      // Clear any inconsistent localStorage data
+      localStorage.removeItem('userId');
+      localStorage.removeItem('isAuthenticated');
     }
     setLoading(false);
+  }, []);
+
+  // Add a storage event listener to detect logout in other tabs
+  useEffect(() => {
+    const handleStorageChange = (e) => {
+      if (e.key === 'isAuthenticated' && e.newValue !== 'true') {
+        setIsAuthenticated(false);
+        setUserId(null);
+      }
+      if (e.key === 'userId' && !e.newValue) {
+        setIsAuthenticated(false);
+        setUserId(null);
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
   const login = (newUserId) => {
@@ -31,6 +52,8 @@ export function AuthProvider({ children }) {
     setIsAuthenticated(false);
     localStorage.removeItem('userId');
     localStorage.removeItem('isAuthenticated');
+    // Clear any other potential auth-related data
+    localStorage.clear();
   };
 
   return (

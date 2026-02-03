@@ -61,11 +61,12 @@ export default function LoginPage() {
     <Box
       sx={{
         minHeight: '100vh',
+        height: '100vh',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        padding: 2,
+        padding: { xs: 1, sm: 2 },
         position: 'relative',
         overflow: 'hidden',
         '&::before': {
@@ -84,35 +85,39 @@ export default function LoginPage() {
         },
       }}
     >
-      <Container maxWidth="sm">
+      <Container maxWidth="sm" sx={{ width: '100%', maxHeight: '100vh', display: 'flex', alignItems: 'center' }}>
         <Box
           sx={{
             backgroundColor: 'white',
-            borderRadius: '24px',
-            padding: { xs: '2.5rem 1.5rem', sm: '3.5rem 3rem' },
+            borderRadius: { xs: '16px', sm: '24px' },
+            padding: { xs: '1.5rem 1rem', sm: '2.5rem 1.5rem', md: '3.5rem 3rem' },
             boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
             textAlign: 'center',
             position: 'relative',
             zIndex: 1,
             backdropFilter: 'blur(10px)',
             border: '1px solid rgba(255, 255, 255, 0.2)',
+            width: '100%',
+            maxWidth: '100%',
+            maxHeight: { xs: '90vh', sm: '85vh' },
+            overflow: 'auto',
           }}
         >
           {/* Logo/Icon Area */}
           <Box
             sx={{
-              width: '80px',
-              height: '80px',
-              margin: '0 auto 1.5rem',
+              width: { xs: '60px', sm: '80px' },
+              height: { xs: '60px', sm: '80px' },
+              margin: { xs: '0 auto 1rem', sm: '0 auto 1.5rem' },
               background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              borderRadius: '20px',
+              borderRadius: { xs: '15px', sm: '20px' },
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               boxShadow: '0 8px 24px rgba(102, 126, 234, 0.4)',
             }}
           >
-            <PersonIcon sx={{ fontSize: '2.5rem', color: 'white' }} />
+            <PersonIcon sx={{ fontSize: { xs: '2rem', sm: '2.5rem' }, color: 'white' }} />
           </Box>
 
           {/* Heading */}
@@ -121,8 +126,8 @@ export default function LoginPage() {
             sx={{
               fontWeight: 700,
               color: '#1a202c',
-              marginBottom: '0.5rem',
-              fontSize: { xs: '1.5rem', sm: '1.75rem', md: '2rem' },
+              marginBottom: { xs: '0.25rem', sm: '0.5rem' },
+              fontSize: { xs: '1.25rem', sm: '1.5rem', md: '1.75rem' },
             }}
           >
             Welcome Back
@@ -135,8 +140,8 @@ export default function LoginPage() {
               backgroundClip: 'text',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
-              marginBottom: '0.5rem',
-              fontSize: { xs: '1.75rem', sm: '2rem', md: '2.5rem' },
+              marginBottom: { xs: '0.25rem', sm: '0.5rem' },
+              fontSize: { xs: '1.5rem', sm: '1.75rem', md: '2rem' },
             }}
           >
             NALA-Assess
@@ -145,15 +150,15 @@ export default function LoginPage() {
             variant="body2"
             sx={{
               color: '#718096',
-              marginBottom: '2.5rem',
-              fontSize: '0.95rem',
+              marginBottom: { xs: '1.5rem', sm: '2rem', md: '2.5rem' },
+              fontSize: { xs: '0.85rem', sm: '0.95rem' },
             }}
           >
             Sign in to continue your learning journey
           </Typography>
 
           {/* Form */}
-          <Box component="form" onSubmit={handleLogin} sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+          <Box component="form" onSubmit={handleLogin} sx={{ display: 'flex', flexDirection: 'column', gap: { xs: 1.5, sm: 2.5 } }}>
             {error && (
               <Alert
                 severity="error"
@@ -252,12 +257,12 @@ export default function LoginPage() {
               type="submit"
               disabled={loading}
               sx={{
-                marginTop: '0.5rem',
+                marginTop: { xs: '0.25rem', sm: '0.5rem' },
                 background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                 color: 'white',
                 fontWeight: 700,
-                fontSize: '1.05rem',
-                padding: '0.875rem',
+                fontSize: { xs: '0.95rem', sm: '1.05rem' },
+                padding: { xs: '0.75rem', sm: '0.875rem' },
                 borderRadius: '12px',
                 textTransform: 'none',
                 boxShadow: '0 4px 14px rgba(102, 126, 234, 0.4)',
@@ -293,9 +298,9 @@ export default function LoginPage() {
             variant="caption"
             sx={{
               display: 'block',
-              marginTop: '2.5rem',
+              marginTop: { xs: '1.5rem', sm: '2rem', md: '2.5rem' },
               color: '#a0aec0',
-              fontSize: '0.8rem',
+              fontSize: { xs: '0.7rem', sm: '0.8rem' },
               fontWeight: 500,
               letterSpacing: '0.5px',
             }}
