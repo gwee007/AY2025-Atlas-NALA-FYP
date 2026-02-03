@@ -26,7 +26,7 @@ def invalidate_user_cache(user_id: str):
     try:
         # Pattern to match all user-specific cache keys
         patterns = [
-            f"dashboard:individual_stats:user_{user_id}",
+            f"dashboard:individual_stats:user:{user_id}",
             f"dashboard:summary_data:{user_id}"
         ]
         

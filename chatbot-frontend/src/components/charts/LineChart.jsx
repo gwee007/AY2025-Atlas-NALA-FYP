@@ -170,6 +170,34 @@ const LineChart = ({ data, width = 1400, height = 1000, yAxisLabel = 'Number of 
     const individualMovingAvg = calculateMovingAverage(visibleIndividual, 3);
     const averageMovingAvg = calculateMovingAverage(visibleAverage, 3);
 
+    // Add faded dots for individual data points
+    contentGroup.selectAll('.individual-dot')
+      .data(visibleIndividual.filter(d => d.interactions !== null && !isNaN(d.interactions)))
+      .enter()
+      .append('circle')
+      .attr('class', 'individual-dot')
+      .attr('cx', d => xScale(d.date))
+      .attr('cy', d => yScale(d.interactions))
+      .attr('r', 3)
+      .attr('fill', '#2563eb')
+      .attr('opacity', 0.3)
+      .attr('stroke', '#fff')
+      .attr('stroke-width', 1);
+
+    // Add faded dots for average data points
+    contentGroup.selectAll('.average-dot')
+      .data(visibleAverage.filter(d => d.interactions !== null && !isNaN(d.interactions)))
+      .enter()
+      .append('circle')
+      .attr('class', 'average-dot')
+      .attr('cx', d => xScale(d.date))
+      .attr('cy', d => yScale(d.interactions))
+      .attr('r', 3)
+      .attr('fill', '#dc2626')
+      .attr('opacity', 0.3)
+      .attr('stroke', '#fff')
+      .attr('stroke-width', 1);
+      
     // Add individual line (use visible data) - thinner for daily data
     const individualPath = contentGroup.append('path')
       .datum(visibleIndividual)

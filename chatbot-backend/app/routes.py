@@ -105,6 +105,12 @@ def chat():
                     user_answer=user_question
                 )
             )
+            try:
+                invalidate_all_caches(user_id)
+                logger.info(f"Cache invalidated for user {user_id} after new question")
+            except Exception as cache_error:
+                logger.warning(f"Failed to invalidate cache for user {user_id}: {cache_error}")
+                
             
             response_data = {
                 "response": result["chatbot_response"],

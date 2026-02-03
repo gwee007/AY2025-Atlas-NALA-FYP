@@ -967,7 +967,7 @@ def individual_statistics(user_id):
     Optimized version (Sequential):
     Calculates stats for a single user without multi-threading.
     """
-    CACHE_KEY = f"stats:user:{user_id}"
+    CACHE_KEY = f"dashboard:individual_stats:user:{user_id}"
     
     try:
         red_client_raw = get_redis_client_raw()
