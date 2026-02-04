@@ -1,6 +1,7 @@
 // API Configuration
 // All services (dashboard + chatbot) now run on the same Flask app
-const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+// Use relative paths when deployed, absolute URL for local dev
+const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://127.0.0.1:8000' : '');
 
 export const API_ENDPOINTS = {
     // Chatbot endpoints
