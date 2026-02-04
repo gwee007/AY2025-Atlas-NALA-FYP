@@ -61,8 +61,6 @@ services:
       - ./chatbot-backend/.env
     environment:
       - DATABASE_URL=postgresql://postgres:psw18@db:5432/nala_assess
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
     ports:
       - "8000:8000"
     volumes:
@@ -72,24 +70,6 @@ services:
       - redis
       - model-loader
     restart: unless-stopped
-
-  # Dashboard Backend Service
-  # dashboard-backend:
-  #   build:
-  #     context: ./chatbot-backend
-  #     dockerfile: dashboard_backend/Dockerfile
-  #   image: yophyooo/nala-assess-dashboard-backend:latest
-  #   container_name: nala-dashboard-backend
-  #   environment:
-  #     - DATABASE_URL=postgresql://postgres:psw18@db:5432/nala_assess
-  #     - REDIS_HOST=redis
-  #     - REDIS_PORT=6379
-  #   ports:
-  #     - "8001:8001"
-  #   depends_on:
-  #     - db
-  #     - redis
-  #   restart: unless-stopped
 
   # Frontend Service - AWS ALB performs health checks on port 80
   frontend:
@@ -101,7 +81,7 @@ services:
     image: yophyooo/nala-assess-frontend:latest
     container_name: nala-frontend
     ports:
-      - "80:8000"
+      - "80:8000" # do we need to change to 80:80?
     depends_on:
       - backend
     restart: unless-stopped
