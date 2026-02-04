@@ -1,27 +1,26 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useState, useContext, useEffect, useMemo } from 'react';
 
 const AuthContext = createContext(null);
 
-export function AuthProvider({ children }) {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [userId, setUserId] = useState(null);
-  const [loading, setLoading] = useState(true);
+// Initialize auth state synchronously from localStorage to eliminate loading delay
+const getInitialAuthState = () => {
+  const storedUserId = localStorage.getItem('userId');
+  const storedAuth = localStorage.getItem('isAuthenticated');
+  
+  if (storedUserId && storedAuth === 'true') {
+    return { isAuthenticated: true, userId: storedUserId };
+  }
+  
+  // Clear any inconsistent localStorage data
+  localStorage.removeItem('userId');
+  localStorage.removeItem('isAuthenticated');
+  return { isAuthenticated: false, userId: null };
+};
 
-  // Check if user is already authenticated on mount (from localStorage)
-  useEffect(() => {
-    const storedUserId = localStorage.getItem('userId');
-    const storedAuth = localStorage.getItem('isAuthenticated');
-    
-    if (storedUserId && storedAuth === 'true') {
-      setUserId(storedUserId);
-      setIsAuthenticated(true);
-    } else {
-      // Clear any inconsistent localStorage data
-      localStorage.removeItem('userId');
-      localStorage.removeItem('isAuthenticated');
-    }
-    setLoading(false);
-  }, []);
+export function AuthProvider({ children }) {
+  const initialState = useMemo(() => getInitialAuthState(), []);
+  const [isAuthenticated, setIsAuthenticated] = useState(initialState.isAuthenticated);
+  const [userId, setUserId] = useState(initialState.userId);
 
   // Add a storage event listener to detect logout in other tabs
   useEffect(() => {
@@ -57,7 +56,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, userId, loading, login, logout }}>
+    <AuthContext.Provider value={{ isAuthenticated, userId, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

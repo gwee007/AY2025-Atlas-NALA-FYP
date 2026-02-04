@@ -35,10 +35,9 @@ function Navbar() {
     };
     const handleLogout = () => {
         logout();
-        // Force immediate navigation to login
-        navigate('/login', { replace: true });
-        // Force page reload to clear any cached state (optional but extra secure)
-        window.location.href = '/login';
+        // Force immediate navigation to login with base URL
+        const baseUrl = import.meta.env.BASE_URL || '/';
+        window.location.href = `${baseUrl}login`;
     };
 
     return (
