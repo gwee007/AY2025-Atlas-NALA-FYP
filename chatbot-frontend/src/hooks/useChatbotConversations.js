@@ -52,7 +52,7 @@ export default function useChatbotConversations() {
         if (!userId) return; // Don't fetch if userId is not available
         
         try {
-            const response = await fetch(`${API_ENDPOINTS.chatbotConversations}?user_id=${userId}`);
+            const response = await fetch(`${API_ENDPOINTS.conversations}?user_id=${userId}`);
             
             if (response.ok) {
                 const data = await response.json();
@@ -88,7 +88,7 @@ export default function useChatbotConversations() {
         isLoadingConversation.current = true;
         
         try {
-            const response = await fetch(`${API_ENDPOINTS.chatbotConversations}/${conversationId}/messages?user_id=${userId}`);
+            const response = await fetch(`${API_ENDPOINTS.conversations}/${conversationId}/messages?user_id=${userId}`);
             
             if (response.ok) {
                 const data = await response.json();
