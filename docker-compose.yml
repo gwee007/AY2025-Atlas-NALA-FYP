@@ -34,6 +34,11 @@ services:
       - ./init-scripts/02-create-indexes-triggers.sql:/docker-entrypoint-initdb.d/02-create-indexes-triggers.sql:ro
       - ./init-scripts/03-insert-data.sql:/docker-entrypoint-initdb.d/03-insert-data.sql:ro
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   # Redis for caching
   redis:
@@ -45,6 +50,11 @@ services:
       - redis_data:/data
     command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
     deploy:
       resources:
         limits:
@@ -66,9 +76,12 @@ services:
     volumes:
       - ai_models:/models:ro
     depends_on:
-      - db
-      - redis
-      - model-loader
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      model-loader:
+        condition: service_completed_successfully
     restart: unless-stopped
 
   # Frontend Service - AWS ALB performs health checks on port 80
