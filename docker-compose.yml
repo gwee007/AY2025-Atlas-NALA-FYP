@@ -10,7 +10,7 @@ services:
     command: >
       sh -c "
       apk add --no-cache wget &&
-      sh download-models.sh
+      sh /download-models.sh &&
       echo 'Model download complete. Container will now exit.' &&
       exit 0
       "
