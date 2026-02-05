@@ -8,7 +8,7 @@ import ProtectedRoute from './components/ProtectedRoute'
 import { AuthProvider } from './context/AuthContext'
 import { createBrowserRouter, RouterProvider, Outlet, Navigate } from "react-router-dom";
 
-const basename = import.meta.env.BASE_URL;
+const basename = import.meta.env.NALA_BASE_URL;
 
 function RootLayout() {
   return (

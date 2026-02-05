@@ -94,7 +94,7 @@ services:
     image: yophyooo/nala-assess-frontend:latest
     container_name: nala-frontend
     ports:
-      - "80:8000" # do we need to change to 80:80?
+      - "80:8000"
     depends_on:
       - backend
     restart: unless-stopped
