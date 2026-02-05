@@ -8,7 +8,6 @@ import ProtectedRoute from './components/ProtectedRoute'
 import { AuthProvider } from './context/AuthContext'
 import { createBrowserRouter, RouterProvider, Outlet, Navigate } from "react-router-dom";
 
-const basename = import.meta.env.NALA_BASE_URL;
 
 function RootLayout() {
   return (
@@ -24,7 +23,11 @@ const router = createBrowserRouter([
     path: "/",
     element: <RootLayout />,
     children: [
-      { index: true, element: <Navigate to="/dashboard" replace /> },
+      { index: true, element: <Navigate to="/login" replace /> },
+      {
+        path: "login",
+        element: <LoginPage />
+      },
       {
         path: "dashboard",
         element: <ProtectedRoute><DashboardPage /></ProtectedRoute>,
@@ -34,26 +37,18 @@ const router = createBrowserRouter([
         element: <ProtectedRoute><ChatbotPage /></ProtectedRoute>,
       },
       {
-        path: "chatbot/:userId/:conversationId",
-        element: <ProtectedRoute><ChatbotAssessPage /></ProtectedRoute>,
-      },
-      {
         path: "chatbot/assess",
         element: <ProtectedRoute><ChatbotAssessPage /></ProtectedRoute>,
       },
       // catch all route - 404
       {
         path: "*",
-        element: <Navigate to="/dashboard" replace />,
+        element: <Navigate to="/login" replace />,
       },
     ],
   },
-  {
-    path: "/login",
-    element: <LoginPage />,
-  },
 ], {
-  basename: basename,
+  basename: import.meta.env.BASE_URL,
 });
 
 export default function App() {

@@ -1,4 +1,3 @@
-version: '3.8'
 
 services:
   # Model Loader - Downloads models using wget (runs once then exits)
@@ -11,8 +10,7 @@ services:
     command: >
       sh -c "
       apk add --no-cache wget &&
-      chmod +x /download-models.sh &&
-      /download-models.sh &&
+      sh download-models.sh
       echo 'Model download complete. Container will now exit.' &&
       exit 0
       "
@@ -26,6 +24,7 @@ services:
       POSTGRES_USER: "postgres"
       POSTGRES_PASSWORD: "psw18"
       POSTGRES_DB: "nala_assess"
+      PGDATA: /var/lib/postgresql/data/pgdata
     ports:
       - "5432:5432"
     volumes:
@@ -94,7 +93,7 @@ services:
     image: yophyooo/nala-assess-frontend:latest
     container_name: nala-frontend
     ports:
-      - "80:8000"
+      - "80:80"
     depends_on:
       - backend
     restart: unless-stopped

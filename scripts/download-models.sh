@@ -2,7 +2,7 @@
 # Script to download AI models using wget with duplicate detection
 # Models: BAAI/bge-m3 and BAAI/bge-reranker-v2-m3
 
-set -e
+set -ex
 
 echo "Starting model downloads with duplicate detection..."
 

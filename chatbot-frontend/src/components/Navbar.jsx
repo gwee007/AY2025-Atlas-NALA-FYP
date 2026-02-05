@@ -36,8 +36,7 @@ function Navbar() {
     const handleLogout = () => {
         logout();
         // Force immediate navigation to login with base URL
-        const baseUrl = import.meta.env.BASE_URL || '/';
-        window.location.href = `${baseUrl}login`;
+        navigate('/login');
     };
 
     return (
@@ -54,7 +53,7 @@ function Navbar() {
                             display: { xs: 'none', md: 'flex' },
                             fontFamily: 'Inter',
                             fontWeight: 700,
-                            color: 'inherit',
+                        color: 'inherit',
                             textDecoration: 'none',
                             fontSize: '1.2rem',
                             lineHeight: 1.75,
