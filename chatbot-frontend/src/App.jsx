@@ -8,8 +8,11 @@ import ProtectedRoute from './components/ProtectedRoute'
 import { AuthProvider } from './context/AuthContext'
 import { createBrowserRouter, RouterProvider, Outlet, Navigate } from "react-router-dom";
 
-
-function RootLayout() {
+/**
+ * Layout that includes the Navbar. 
+ * Use this only for pages where the Navbar should be visible.
+ */
+function MainLayout() {
   return (
     <>
       <Navbar />
@@ -21,26 +24,34 @@ function RootLayout() {
 const router = createBrowserRouter([
   {
     path: "/",
-    element: <RootLayout />,
+    // The top-level element is now a plain Outlet so it doesn't 
+    // force a Navbar on every child route.
+    element: <Outlet />,
     children: [
       { index: true, element: <Navigate to="/login" replace /> },
       {
         path: "login",
-        element: <LoginPage />
+        element: <LoginPage /> // Rendered without MainLayout (no Navbar)
       },
       {
-        path: "dashboard",
-        element: <ProtectedRoute><DashboardPage /></ProtectedRoute>,
-      }, 
-      {
-        path: "chatbot",
-        element: <ProtectedRoute><ChatbotPage /></ProtectedRoute>,
+        // Wrap all protected routes that need the Navbar in MainLayout
+        element: <MainLayout />,
+        children: [
+          {
+            path: "dashboard",
+            element: <ProtectedRoute><DashboardPage /></ProtectedRoute>,
+          }, 
+          {
+            path: "chatbot",
+            element: <ProtectedRoute><ChatbotPage /></ProtectedRoute>,
+          },
+          {
+            path: "chatbot/assess",
+            element: <ProtectedRoute><ChatbotAssessPage /></ProtectedRoute>,
+          },
+        ]
       },
-      {
-        path: "chatbot/assess",
-        element: <ProtectedRoute><ChatbotAssessPage /></ProtectedRoute>,
-      },
-      // catch all route - 404
+      // Catch-all route redirects to login
       {
         path: "*",
         element: <Navigate to="/login" replace />,
@@ -48,7 +59,9 @@ const router = createBrowserRouter([
     ],
   },
 ], {
-  basename: import.meta.env.BASE_URL,
+  // This preserves your /nala-assess prefix automatically 
+  // based on your Vite/environment configuration.
+  basename: import.meta.env.BASE_URL, 
 });
 
 export default function App() {
